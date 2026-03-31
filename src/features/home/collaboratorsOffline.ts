@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid'
 import {
   listSpaceCollaborators,
+  type CollaboratorPreview,
   type SpaceCollaborator,
   type SpaceCollaboratorPayload,
 } from '../../api/collaboratorsApi'
@@ -32,24 +33,38 @@ function nowIso(): string {
   return new Date().toISOString()
 }
 
+function todayIso(): string {
+  return nowIso().slice(0, 10)
+}
+
 function toLocalRecord(remote: SpaceCollaborator): SpaceCollaboratorRecord {
   const now = nowIso()
   return {
     id: `remote-${remote.id}`,
     space_id: remote.comedor,
     remote_id: remote.id,
+    ciudadano_id: remote.ciudadano_id,
     nombre: remote.nombre,
     apellido: remote.apellido,
     dni: remote.dni,
-    telefono: remote.telefono,
-    email: remote.email,
-    rol_funcion: remote.rol_funcion,
+    prefijo_cuil: remote.prefijo_cuil,
+    cuil_cuit: remote.cuil_cuit,
+    sufijo_cuil: remote.sufijo_cuil,
+    sexo: remote.sexo,
+    genero: remote.genero,
+    fecha_nacimiento: remote.fecha_nacimiento,
+    edad: remote.edad,
+    codigo_telefono: remote.codigo_telefono || '',
+    numero_telefono: remote.numero_telefono || '',
+    fecha_alta: remote.fecha_alta,
+    fecha_baja: remote.fecha_baja,
+    actividades: remote.actividades,
     activo: remote.activo,
     sync_status: 'synced',
     pending_action: null,
     last_error: null,
-    created_at: remote.fecha_creacion || now,
-    updated_at: remote.fecha_actualizacion || now,
+    created_at: remote.fecha_creado || now,
+    updated_at: remote.fecha_modificado || now,
   }
 }
 
@@ -71,6 +86,15 @@ async function removeOutboxForLocalId(localId: string): Promise<void> {
   await Promise.all(matches.map((row) => (row.id ? db.outbox.delete(row.id) : Promise.resolve())))
 }
 
+function sortRows(rows: SpaceCollaboratorRecord[]): SpaceCollaboratorRecord[] {
+  return rows.sort((a, b) => {
+    if (a.activo !== b.activo) {
+      return a.activo ? -1 : 1
+    }
+    return `${a.apellido} ${a.nombre}`.localeCompare(`${b.apellido} ${b.nombre}`)
+  })
+}
+
 export async function listLocalSpaceCollaborators(
   spaceId: string | number,
 ): Promise<SpaceCollaboratorRecord[]> {
@@ -78,8 +102,8 @@ export async function listLocalSpaceCollaborators(
   const rows = await db.space_collaborators
     .where('space_id')
     .equals(parsedSpaceId)
-    .filter((row) => row.activo && row.pending_action !== 'delete')
     .toArray()
+
   const uniqueByRemoteId = new Map<number, SpaceCollaboratorRecord>()
   const withoutRemoteId: SpaceCollaboratorRecord[] = []
 
@@ -110,9 +134,7 @@ export async function listLocalSpaceCollaborators(
     }
   }
 
-  return [...withoutRemoteId, ...Array.from(uniqueByRemoteId.values())].sort((a, b) =>
-    `${a.apellido} ${a.nombre}`.localeCompare(`${b.apellido} ${b.nombre}`),
-  )
+  return sortRows([...withoutRemoteId, ...Array.from(uniqueByRemoteId.values())])
 }
 
 export async function mergeRemoteCollaborators(spaceId: string | number): Promise<void> {
@@ -135,6 +157,7 @@ export async function mergeRemoteCollaborators(spaceId: string | number): Promis
     if (!remote) {
       await db.space_collaborators.update(localRow.id, {
         activo: false,
+        fecha_baja: localRow.fecha_baja || todayIso(),
         sync_status: 'synced',
         pending_action: null,
         updated_at: nowIso(),
@@ -158,6 +181,7 @@ export async function mergeRemoteCollaborators(spaceId: string | number): Promis
 export async function createCollaboratorOffline(
   spaceId: string | number,
   payload: SpaceCollaboratorPayload,
+  preview: CollaboratorPreview,
 ): Promise<SpaceCollaboratorRecord> {
   const parsedSpaceId = Number(spaceId)
   const timestamp = nowIso()
@@ -166,13 +190,23 @@ export async function createCollaboratorOffline(
     id: localId,
     space_id: parsedSpaceId,
     remote_id: null,
-    nombre: payload.nombre,
-    apellido: payload.apellido,
-    dni: payload.dni,
-    telefono: payload.telefono,
-    email: payload.email,
-    rol_funcion: payload.rol_funcion,
-    activo: true,
+    ciudadano_id: payload.ciudadano_id || preview.ciudadano_id,
+    nombre: preview.nombre,
+    apellido: preview.apellido,
+    dni: preview.dni,
+    prefijo_cuil: preview.prefijo_cuil,
+    cuil_cuit: preview.cuil_cuit,
+    sufijo_cuil: preview.sufijo_cuil,
+    sexo: preview.sexo,
+    genero: payload.genero,
+    fecha_nacimiento: preview.fecha_nacimiento,
+    edad: preview.edad,
+    codigo_telefono: payload.codigo_telefono,
+    numero_telefono: payload.numero_telefono,
+    fecha_alta: payload.fecha_alta,
+    fecha_baja: payload.fecha_baja || null,
+    actividades: [],
+    activo: !payload.fecha_baja,
     sync_status: 'pending',
     pending_action: 'create',
     last_error: null,
@@ -199,7 +233,13 @@ export async function updateCollaboratorOffline(
 ): Promise<void> {
   const timestamp = nowIso()
   await db.space_collaborators.update(collaborator.id, {
-    ...payload,
+    ciudadano_id: payload.ciudadano_id || collaborator.ciudadano_id || null,
+    genero: payload.genero,
+    codigo_telefono: payload.codigo_telefono,
+    numero_telefono: payload.numero_telefono,
+    fecha_alta: payload.fecha_alta,
+    fecha_baja: payload.fecha_baja || null,
+    activo: !payload.fecha_baja,
     updated_at: timestamp,
     sync_status: 'pending',
     pending_action: collaborator.remote_id ? 'update' : collaborator.pending_action || 'create',
@@ -254,12 +294,19 @@ export async function deleteCollaboratorOffline(
 ): Promise<void> {
   if (!collaborator.remote_id) {
     await removeOutboxForLocalId(collaborator.id)
-    await db.space_collaborators.delete(collaborator.id)
+    await db.space_collaborators.update(collaborator.id, {
+      activo: false,
+      fecha_baja: collaborator.fecha_baja || todayIso(),
+      pending_action: null,
+      sync_status: 'synced',
+      updated_at: nowIso(),
+    })
     return
   }
 
   await db.space_collaborators.update(collaborator.id, {
     activo: false,
+    fecha_baja: collaborator.fecha_baja || todayIso(),
     sync_status: 'pending',
     pending_action: 'delete',
     updated_at: nowIso(),

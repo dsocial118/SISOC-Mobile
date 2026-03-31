@@ -1,20 +1,24 @@
-﻿import { lazy, Suspense, useEffect, useRef, type ReactNode } from 'react'
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { BrowserRouter } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { LoginFormPage } from '../auth/LoginFormPage'
+import { PasswordChangeRequiredPage } from '../auth/PasswordChangeRequiredPage'
+import { PasswordResetRequestPage } from '../auth/PasswordResetRequestPage'
+import { MOBILE_RENDICION_PERMISSION } from '../auth/permissionCodes'
 import { ProtectedRoute } from '../auth/ProtectedRoute'
-import { useAuth } from '../auth/useAuth'
 import { AppLayout } from '../ui/AppLayout'
 import { FullScreenPageLoader } from '../ui/FullScreenPageLoader'
 
-const LoginFormPage = lazy(() =>
-  import('../auth/LoginFormPage').then((module) => ({ default: module.LoginFormPage })),
-)
 const NoteDemoPage = lazy(() =>
   import('../features/notes/NoteDemoPage').then((module) => ({ default: module.NoteDemoPage })),
 )
 const OrganizationHomePage = lazy(() =>
   import('../features/home/OrganizationHomePage').then((module) => ({
     default: module.OrganizationHomePage,
+  })),
+)
+const OrganizationMessagesPage = lazy(() =>
+  import('../features/home/OrganizationMessagesPage').then((module) => ({
+    default: module.OrganizationMessagesPage,
   })),
 )
 const SpaceHubPage = lazy(() =>
@@ -27,9 +31,14 @@ const SpaceDetailPage = lazy(() =>
     default: module.SpaceDetailPage,
   })),
 )
-const SpaceModulePlaceholderPage = lazy(() =>
-  import('../features/home/SpaceModulePlaceholderPage').then((module) => ({
-    default: module.SpaceModulePlaceholderPage,
+const SpaceMessagesPage = lazy(() =>
+  import('../features/home/SpaceMessagesPage').then((module) => ({
+    default: module.SpaceMessagesPage,
+  })),
+)
+const SpaceMessageDetailPage = lazy(() =>
+  import('../features/home/SpaceMessageDetailPage').then((module) => ({
+    default: module.SpaceMessageDetailPage,
   })),
 )
 const SpaceActivitiesPage = lazy(() =>
@@ -42,6 +51,36 @@ const SpaceNominaPage = lazy(() =>
     default: module.SpaceNominaPage,
   })),
 )
+const SpaceNominaPersonDetailPage = lazy(() =>
+  import('../features/home/SpaceNominaPersonDetailPage').then((module) => ({
+    default: module.SpaceNominaPersonDetailPage,
+  })),
+)
+const SpaceNominaPersonFormPage = lazy(() =>
+  import('../features/home/SpaceNominaPersonFormPage').then((module) => ({
+    default: module.SpaceNominaPersonFormPage,
+  })),
+)
+const SpaceRendicionPage = lazy(() =>
+  import('../features/home/SpaceRendicionPage').then((module) => ({
+    default: module.SpaceRendicionPage,
+  })),
+)
+const RendicionContextPage = lazy(() =>
+  import('../features/home/RendicionContextPage').then((module) => ({
+    default: module.RendicionContextPage,
+  })),
+)
+const SpaceRendicionFormPage = lazy(() =>
+  import('../features/home/SpaceRendicionFormPage').then((module) => ({
+    default: module.SpaceRendicionFormPage,
+  })),
+)
+const SpaceRendicionDetailPage = lazy(() =>
+  import('../features/home/SpaceRendicionDetailPage').then((module) => ({
+    default: module.SpaceRendicionDetailPage,
+  })),
+)
 const HomePlaceholderPage = lazy(() =>
   import('../features/home/HomePlaceholderPage').then((module) => ({
     default: module.HomePlaceholderPage,
@@ -52,42 +91,19 @@ const SyncCenterPage = lazy(() =>
     default: module.SyncCenterPage,
   })),
 )
-const PreLoginPage = lazy(() =>
-  import('../prelogin/PreLoginPage').then((module) => ({ default: module.PreLoginPage })),
-)
-
-function PublicPageLoader({ children }: { children: ReactNode }) {
-  const { isLoading } = useAuth()
-
-  if (isLoading) {
-    return <FullScreenPageLoader />
-  }
-
-  return <>{children}</>
-}
 
 export function AppRouter() {
   return (
     <BrowserRouter>
-      <InitialEntryRedirect />
       <Suspense fallback={<FullScreenPageLoader />}>
         <Routes>
-          <Route
-            path="/"
-            element={
-              <PublicPageLoader>
-                <PreLoginPage />
-              </PublicPageLoader>
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              <PublicPageLoader>
-                <LoginFormPage />
-              </PublicPageLoader>
-            }
-          />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/login" element={<LoginFormPage />} />
+          <Route path="/password-reset-request" element={<PasswordResetRequestPage />} />
+
+          <Route element={<ProtectedRoute allowed={['user', 'org']} />}>
+            <Route path="/password-change-required" element={<PasswordChangeRequiredPage />} />
+          </Route>
 
           <Route element={<ProtectedRoute allowed={['user']} />}>
             <Route
@@ -111,49 +127,56 @@ export function AppRouter() {
               <Route path="espacios/:spaceId" element={<SpaceHubPage />} />
               <Route path="espacios/:spaceId/hub" element={<SpaceHubPage />} />
               <Route path="espacios/:spaceId/informacion" element={<SpaceDetailPage />} />
+              <Route path="espacios/:spaceId/mensajes" element={<SpaceMessagesPage />} />
               <Route
-                path="espacios/:spaceId/mensajes"
-                element={<SpaceModulePlaceholderPage moduleTitle="Mensajes" />}
+                path="espacios/:spaceId/mensajes/:messageId"
+                element={<SpaceMessageDetailPage />}
+              />
+              <Route path="espacios/:spaceId/actividades" element={<SpaceActivitiesPage />} />
+              <Route path="espacios/:spaceId/nomina" element={<SpaceNominaPage />} />
+              <Route
+                path="espacios/:spaceId/nomina/nueva"
+                element={<SpaceNominaPersonFormPage />}
               />
               <Route
-                path="espacios/:spaceId/actividades"
-                element={<SpaceActivitiesPage />}
+                path="espacios/:spaceId/nomina/:nominaId"
+                element={<SpaceNominaPersonDetailPage />}
               />
               <Route
-                path="espacios/:spaceId/nomina"
-                element={<SpaceNominaPage />}
+                path="espacios/:spaceId/nomina/:nominaId/editar"
+                element={<SpaceNominaPersonFormPage />}
               />
               <Route
-                path="espacios/:spaceId/rendicion"
-                element={<SpaceModulePlaceholderPage moduleTitle="Rendición de Cuentas" />}
+                path="espacios/:spaceId/nomina/:nominaId/actividades"
+                element={<SpaceNominaPersonFormPage />}
               />
-              <Route path="mensajes" element={<HomePlaceholderPage title="Mensajes" />} />
+              <Route path="mensajes" element={<OrganizationMessagesPage />} />
               <Route path="sincronizacion" element={<SyncCenterPage />} />
+              <Route
+                element={
+                  <ProtectedRoute
+                    allowed={['org']}
+                    requiredPermissions={[MOBILE_RENDICION_PERMISSION]}
+                  />
+                }
+              >
+                <Route path="rendicion" element={<RendicionContextPage />} />
+                <Route path="espacios/:spaceId/rendicion" element={<SpaceRendicionPage />} />
+                <Route
+                  path="espacios/:spaceId/rendicion/nueva"
+                  element={<SpaceRendicionFormPage />}
+                />
+                <Route
+                  path="espacios/:spaceId/rendicion/:rendicionId"
+                  element={<SpaceRendicionDetailPage />}
+                />
+              </Route>
             </Route>
           </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Suspense>
     </BrowserRouter>
   )
 }
-
-function InitialEntryRedirect() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const redirectedRef = useRef(false)
-
-  useEffect(() => {
-    if (redirectedRef.current) {
-      return
-    }
-    redirectedRef.current = true
-    if (location.pathname !== '/') {
-      navigate('/', { replace: true })
-    }
-  }, [location.pathname, navigate])
-
-  return null
-}
-

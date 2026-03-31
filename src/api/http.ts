@@ -79,5 +79,7 @@ export async function clearLocalData(): Promise<void> {
   await db.outbox.clear()
   await db.notes.clear()
   await db.space_collaborators.clear()
+  await db.rendicion_files.clear()
+  await db.rendiciones.clear()
   await clearSession()
 }

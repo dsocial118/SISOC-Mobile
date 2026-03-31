@@ -1,7 +1,7 @@
 import { Workbox } from 'workbox-window'
 
 export function registerPwa(): void {
-  if (!('serviceWorker' in navigator)) {
+  if (!('serviceWorker' in navigator) || !import.meta.env.PROD) {
     return
   }
 

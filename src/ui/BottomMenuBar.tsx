@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
+  faCalculator,
   faComments,
   faGear,
   faHouse,
@@ -60,12 +61,15 @@ export function BottomMenuBar({
             const isActive =
               item.id === 'inicio'
                 ? location.pathname === item.to
+                : item.id === 'rendicion'
+                  ? /^\/app-org\/rendicion\/?$/.test(location.pathname)
+                    || /^\/app-org\/espacios\/\d+\/rendicion(?:\/.*)?$/.test(location.pathname)
                 : location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)
             return (
               <li key={item.id} className="flex h-full items-center justify-center">
                 <button
                   type="button"
-                  onClick={() => navigate(item.to)}
+                  onClick={() => navigate(item.to, { state: location.state })}
                   className="flex h-full w-full flex-col items-center justify-center gap-1 rounded-[8px] transition-colors"
                   style={{
                     color: isActive ? activeColor : fgColor,
@@ -122,6 +126,10 @@ export function ListIcon() {
 
 export function MessagesIcon() {
   return <FontAwesomeIcon icon={faComments} aria-hidden="true" style={{ fontSize: 22 }} />
+}
+
+export function RendicionIcon() {
+  return <FontAwesomeIcon icon={faCalculator} aria-hidden="true" style={{ fontSize: 22 }} />
 }
 
 export function SettingsIcon() {

@@ -3,6 +3,11 @@ import { http } from './http'
 export interface SpaceItem {
   id: number
   nombre: string
+  organizacion_id?: number | null
+  organizacion__nombre?: string | null
+  programa_id?: number | null
+  programa__nombre?: string | null
+  codigo_de_proyecto?: string | null
   ultimo_estado__estado_general__estado_actividad__estado?: string | null
   ultimo_estado__estado_general__estado_proceso?: string | number | null
   ultimo_estado__estado_general__estado_proceso__estado?: string | null
@@ -10,6 +15,7 @@ export interface SpaceItem {
   ultimo_estado__estado_general__estado_detalle__estado?: string | null
   provincia__nombre?: string | null
   localidad__nombre?: string | null
+  tipo_asociacion?: 'organizacion' | 'espacio' | null
   calle?: string | null
   numero?: number | null
 }
@@ -48,7 +54,7 @@ export interface SpaceDetail {
   id: number
   nombre: string
   codigo_de_proyecto?: string | null
-  comienzo?: string | null
+  comienzo?: string | number | null
   estado?: string | null
   calle?: string | null
   numero?: number | null
@@ -73,6 +79,14 @@ export interface SpaceDetail {
     estado_actividad?: string | null
     estado_proceso?: string | null
     estado_detalle?: string | null
+  } | null
+  relevamiento_actual_mobile?: {
+    fecha_visita?: string | null
+    estado?: string | null
+    items: Array<{
+      pregunta: string
+      respuesta: string
+    }>
   } | null
 }
 

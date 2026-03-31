@@ -21,6 +21,15 @@ export interface NominaActividad {
   horario: string
 }
 
+export interface NominaAttendanceRecord {
+  id: number
+  periodicidad: string
+  periodo_referencia: string
+  periodo_label: string
+  fecha_toma_asistencia: string
+  tomado_por: string | null
+}
+
 export interface NominaPerson {
   id: number
   nombre: string
@@ -31,8 +40,11 @@ export interface NominaPerson {
   estado: string
   badges: string[]
   actividades: NominaActividad[]
+  cantidad_actividades: number
   es_indocumentado: boolean
   identificador_interno: string | null
+  asistencia_mes_actual: NominaAttendanceRecord | null
+  historial_asistencias: NominaAttendanceRecord[]
 }
 
 export interface NominaResponse {
@@ -115,6 +127,34 @@ export async function updateNominaPerson(
   return data
 }
 
+export async function getNominaPersonDetail(
+  spaceId: string | number,
+  nominaId: string | number,
+): Promise<NominaPerson> {
+  const { data } = await http.get<NominaPerson>(`/pwa/espacios/${spaceId}/nomina/${nominaId}/`)
+  return data
+}
+
 export async function deleteNominaPerson(spaceId: string | number, nominaId: string | number): Promise<void> {
   await http.delete(`/pwa/espacios/${spaceId}/nomina/${nominaId}/`)
+}
+
+export async function registerNominaAttendance(
+  spaceId: string | number,
+  nominaId: string | number,
+): Promise<{ created: boolean; registro: NominaAttendanceRecord }> {
+  const { data } = await http.post<{ created: boolean; registro: NominaAttendanceRecord }>(
+    `/pwa/espacios/${spaceId}/nomina/${nominaId}/registrar-asistencia/`,
+  )
+  return data
+}
+
+export async function listNominaAttendanceHistory(
+  spaceId: string | number,
+  nominaId: string | number,
+): Promise<NominaAttendanceRecord[]> {
+  const { data } = await http.get<NominaAttendanceRecord[]>(
+    `/pwa/espacios/${spaceId}/nomina/${nominaId}/historial-asistencia/`,
+  )
+  return data
 }

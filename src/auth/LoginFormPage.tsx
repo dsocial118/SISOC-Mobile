@@ -1,18 +1,19 @@
-﻿import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faEye, faEyeSlash, faLock, faUser } from '@fortawesome/free-solid-svg-icons'
-import { LargeBlueButton } from '../ui/buttons'
-import { getHomePathForRole } from './roleRouting'
-import { useAuth } from './useAuth'
 import sisocDarkMode from '../assets/images/sisoc_dark_mode.png'
 import sisocLightMode from '../assets/images/sisoc_light_mode.png'
+import { InstallPwaModal } from '../pwa/InstallPwaModal'
 import { AppLoadingSpinner } from '../ui/AppLoadingSpinner'
 import { SafeScreen } from '../ui/SafeScreen'
 import { useAppTheme } from '../ui/ThemeContext'
+import { LargeBlueButton } from '../ui/buttons'
+import { getHomePathForRole } from './roleRouting'
+import { useAuth } from './useAuth'
 
 export function LoginFormPage() {
-  const { login } = useAuth()
+  const { login, role, isAuthenticated, isLoading } = useAuth()
   const { isDark } = useAppTheme()
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
@@ -26,8 +27,8 @@ export function LoginFormPage() {
     setLoading(true)
 
     try {
-      const role = await login({ username, password })
-      navigate(getHomePathForRole(role), { replace: true })
+      const nextRole = await login({ username, password })
+      navigate(getHomePathForRole(nextRole), { replace: true })
     } catch (submitError) {
       const errorMessage =
         submitError instanceof Error
@@ -40,8 +41,14 @@ export function LoginFormPage() {
   }
 
   function handleRecoverPasswordClick() {
-    setError('La recuperación de contraseña estará disponible pronto.')
+    navigate('/password-reset-request')
   }
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && role) {
+      navigate(getHomePathForRole(role), { replace: true })
+    }
+  }, [isAuthenticated, isLoading, navigate, role])
 
   return (
     <SafeScreen
@@ -53,6 +60,7 @@ export function LoginFormPage() {
           : 'linear-gradient(180deg, #F7F8FB 0%, #EFF2F8 100%)',
       }}
     >
+      <InstallPwaModal />
       <div className="w-full max-w-md">
         <form onSubmit={handleSubmit}>
           {error ? (
@@ -116,7 +124,11 @@ export function LoginFormPage() {
             </button>
           </p>
 
-          <div className={`mx-auto mb-10 w-[75%] border-t ${isDark ? 'border-white/20' : 'border-[#E0E0E0]'}`} />
+          <div
+            className={`mx-auto mb-10 w-[75%] border-t ${
+              isDark ? 'border-white/20' : 'border-[#E0E0E0]'
+            }`}
+          />
         </form>
 
         <div className="mt-10 flex justify-center">
@@ -143,7 +155,7 @@ interface LoginInputFieldProps {
   required?: boolean
 }
 
-function LoginInputField({
+export function LoginInputField({
   id,
   type,
   icon,
@@ -200,4 +212,3 @@ function EyeIcon() {
 function EyeOffIcon() {
   return <FontAwesomeIcon icon={faEyeSlash} aria-hidden="true" style={{ fontSize: 14 }} />
 }
-

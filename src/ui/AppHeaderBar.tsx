@@ -17,6 +17,7 @@ interface AppHeaderBarProps {
   onNotificationsClick?: () => void
   onSyncCenterClick?: () => void
   hasPendingSync?: boolean
+  notificationsBadgeCount?: number
 }
 
 export function AppHeaderBar({
@@ -30,6 +31,7 @@ export function AppHeaderBar({
   onNotificationsClick,
   onSyncCenterClick,
   hasPendingSync = false,
+  notificationsBadgeCount = 0,
 }: AppHeaderBarProps) {
   return (
     <header className="fixed inset-x-0 top-0 z-30 w-full">
@@ -115,9 +117,11 @@ export function AppHeaderBar({
               className="relative flex h-[34px] w-[34px] items-center justify-center"
             >
               <FontAwesomeIcon icon={faBell} aria-hidden="true" style={{ fontSize: 20, color: '#F2F2F2' }} />
-              <span className="absolute -right-1 -top-1 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[#D32F2F] px-[3px] text-[9px] font-bold leading-none text-white">
-                2
-              </span>
+              {notificationsBadgeCount > 0 ? (
+                <span className="absolute -right-[2px] -top-[6px] flex h-[19px] min-w-[19px] items-center justify-center rounded-full border-[1.5px] border-white bg-[#D32F2F] px-[4px] text-[10px] font-extrabold leading-none tracking-[-0.01em] text-white shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
+                  {notificationsBadgeCount > 99 ? '99+' : notificationsBadgeCount}
+                </span>
+              ) : null}
             </button>
           </div>
         </div>

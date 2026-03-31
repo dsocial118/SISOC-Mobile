@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
+  changeRequiredPasswordRequest,
   getRoleFromCurrentToken,
   loginRequest,
   logoutRequest,
@@ -50,6 +51,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         || validated.user_profile.username !== session.user_profile?.username
         || validated.user_profile.email !== session.user_profile?.email
         || validated.user_profile.fullName !== session.user_profile?.fullName
+        || validated.user_profile.mustChangePassword !== session.user_profile?.mustChangePassword
+        || JSON.stringify(validated.user_profile.permissions)
+          !== JSON.stringify(session.user_profile?.permissions ?? [])
       ) {
         await saveSession({
           access_token: session.access_token,
@@ -113,20 +117,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await saveSession({
       access_token: `demo-token-${nextRole}`,
       role: nextRole,
-      user_profile: {
-        username: `demo_${nextRole}`,
-        email: '',
-        fullName: nextRole === 'org' ? 'Demo Organización' : 'Demo Usuario',
-      },
+        user_profile: {
+          username: `demo_${nextRole}`,
+          email: '',
+          fullName: nextRole === 'org' ? 'Demo Organización' : 'Demo Usuario',
+          mustChangePassword: false,
+          permissions: [],
+        },
     })
     setRole(nextRole)
     setUserProfile({
       username: `demo_${nextRole}`,
       email: '',
       fullName: nextRole === 'org' ? 'Demo Organización' : 'Demo Usuario',
+      mustChangePassword: false,
+      permissions: [],
     })
     setSessionStatus('local')
   }, [])
+
+  const completeRequiredPasswordChange = useCallback(async (newPassword: string) => {
+    const session = await getSession()
+    if (!session) {
+      throw new Error('La sesión expiró. Volvé a ingresar.')
+    }
+
+    await changeRequiredPasswordRequest({
+      token: session.access_token,
+      newPassword,
+    })
+
+    const nextProfile = session.user_profile
+      ? { ...session.user_profile, mustChangePassword: false }
+      : userProfile
+        ? { ...userProfile, mustChangePassword: false }
+        : null
+
+    await saveSession({
+      access_token: session.access_token,
+      role: session.role,
+      user_profile: nextProfile,
+    })
+    setUserProfile(nextProfile)
+    setSessionStatus('validated')
+  }, [userProfile])
 
   const logout = useCallback(async () => {
     const session = await getSession()
@@ -152,9 +186,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionStatus,
       login,
       loginDemo,
+      completeRequiredPasswordChange,
       logout,
     }),
-    [role, userProfile, isLoading, sessionStatus, login, loginDemo, logout],
+    [
+      role,
+      userProfile,
+      isLoading,
+      sessionStatus,
+      login,
+      loginDemo,
+      completeRequiredPasswordChange,
+      logout,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

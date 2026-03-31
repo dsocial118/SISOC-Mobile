@@ -84,7 +84,10 @@ export function InstallPwaModal() {
       <InstallNoticeCard
         title="Instalar app SISOC"
         primaryAction={
-          <SmallWhiteButton onClick={handleClose} className="m-0">
+          <SmallWhiteButton
+            onClick={handleClose}
+            className="m-0 h-[42px] min-w-[124px] px-5 text-[15px] leading-none"
+          >
             Entendido
           </SmallWhiteButton>
         }

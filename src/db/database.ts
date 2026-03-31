@@ -6,6 +6,8 @@ export interface SessionUserProfile {
   username: string
   email: string
   fullName: string
+  mustChangePassword: boolean
+  permissions: string[]
 }
 
 export interface UserSessionRecord {
@@ -22,6 +24,11 @@ export type OutboxType =
   | 'CREATE_COLLABORATOR'
   | 'UPDATE_COLLABORATOR'
   | 'DELETE_COLLABORATOR'
+  | 'CREATE_RENDICION'
+  | 'UPLOAD_RENDICION_FILE'
+  | 'DELETE_RENDICION_FILE'
+  | 'PRESENT_RENDICION'
+  | 'DELETE_RENDICION'
 
 export interface OutboxRecord {
   id?: number
@@ -48,19 +55,83 @@ export interface NoteRecord {
 
 export type LocalSyncStatus = 'pending' | 'synced' | 'failed'
 
+export type LocalRendicionPendingAction =
+  | 'create'
+  | 'present'
+  | 'delete'
+  | null
+
+export type LocalRendicionFilePendingAction = 'upload' | 'delete' | null
+
 export interface SpaceCollaboratorRecord {
   id: string
   space_id: number
   remote_id?: number | null
+  ciudadano_id?: number | null
   nombre: string
   apellido: string
   dni: string
-  telefono: string
-  email: string
-  rol_funcion: string
+  prefijo_cuil?: string | null
+  cuil_cuit?: string | null
+  sufijo_cuil?: string | null
+  sexo?: string | null
+  genero: string
+  fecha_nacimiento?: string | null
+  edad?: number | null
+  codigo_telefono: string
+  numero_telefono: string
+  fecha_alta: string
+  fecha_baja?: string | null
+  actividades: Array<{
+    id: number
+    alias: string
+    nombre: string
+  }>
   activo: boolean
   sync_status: LocalSyncStatus
   pending_action?: 'create' | 'update' | 'delete' | null
+  last_error?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface LocalRendicionRecord {
+  id: string
+  space_id: number
+  remote_id?: number | null
+  convenio: string | null
+  numero_rendicion: number | null
+  mes: number
+  anio: number
+  periodo_inicio: string | null
+  periodo_fin: string | null
+  periodo_label: string
+  estado: string
+  estado_label: string
+  documento_adjunto: boolean
+  observaciones: string | null
+  sync_status: LocalSyncStatus
+  pending_action?: LocalRendicionPendingAction
+  last_error?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface LocalRendicionFileRecord {
+  id: string
+  rendicion_id: string
+  remote_id?: number | null
+  categoria: string
+  categoria_label: string
+  nombre: string
+  file_blob?: Blob | null
+  mime_type?: string | null
+  url?: string | null
+  estado: string
+  estado_label: string
+  observaciones: string | null
+  sync_status: LocalSyncStatus
+  pending_action?: LocalRendicionFilePendingAction
   last_error?: string | null
   created_at: string
   updated_at: string
@@ -71,6 +142,8 @@ class AppDatabase extends Dexie {
   outbox!: Table<OutboxRecord, number>
   notes!: Table<NoteRecord, string>
   space_collaborators!: Table<SpaceCollaboratorRecord, string>
+  rendiciones!: Table<LocalRendicionRecord, string>
+  rendicion_files!: Table<LocalRendicionFileRecord, string>
 
   constructor() {
     super('sisoc_offline_db')
@@ -84,6 +157,22 @@ class AppDatabase extends Dexie {
       outbox: '++id, type, status, created_at, client_uuid, next_retry_at',
       notes: 'id, synced, created_at',
       space_collaborators: 'id, space_id, remote_id, activo, sync_status, updated_at',
+    })
+    this.version(3).stores({
+      users_session: 'id, role, updated_at',
+      outbox: '++id, type, status, created_at, client_uuid, next_retry_at',
+      notes: 'id, synced, created_at',
+      space_collaborators: 'id, space_id, remote_id, ciudadano_id, activo, sync_status, updated_at',
+    })
+    this.version(4).stores({
+      users_session: 'id, role, updated_at',
+      outbox: '++id, type, status, created_at, client_uuid, next_retry_at',
+      notes: 'id, synced, created_at',
+      space_collaborators: 'id, space_id, remote_id, ciudadano_id, activo, sync_status, updated_at',
+      rendiciones:
+        'id, space_id, remote_id, estado, sync_status, pending_action, updated_at',
+      rendicion_files:
+        'id, rendicion_id, remote_id, categoria, sync_status, pending_action, updated_at',
     })
   }
 }

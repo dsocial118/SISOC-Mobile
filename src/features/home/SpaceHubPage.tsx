@@ -1,25 +1,24 @@
-﻿import { useEffect, useMemo, useState } from 'react'
-import type { AxiosError } from 'axios'
+import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faChevronLeft } from '@fortawesome/free-solid-svg-icons'
 import {
-  faCalculator,
   faCalendarDays,
-  faComments,
+  faChevronLeft,
   faCircleInfo,
+  faComments,
   faUsers,
 } from '@fortawesome/free-solid-svg-icons'
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { listMySpaces } from '../../api/spacesApi'
-import { getSpaceDetail, type SpaceDetail } from '../../api/spacesApi'
+import { getSpaceDetail, listMySpaces, type SpaceDetail } from '../../api/spacesApi'
 import { useAuth } from '../../auth/useAuth'
+import { parseApiError } from '../../api/errorUtils'
 import {
   getOrganizationSpacesCache,
   setOrganizationSpacesCache,
 } from './organizationSpacesCache'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
+import { useSpaceUnreadMessages } from './useUnreadMessages'
 
 interface HubModule {
   id: string
@@ -35,16 +34,22 @@ export function SpaceHubPage() {
   const { userProfile } = useAuth()
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
-  const routeState = (location.state as {
-    spaceName?: string
-    programName?: string
-    fromSingleSpaceAuto?: boolean
-  } | null) ?? null
+  const routeState =
+    (location.state as {
+      spaceName?: string
+      programName?: string
+      fromSingleSpaceAuto?: boolean
+    } | null) ?? null
+
   const hasFastContext = Boolean(routeState?.spaceName)
   const [spaceDetail, setSpaceDetail] = useState<SpaceDetail | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
   const [loading, setLoading] = useState(!hasFastContext)
   const [isSingleSpaceUser, setIsSingleSpaceUser] = useState(false)
+  const [hasOperationalAssociation, setHasOperationalAssociation] = useState<boolean | null>(
+    null,
+  )
+  const unreadMessagesCount = useSpaceUnreadMessages(spaceId, userProfile?.username)
 
   useEffect(() => {
     let isMounted = true
@@ -53,7 +58,7 @@ export function SpaceHubPage() {
       const shouldBlockUi = !hasFastContext
       setPageLoading(shouldBlockUi)
       if (!spaceId) {
-        setErrorMessage('No se encontro el espacio seleccionado.')
+        setErrorMessage('No se encontró el espacio seleccionado.')
         setLoading(false)
         setPageLoading(false)
         return
@@ -88,11 +93,8 @@ export function SpaceHubPage() {
         if (!isMounted) {
           return
         }
-        const detail =
-          (error as AxiosError<{ detail?: string }>)?.response?.data?.detail
-          || 'No se pudo validar el espacio.'
         if (shouldBlockUi) {
-          setErrorMessage(detail)
+          setErrorMessage(parseApiError(error, 'No se pudo validar el espacio.'))
         }
       } finally {
         if (isMounted) {
@@ -107,17 +109,20 @@ export function SpaceHubPage() {
       isMounted = false
       setPageLoading(false)
     }
-  }, [hasFastContext, setPageLoading, spaceId])
+  }, [hasFastContext, location.pathname, navigate, routeState, setPageLoading, spaceId])
 
   useEffect(() => {
     let isMounted = true
 
-    async function resolveSingleSpaceMode() {
+    async function resolveAccessState() {
       const cacheKey = (userProfile?.username || '__anonymous__').trim() || '__anonymous__'
       const cached = getOrganizationSpacesCache(cacheKey)
       if (cached) {
         if (isMounted) {
           setIsSingleSpaceUser(cached.length === 1)
+          setHasOperationalAssociation(
+            Boolean(spaceId) && cached.some((space) => String(space.id) === String(spaceId)),
+          )
         }
         return
       }
@@ -127,19 +132,23 @@ export function SpaceHubPage() {
         setOrganizationSpacesCache(cacheKey, spaces)
         if (isMounted) {
           setIsSingleSpaceUser(spaces.length === 1)
+          setHasOperationalAssociation(
+            Boolean(spaceId) && spaces.some((space) => String(space.id) === String(spaceId)),
+          )
         }
       } catch {
         if (isMounted) {
           setIsSingleSpaceUser(false)
+          setHasOperationalAssociation(null)
         }
       }
     }
 
-    void resolveSingleSpaceMode()
+    void resolveAccessState()
     return () => {
       isMounted = false
     }
-  }, [userProfile?.username])
+  }, [spaceId, userProfile?.username])
 
   const modules = useMemo<HubModule[]>(() => {
     if (!spaceId) {
@@ -170,18 +179,9 @@ export function SpaceHubPage() {
         route: `/app-org/espacios/${spaceId}/nomina`,
         icon: faUsers,
       },
-      {
-        id: 'rendicion',
-        title: 'Rendición de Cuentas',
-        route: `/app-org/espacios/${spaceId}/rendicion`,
-        icon: faCalculator,
-      },
     ]
   }, [spaceId])
 
-  const hasAssociation = spaceDetail
-    ? Boolean(spaceDetail.id && (spaceDetail.organizacion || spaceDetail.id))
-    : null
   const spaceName = spaceDetail?.nombre || routeState?.spaceName || 'Espacio'
   const programName = spaceDetail?.programa?.nombre || routeState?.programName || ''
   const userDisplayName = (userProfile?.fullName || '').trim() || 'Usuario'
@@ -214,11 +214,17 @@ export function SpaceHubPage() {
     )
   }
 
-  if (hasAssociation === false) {
+  if (hasOperationalAssociation === false) {
     return (
       <section>
-        <div className={`mt-4 rounded-2xl border p-5 text-sm ${isDark ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-white text-slate-700'}`}>
-          No hay un Espacio u Organización asociados para operar.
+        <div
+          className={`mt-4 rounded-2xl border p-5 text-sm ${
+            isDark
+              ? 'border-white/20 bg-white/10 text-white'
+              : 'border-slate-200 bg-white text-slate-700'
+          }`}
+        >
+          Tu usuario no posee un espacio operativo configurado en SISOC Web. No es posible continuar hasta regularizar la configuración.
         </div>
       </section>
     )
@@ -254,9 +260,18 @@ export function SpaceHubPage() {
               <span className={`flex h-8 w-8 items-center justify-center ${subtitleClass}`}>
                 <FontAwesomeIcon icon={module.icon} aria-hidden="true" style={{ fontSize: 22 }} />
               </span>
-              <p className={`text-[16px] font-medium ${titleClass}`}>{module.title}</p>
+              <div className="flex items-center gap-2">
+                <p className={`text-[16px] font-medium ${titleClass}`}>{module.title}</p>
+                {module.id === 'mensajes' && unreadMessagesCount > 0 ? (
+                  <span className="flex h-[20px] min-w-[20px] items-center justify-center rounded-full bg-[#D32F2F] px-[5px] text-[11px] font-bold leading-none text-white">
+                    {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                  </span>
+                ) : null}
+              </div>
             </div>
-            <span className={`absolute right-4 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center ${subtitleClass}`}>
+            <span
+              className={`absolute right-4 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center ${subtitleClass}`}
+            >
               <FontAwesomeIcon
                 icon={faChevronLeft}
                 aria-hidden="true"
@@ -266,7 +281,7 @@ export function SpaceHubPage() {
           </button>
         ))}
       </div>
+
     </section>
   )
 }
-

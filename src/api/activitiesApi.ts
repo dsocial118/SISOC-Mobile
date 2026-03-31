@@ -19,6 +19,8 @@ export interface SpaceActivityItem {
   actividad: string
   dia_actividad: number
   dia_actividad_nombre: string
+  hora_inicio: string | null
+  hora_fin: string | null
   horario_actividad: string
   cantidad_inscriptos: number
   activo: boolean
@@ -30,7 +32,8 @@ export interface SpaceActivityItem {
 export interface SpaceActivityPayload {
   catalogo_actividad: number
   dia_actividad: number
-  horario_actividad: string
+  hora_inicio: string
+  hora_fin: string
 }
 
 export interface SpaceActivityEnrollee {

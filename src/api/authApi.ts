@@ -1,6 +1,7 @@
 import axios from 'axios'
 import type { AuthUserProfile } from '../auth/context-store'
 import type { UserRole } from '../db/database'
+import { parseApiError } from './errorUtils'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
@@ -18,7 +19,9 @@ interface MeResponse {
   last_name?: string
   pwa?: {
     roles?: string[]
+    must_change_password?: boolean
   }
+  permissions?: string[]
 }
 
 export async function loginRequest(params: {
@@ -44,13 +47,7 @@ export async function loginRequest(params: {
       user_profile: mapUserProfile(meResponse.data, loginResponse.data.username),
     }
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const detail = error.response?.data?.detail
-      if (typeof detail === 'string' && detail.trim()) {
-        throw new Error(detail)
-      }
-    }
-    throw new Error('No se pudo iniciar sesión.')
+    throw new Error(parseApiError(error, 'No se pudo iniciar sesión.'))
   }
 }
 
@@ -80,6 +77,39 @@ export async function logoutRequest(token: string): Promise<void> {
   )
 }
 
+export async function changeRequiredPasswordRequest(params: {
+  token: string
+  newPassword: string
+}): Promise<void> {
+  try {
+    await axios.post(
+      `${API_BASE_URL}/users/password-change-required/`,
+      { new_password: params.newPassword },
+      {
+        headers: {
+          Authorization: `Token ${params.token}`,
+        },
+      },
+    )
+  } catch (error) {
+    throw new Error(parseApiError(error, 'No se pudo actualizar la contraseña.'))
+  }
+}
+
+export async function requestPasswordResetByUsername(params: {
+  username: string
+}): Promise<void> {
+  try {
+    await axios.post(`${API_BASE_URL}/users/password-reset/request/`, {
+      username: params.username,
+    })
+  } catch (error) {
+    throw new Error(
+      parseApiError(error, 'No se pudo registrar la solicitud de reseteo.'),
+    )
+  }
+}
+
 function mapRoleFromMe(meData: MeResponse): UserRole {
   const roles = meData.pwa?.roles ?? []
   if (roles.includes('representante')) {
@@ -99,5 +129,7 @@ function mapUserProfile(meData: MeResponse, fallbackUsername = ''): AuthUserProf
     username: (meData.username || fallbackUsername || 'usuario').trim(),
     email: (meData.email || '').trim(),
     fullName: fullName || (meData.username || fallbackUsername || 'Usuario'),
+    mustChangePassword: Boolean(meData.pwa?.must_change_password),
+    permissions: [...(meData.permissions ?? [])].sort(),
   }
 }

@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from 'react'
-import type { AxiosError } from 'axios'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { getSpaceDetail, type SpaceDetail } from '../../api/spacesApi'
+import { parseApiError } from '../../api/errorUtils'
 import { CollaboratorsCard } from './CollaboratorsCard'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
@@ -59,10 +59,7 @@ export function SpaceDetailPage() {
           return
         }
 
-        const detail =
-          (error as AxiosError<{ detail?: string }>)?.response?.data?.detail
-          || 'No se pudo cargar la información institucional.'
-        setErrorMessage(detail)
+        setErrorMessage(parseApiError(error, 'No se pudo cargar la información institucional.'))
       } finally {
         if (isMounted) {
           setLoading(false)
@@ -101,13 +98,19 @@ export function SpaceDetailPage() {
     return value
   }
 
-  function formatDate(value: string | null | undefined): string {
+  function formatDate(value: string | number | null | undefined): string {
     if (!value) {
       return 'Sin dato'
     }
+    if (typeof value === 'number') {
+      return String(value)
+    }
+    if (/^\d{4}$/.test(value)) {
+      return value
+    }
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) {
-      return 'Sin dato'
+      return String(value)
     }
     return date.toLocaleDateString('es-AR')
   }
@@ -131,6 +134,7 @@ export function SpaceDetailPage() {
 
   const organizacion = spaceDetail?.organizacion
   const referente = spaceDetail?.referente
+  const relevamientoActual = spaceDetail?.relevamiento_actual_mobile
   const hasGeo = spaceDetail?.latitud !== null
     && spaceDetail?.latitud !== undefined
     && spaceDetail?.longitud !== null
@@ -150,6 +154,41 @@ export function SpaceDetailPage() {
             className="progressive-card rounded-[15px] border p-5"
             style={{ ...cardStyle, ['--card-delay' as string]: '0ms' }}
           >
+            <p className={`text-[12px] font-semibold uppercase tracking-[0.18em] ${detailTextClass}`}>
+              Información Institucional
+            </p>
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              <div>
+                <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${detailTextClass}`}>
+                  Espacio
+                </p>
+                <p className={`mt-1 text-[16px] font-semibold ${textClass}`}>
+                  {displayValue(spaceDetail?.nombre)}
+                </p>
+              </div>
+              <div>
+                <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${detailTextClass}`}>
+                  Organización
+                </p>
+                <p className={`mt-1 text-[16px] font-semibold ${textClass}`}>
+                  {displayValue(organizacion?.nombre)}
+                </p>
+              </div>
+              <div>
+                <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${detailTextClass}`}>
+                  Programa
+                </p>
+                <p className={`mt-1 text-[16px] font-semibold ${textClass}`}>
+                  {displayValue(spaceDetail?.programa?.nombre)}
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <article
+            className="progressive-card rounded-[15px] border p-5"
+            style={{ ...cardStyle, ['--card-delay' as string]: '70ms' }}
+          >
             <h2 className={`text-[16px] font-semibold ${textClass}`}>Datos de la Organización</h2>
 
             <div className={`mt-3 space-y-1.5 text-sm ${detailTextClass}`}>
@@ -162,15 +201,7 @@ export function SpaceDetailPage() {
                 {displayValue(organizacion?.cuit)}
               </p>
               <p>
-                <span className={`font-semibold ${textClass}`}>Dirección:</span>{' '}
-                {displayValue(organizacion?.domicilio)}
-              </p>
-              <p>
-                <span className={`font-semibold ${textClass}`}>Teléfono:</span>{' '}
-                {displayValue(organizacion?.telefono)}
-              </p>
-              <p>
-                <span className={`font-semibold ${textClass}`}>Email:</span>{' '}
+                <span className={`font-semibold ${textClass}`}>Mail:</span>{' '}
                 {displayValue(organizacion?.email)}
               </p>
             </div>
@@ -178,18 +209,26 @@ export function SpaceDetailPage() {
 
           <article
             className="progressive-card rounded-[15px] border p-5"
-            style={{ ...cardStyle, ['--card-delay' as string]: '70ms' }}
+            style={{ ...cardStyle, ['--card-delay' as string]: '140ms' }}
           >
             <h2 className={`text-[16px] font-semibold ${textClass}`}>Datos del Espacio</h2>
 
             <div className={`mt-3 space-y-1.5 text-sm ${detailTextClass}`}>
               <p>
-                <span className={`font-semibold ${textClass}`}>Nombre:</span>{' '}
-                {displayValue(spaceDetail?.nombre)}
+                <span className={`font-semibold ${textClass}`}>Estado actividad:</span>{' '}
+                {displayValue(spaceDetail?.ultimo_estado?.estado_actividad)}
               </p>
               <p>
-                <span className={`font-semibold ${textClass}`}>Dirección:</span>{' '}
-                {formatAddress(spaceDetail)}
+                <span className={`font-semibold ${textClass}`}>Estado proceso:</span>{' '}
+                {displayValue(spaceDetail?.ultimo_estado?.estado_proceso)}
+              </p>
+              <p>
+                <span className={`font-semibold ${textClass}`}>Calle:</span>{' '}
+                {displayValue(spaceDetail?.calle)}
+              </p>
+              <p>
+                <span className={`font-semibold ${textClass}`}>Número:</span>{' '}
+                {spaceDetail?.numero ? String(spaceDetail.numero) : 'Sin dato'}
               </p>
               <p>
                 <span className={`font-semibold ${textClass}`}>Provincia:</span>{' '}
@@ -200,10 +239,11 @@ export function SpaceDetailPage() {
                 {displayValue(spaceDetail?.localidad?.nombre)}
               </p>
               <p>
-                <span className={`font-semibold ${textClass}`}>Teléfono:</span> Sin dato
+                <span className={`font-semibold ${textClass}`}>Domicilio:</span>{' '}
+                {formatAddress(spaceDetail)}
               </p>
               <p>
-                <span className={`font-semibold ${textClass}`}>Email:</span> Sin dato
+                <span className={`font-semibold ${textClass}`}>Domicilio electrónico:</span> Sin dato
               </p>
             </div>
 
@@ -234,26 +274,30 @@ export function SpaceDetailPage() {
 
           <article
             className="progressive-card rounded-[15px] border p-5"
-            style={{ ...cardStyle, ['--card-delay' as string]: '140ms' }}
+            style={{ ...cardStyle, ['--card-delay' as string]: '210ms' }}
           >
             <h2 className={`text-[16px] font-semibold ${textClass}`}>Datos del Referente del Espacio</h2>
 
             <div className={`mt-3 space-y-1.5 text-sm ${detailTextClass}`}>
               <p>
-                <span className={`font-semibold ${textClass}`}>Nombre y apellido:</span>{' '}
-                {displayValue([referente?.nombre, referente?.apellido].filter(Boolean).join(' ') || null)}
+                <span className={`font-semibold ${textClass}`}>Nombre:</span>{' '}
+                {displayValue(referente?.nombre)}
+              </p>
+              <p>
+                <span className={`font-semibold ${textClass}`}>Apellido:</span>{' '}
+                {displayValue(referente?.apellido)}
               </p>
               <p>
                 <span className={`font-semibold ${textClass}`}>DNI:</span>{' '}
                 {displayValue(referente?.documento ? String(referente.documento) : null)}
               </p>
               <p>
-                <span className={`font-semibold ${textClass}`}>Teléfono:</span>{' '}
-                {displayValue(referente?.celular)}
+                <span className={`font-semibold ${textClass}`}>Mail:</span>{' '}
+                {displayValue(referente?.mail)}
               </p>
               <p>
-                <span className={`font-semibold ${textClass}`}>Email:</span>{' '}
-                {displayValue(referente?.mail)}
+                <span className={`font-semibold ${textClass}`}>Celular:</span>{' '}
+                {displayValue(referente?.celular ? String(referente.celular) : null)}
               </p>
             </div>
           </article>
@@ -277,21 +321,51 @@ export function SpaceDetailPage() {
 
             <div className={`mt-3 space-y-1.5 text-sm ${detailTextClass}`}>
               <p>
-                <span className={`font-semibold ${textClass}`}>Número de Convenio:</span>{' '}
+                <span className={`font-semibold ${textClass}`}>Fecha de Inicio de Convenio:</span> Sin dato
+              </p>
+              <p>
+                <span className={`font-semibold ${textClass}`}>Vigencia de Convenio:</span> 12 meses
+              </p>
+              <p>
+                <span className={`font-semibold ${textClass}`}>Prestaciones GESCOM:</span>{' '}
                 {displayValue(spaceDetail?.codigo_de_proyecto)}
               </p>
               <p>
-                <span className={`font-semibold ${textClass}`}>Fecha de Inicio:</span>{' '}
-                {formatDate(spaceDetail?.comienzo)}
-              </p>
-              <p>
-                <span className={`font-semibold ${textClass}`}>Fecha de Vencimiento:</span> Sin dato
-              </p>
-              <p>
-                <span className={`font-semibold ${textClass}`}>Estado:</span>{' '}
-                {displayValue(spaceDetail?.estado)}
+                <span className={`font-semibold ${textClass}`}>Monto total del convenio:</span> Sin dato
               </p>
             </div>
+          </article>
+
+          <article
+            className="progressive-card rounded-[15px] border p-5"
+            style={{ ...cardStyle, ['--card-delay' as string]: '350ms' }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className={`text-[16px] font-semibold ${textClass}`}>Datos de Relevamiento</h2>
+                {relevamientoActual ? (
+                  <p className={`mt-1 text-xs ${detailTextClass}`}>
+                    Último relevamiento: {formatDate(relevamientoActual.fecha_visita)} · {displayValue(relevamientoActual.estado)}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+
+            {!relevamientoActual ? (
+              <p className={`mt-3 text-sm ${detailTextClass}`}>No hay relevamientos disponibles para este espacio.</p>
+            ) : (
+              <div className="mt-3 grid gap-3">
+                {relevamientoActual.items.map((item) => (
+                  <div
+                    key={item.pregunta}
+                    className={`rounded-xl border p-3 ${subCardClass}`}
+                  >
+                    <p className={`text-[12px] font-semibold ${textClass}`}>{item.pregunta}</p>
+                    <p className={`mt-1 text-sm ${detailTextClass}`}>{item.respuesta}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </article>
         </div>
       ) : null}

@@ -10,6 +10,8 @@ export interface AuthUserProfile {
   username: string
   email: string
   fullName: string
+  mustChangePassword: boolean
+  permissions: string[]
 }
 
 export interface AuthContextValue {
@@ -20,6 +22,7 @@ export interface AuthContextValue {
   sessionStatus: 'validated' | 'local' | 'reauth'
   login: (input: LoginInput) => Promise<UserRole>
   loginDemo: (role: UserRole) => Promise<void>
+  completeRequiredPasswordChange: (newPassword: string) => Promise<void>
   logout: () => Promise<void>
 }
 

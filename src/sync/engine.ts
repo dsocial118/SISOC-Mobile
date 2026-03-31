@@ -14,6 +14,28 @@ import type {
   DeleteCollaboratorOutboxPayload,
   UpdateCollaboratorOutboxPayload,
 } from '../features/home/collaboratorsOffline'
+import {
+  createRendicionOnServer,
+  deleteRendicionFileOnServer,
+  deleteRendicionOnServer,
+  getLocalRendicion,
+  getLocalRendicionFile,
+  getRendicionPendingUploadsCount,
+  markRendicionError,
+  markRendicionFileError,
+  presentRendicionOnServer,
+  removeLocalRendicion,
+  removeLocalRendicionFile,
+  syncDeleteRendicionFileFromServer,
+  syncPresentRendicionFromServer,
+  syncRemoteRendicionDetailToLocal,
+  uploadFileToServer,
+  type CreateRendicionOutboxPayload,
+  type DeleteRendicionFileOutboxPayload,
+  type DeleteRendicionOutboxPayload,
+  type PresentRendicionOutboxPayload,
+  type UploadRendicionFileOutboxPayload,
+} from '../features/home/rendicionOffline'
 
 const MAX_RETRIES = 5
 const SYNC_INTERVAL_MS = 30000
@@ -36,33 +58,36 @@ function normalizeDni(value: string | undefined | null): string {
 function sameCollaboratorData(
   remote: SpaceCollaborator,
   expected: Partial<{
-    nombre: string
-    apellido: string
     dni: string
-    telefono: string
-    email: string
-    rol_funcion: string
+    genero: string
+    codigo_telefono: string
+    numero_telefono: string
+    fecha_alta: string
+    fecha_baja: string | null
   }>,
 ): boolean {
-  if (expected.nombre !== undefined && normalizeText(remote.nombre) !== normalizeText(expected.nombre)) {
-    return false
-  }
-  if (expected.apellido !== undefined && normalizeText(remote.apellido) !== normalizeText(expected.apellido)) {
-    return false
-  }
   if (expected.dni !== undefined && normalizeDni(remote.dni) !== normalizeDni(expected.dni)) {
     return false
   }
-  if (expected.telefono !== undefined && normalizeText(remote.telefono) !== normalizeText(expected.telefono)) {
-    return false
-  }
-  if (expected.email !== undefined && normalizeText(remote.email) !== normalizeText(expected.email)) {
+  if (expected.genero !== undefined && normalizeText(remote.genero) !== normalizeText(expected.genero)) {
     return false
   }
   if (
-    expected.rol_funcion !== undefined &&
-    normalizeText(remote.rol_funcion) !== normalizeText(expected.rol_funcion)
+    expected.codigo_telefono !== undefined
+    && normalizeText(remote.codigo_telefono) !== normalizeText(expected.codigo_telefono)
   ) {
+    return false
+  }
+  if (
+    expected.numero_telefono !== undefined
+    && normalizeText(remote.numero_telefono) !== normalizeText(expected.numero_telefono)
+  ) {
+    return false
+  }
+  if (expected.fecha_alta !== undefined && remote.fecha_alta !== expected.fecha_alta) {
+    return false
+  }
+  if (expected.fecha_baja !== undefined && (remote.fecha_baja || null) !== (expected.fecha_baja || null)) {
     return false
   }
   return true
@@ -77,24 +102,38 @@ async function tryResolveCollaboratorCreate(item: OutboxRecord & { id: number })
   }
 
   const remoteRows = await listSpaceCollaborators(payload.space_id)
-  const remote = remoteRows.find((row) => normalizeDni(row.dni) === normalizeDni(payload.data.dni))
+  const remote = remoteRows.find(
+    (row) =>
+      normalizeDni(row.dni) === normalizeDni(payload.data.dni)
+      && row.fecha_alta === payload.data.fecha_alta,
+  )
   if (!remote) {
     return false
   }
 
   await db.space_collaborators.update(local.id, {
+    ciudadano_id: remote.ciudadano_id,
     remote_id: remote.id,
     nombre: remote.nombre,
     apellido: remote.apellido,
     dni: remote.dni,
-    telefono: remote.telefono,
-    email: remote.email,
-    rol_funcion: remote.rol_funcion,
+    prefijo_cuil: remote.prefijo_cuil,
+    cuil_cuit: remote.cuil_cuit,
+    sufijo_cuil: remote.sufijo_cuil,
+    sexo: remote.sexo,
+    genero: remote.genero,
+    fecha_nacimiento: remote.fecha_nacimiento,
+    edad: remote.edad,
+    codigo_telefono: remote.codigo_telefono || '',
+    numero_telefono: remote.numero_telefono || '',
+    fecha_alta: remote.fecha_alta,
+    fecha_baja: remote.fecha_baja,
+    actividades: remote.actividades,
     activo: remote.activo,
     sync_status: 'synced',
     pending_action: null,
     last_error: null,
-    updated_at: remote.fecha_actualizacion || new Date().toISOString(),
+    updated_at: remote.fecha_modificado || new Date().toISOString(),
   })
   await db.outbox.delete(item.id)
   return true
@@ -121,18 +160,28 @@ async function tryResolveCollaboratorUpdate(item: OutboxRecord & { id: number })
   }
 
   await db.space_collaborators.update(local.id, {
+    ciudadano_id: remote.ciudadano_id,
     remote_id: remote.id,
     nombre: remote.nombre,
     apellido: remote.apellido,
     dni: remote.dni,
-    telefono: remote.telefono,
-    email: remote.email,
-    rol_funcion: remote.rol_funcion,
+    prefijo_cuil: remote.prefijo_cuil,
+    cuil_cuit: remote.cuil_cuit,
+    sufijo_cuil: remote.sufijo_cuil,
+    sexo: remote.sexo,
+    genero: remote.genero,
+    fecha_nacimiento: remote.fecha_nacimiento,
+    edad: remote.edad,
+    codigo_telefono: remote.codigo_telefono || '',
+    numero_telefono: remote.numero_telefono || '',
+    fecha_alta: remote.fecha_alta,
+    fecha_baja: remote.fecha_baja,
+    actividades: remote.actividades,
     activo: remote.activo,
     sync_status: 'synced',
     pending_action: null,
     last_error: null,
-    updated_at: remote.fecha_actualizacion || new Date().toISOString(),
+    updated_at: remote.fecha_modificado || new Date().toISOString(),
   })
   await db.outbox.delete(item.id)
   return true
@@ -147,15 +196,38 @@ async function tryResolveCollaboratorDelete(item: OutboxRecord & { id: number })
   }
 
   const remoteRows = await listSpaceCollaborators(payload.space_id)
-  const stillExists = local.remote_id
-    ? remoteRows.some((row) => row.id === local.remote_id)
-    : remoteRows.some((row) => normalizeDni(row.dni) === normalizeDni(local.dni))
+  const remote = local.remote_id
+    ? remoteRows.find((row) => row.id === local.remote_id)
+    : remoteRows.find((row) => normalizeDni(row.dni) === normalizeDni(local.dni) && row.fecha_alta === local.fecha_alta)
 
-  if (stillExists) {
+  if (!remote || remote.activo) {
     return false
   }
 
-  await db.space_collaborators.delete(local.id)
+  await db.space_collaborators.update(local.id, {
+    ciudadano_id: remote.ciudadano_id,
+    remote_id: remote.id,
+    nombre: remote.nombre,
+    apellido: remote.apellido,
+    dni: remote.dni,
+    prefijo_cuil: remote.prefijo_cuil,
+    cuil_cuit: remote.cuil_cuit,
+    sufijo_cuil: remote.sufijo_cuil,
+    sexo: remote.sexo,
+    genero: remote.genero,
+    fecha_nacimiento: remote.fecha_nacimiento,
+    edad: remote.edad,
+    codigo_telefono: remote.codigo_telefono || '',
+    numero_telefono: remote.numero_telefono || '',
+    fecha_alta: remote.fecha_alta,
+    fecha_baja: remote.fecha_baja,
+    actividades: remote.actividades,
+    activo: false,
+    sync_status: 'synced',
+    pending_action: null,
+    last_error: null,
+    updated_at: remote.fecha_modificado || new Date().toISOString(),
+  })
   await db.outbox.delete(item.id)
   return true
 }
@@ -220,18 +292,28 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
 
       const created = await createSpaceCollaborator(payload.space_id, payload.data)
       await db.space_collaborators.update(local.id, {
+        ciudadano_id: created.ciudadano_id,
         remote_id: created.id,
         nombre: created.nombre,
         apellido: created.apellido,
         dni: created.dni,
-        telefono: created.telefono,
-        email: created.email,
-        rol_funcion: created.rol_funcion,
+        prefijo_cuil: created.prefijo_cuil,
+        cuil_cuit: created.cuil_cuit,
+        sufijo_cuil: created.sufijo_cuil,
+        sexo: created.sexo,
+        genero: created.genero,
+        fecha_nacimiento: created.fecha_nacimiento,
+        edad: created.edad,
+        codigo_telefono: created.codigo_telefono || '',
+        numero_telefono: created.numero_telefono || '',
+        fecha_alta: created.fecha_alta,
+        fecha_baja: created.fecha_baja,
+        actividades: created.actividades,
         activo: created.activo,
         sync_status: 'synced',
         pending_action: null,
         last_error: null,
-        updated_at: created.fecha_actualizacion || new Date().toISOString(),
+        updated_at: created.fecha_modificado || new Date().toISOString(),
       })
       await db.outbox.delete(itemWithId.id)
       return true
@@ -256,17 +338,27 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
 
       const updated = await updateSpaceCollaborator(payload.space_id, local.remote_id, payload.data)
       await db.space_collaborators.update(local.id, {
+        ciudadano_id: updated.ciudadano_id,
         nombre: updated.nombre,
         apellido: updated.apellido,
         dni: updated.dni,
-        telefono: updated.telefono,
-        email: updated.email,
-        rol_funcion: updated.rol_funcion,
+        prefijo_cuil: updated.prefijo_cuil,
+        cuil_cuit: updated.cuil_cuit,
+        sufijo_cuil: updated.sufijo_cuil,
+        sexo: updated.sexo,
+        genero: updated.genero,
+        fecha_nacimiento: updated.fecha_nacimiento,
+        edad: updated.edad,
+        codigo_telefono: updated.codigo_telefono || '',
+        numero_telefono: updated.numero_telefono || '',
+        fecha_alta: updated.fecha_alta,
+        fecha_baja: updated.fecha_baja,
+        actividades: updated.actividades,
         activo: updated.activo,
         sync_status: 'synced',
         pending_action: null,
         last_error: null,
-        updated_at: updated.fecha_actualizacion || new Date().toISOString(),
+        updated_at: updated.fecha_modificado || new Date().toISOString(),
       })
       await db.outbox.delete(itemWithId.id)
       return true
@@ -280,13 +372,172 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
         return true
       }
       if (!local.remote_id) {
-        await db.space_collaborators.delete(local.id)
+        await db.space_collaborators.update(local.id, {
+          activo: false,
+          fecha_baja: local.fecha_baja || new Date().toISOString().slice(0, 10),
+          sync_status: 'synced',
+          pending_action: null,
+          last_error: null,
+        })
         await db.outbox.delete(itemWithId.id)
         return true
       }
 
       await deleteSpaceCollaborator(payload.space_id, local.remote_id)
-      await db.space_collaborators.delete(local.id)
+      const remoteRows = await listSpaceCollaborators(payload.space_id)
+      const remote = remoteRows.find((row) => row.id === local.remote_id)
+      await db.space_collaborators.update(local.id, {
+        ciudadano_id: remote?.ciudadano_id || local.ciudadano_id || null,
+        nombre: remote?.nombre || local.nombre,
+        apellido: remote?.apellido || local.apellido,
+        dni: remote?.dni || local.dni,
+        prefijo_cuil: remote?.prefijo_cuil || local.prefijo_cuil || null,
+        cuil_cuit: remote?.cuil_cuit || local.cuil_cuit || null,
+        sufijo_cuil: remote?.sufijo_cuil || local.sufijo_cuil || null,
+        sexo: remote?.sexo || local.sexo || null,
+        genero: remote?.genero || local.genero,
+        fecha_nacimiento: remote?.fecha_nacimiento || local.fecha_nacimiento || null,
+        edad: remote?.edad ?? local.edad ?? null,
+        codigo_telefono: remote?.codigo_telefono || local.codigo_telefono,
+        numero_telefono: remote?.numero_telefono || local.numero_telefono,
+        fecha_alta: remote?.fecha_alta || local.fecha_alta,
+        fecha_baja: remote?.fecha_baja || local.fecha_baja || new Date().toISOString().slice(0, 10),
+        actividades: remote?.actividades || local.actividades,
+        activo: false,
+        sync_status: 'synced',
+        pending_action: null,
+        last_error: null,
+        updated_at: remote?.fecha_modificado || new Date().toISOString(),
+      })
+      await db.outbox.delete(itemWithId.id)
+      return true
+    }
+
+    if (item.type === 'CREATE_RENDICION') {
+      const payload = item.payload as unknown as CreateRendicionOutboxPayload
+      const local = await getLocalRendicion(payload.local_id)
+      if (!local) {
+        await db.outbox.delete(itemWithId.id)
+        return true
+      }
+      if (local.remote_id) {
+        await db.rendiciones.update(local.id, {
+          sync_status: 'synced',
+          pending_action: null,
+          last_error: null,
+        })
+        await db.outbox.delete(itemWithId.id)
+        return true
+      }
+
+      const created = await createRendicionOnServer(payload.space_id, payload.data)
+      await syncRemoteRendicionDetailToLocal(payload.space_id, created, local.id)
+      await db.outbox.delete(itemWithId.id)
+      return true
+    }
+
+    if (item.type === 'UPLOAD_RENDICION_FILE') {
+      const payload = item.payload as unknown as UploadRendicionFileOutboxPayload
+      const local = await getLocalRendicion(payload.local_rendicion_id)
+      const localFile = await getLocalRendicionFile(payload.local_file_id)
+      if (!local || !localFile) {
+        await db.outbox.delete(itemWithId.id)
+        return true
+      }
+      if (localFile.pending_action !== 'upload') {
+        await db.outbox.delete(itemWithId.id)
+        return true
+      }
+      if (!local.remote_id) {
+        await db.outbox.update(itemWithId.id, {
+          status: 'pending',
+          attempts: item.attempts,
+          next_retry_at: new Date(Date.now() + nextBackoffMs(1)).toISOString(),
+        })
+        return true
+      }
+
+      const detail = await uploadFileToServer({
+        spaceId: payload.space_id,
+        remoteRendicionId: local.remote_id,
+        localFile,
+      })
+      await syncRemoteRendicionDetailToLocal(payload.space_id, detail, local.id)
+      await db.outbox.delete(itemWithId.id)
+      return true
+    }
+
+    if (item.type === 'DELETE_RENDICION_FILE') {
+      const payload = item.payload as unknown as DeleteRendicionFileOutboxPayload
+      const local = await getLocalRendicion(payload.local_rendicion_id)
+      const localFile = await getLocalRendicionFile(payload.local_file_id)
+      if (!local || !localFile) {
+        await db.outbox.delete(itemWithId.id)
+        return true
+      }
+      if (!local.remote_id || !localFile.remote_id) {
+        await removeLocalRendicionFile(localFile.id)
+        await db.outbox.delete(itemWithId.id)
+        return true
+      }
+
+      await deleteRendicionFileOnServer({
+        spaceId: payload.space_id,
+        remoteRendicionId: local.remote_id,
+        remoteFileId: localFile.remote_id,
+      })
+      await syncDeleteRendicionFileFromServer(local.id, payload.space_id, local.remote_id)
+      await removeLocalRendicionFile(localFile.id)
+      await db.outbox.delete(itemWithId.id)
+      return true
+    }
+
+    if (item.type === 'PRESENT_RENDICION') {
+      const payload = item.payload as unknown as PresentRendicionOutboxPayload
+      const local = await getLocalRendicion(payload.local_rendicion_id)
+      if (!local) {
+        await db.outbox.delete(itemWithId.id)
+        return true
+      }
+      if (!local.remote_id) {
+        await db.outbox.update(itemWithId.id, {
+          status: 'pending',
+          attempts: item.attempts,
+          next_retry_at: new Date(Date.now() + nextBackoffMs(1)).toISOString(),
+        })
+        return true
+      }
+
+      const pendingUploads = await getRendicionPendingUploadsCount(local.id)
+      if (pendingUploads > 0) {
+        await db.outbox.update(itemWithId.id, {
+          status: 'pending',
+          attempts: item.attempts,
+          next_retry_at: new Date(Date.now() + nextBackoffMs(1)).toISOString(),
+        })
+        return true
+      }
+
+      await presentRendicionOnServer(payload.space_id, local.remote_id)
+      await syncPresentRendicionFromServer(local.id, payload.space_id, local.remote_id)
+      await db.outbox.delete(itemWithId.id)
+      return true
+    }
+
+    if (item.type === 'DELETE_RENDICION') {
+      const payload = item.payload as unknown as DeleteRendicionOutboxPayload
+      const local = await getLocalRendicion(payload.local_rendicion_id)
+      if (!local) {
+        await db.outbox.delete(itemWithId.id)
+        return true
+      }
+      if (!local.remote_id) {
+        await removeLocalRendicion(local.id)
+        await db.outbox.delete(itemWithId.id)
+        return true
+      }
+      await deleteRendicionOnServer(payload.space_id, local.remote_id)
+      await removeLocalRendicion(local.id)
       await db.outbox.delete(itemWithId.id)
       return true
     }
@@ -321,6 +572,28 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
         sync_status: 'failed',
         last_error: error instanceof Error ? error.message : 'Error de sincronización',
       })
+    }
+
+    const localRendicionId = String(item.payload?.local_rendicion_id || item.payload?.local_id || '')
+    const localRendicionFileId = String(item.payload?.local_file_id || '')
+    const rendicionAction =
+      item.type === 'CREATE_RENDICION'
+      || item.type === 'UPLOAD_RENDICION_FILE'
+      || item.type === 'DELETE_RENDICION_FILE'
+      || item.type === 'PRESENT_RENDICION'
+      || item.type === 'DELETE_RENDICION'
+
+    if (rendicionAction && localRendicionId) {
+      await markRendicionError(
+        localRendicionId,
+        error instanceof Error ? error.message : 'Error de sincronización',
+      )
+    }
+    if (rendicionAction && localRendicionFileId) {
+      await markRendicionFileError(
+        localRendicionFileId,
+        error instanceof Error ? error.message : 'Error de sincronización',
+      )
     }
 
     if (error instanceof OfflineError) {

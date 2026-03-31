@@ -1,9 +1,17 @@
-﻿import { useEffect, useMemo, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useEffect, useMemo, useState } from 'react'
 import type { AxiosError } from 'axios'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons'
-import type { SpaceCollaboratorPayload } from '../../api/collaboratorsApi'
+import {
+  listCollaboratorActivities,
+  listCollaboratorGenders,
+  previewSpaceCollaboratorDni,
+  type CollaboratorGenderOption,
+  type CollaboratorPreview,
+  type SpaceCollaboratorActivity,
+  type SpaceCollaboratorPayload,
+} from '../../api/collaboratorsApi'
+import { parseApiError as parseCommonApiError } from '../../api/errorUtils'
 import type { SpaceCollaboratorRecord } from '../../db/database'
 import {
   createCollaboratorOffline,
@@ -13,28 +21,50 @@ import {
   updateCollaboratorOffline,
 } from './collaboratorsOffline'
 import { syncNow } from '../../sync/engine'
+import { ConfirmActionModal } from '../../ui/ConfirmActionModal'
+
+type FormState = {
+  dni: string
+  genero: string
+  codigo_telefono: string
+  numero_telefono: string
+  fecha_alta: string
+  fecha_baja: string
+  actividad_ids: number[]
+}
 
 const DNI_REGEX = /^\d{7,8}$/
-const PHONE_REGEX = /^[\d+\-() ]{6,30}$/
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-const EMPTY_FORM: SpaceCollaboratorPayload = {
-  nombre: '',
-  apellido: '',
+const EMPTY_FORM: FormState = {
   dni: '',
-  telefono: '',
-  email: '',
-  rol_funcion: '',
+  genero: 'ND',
+  codigo_telefono: '',
+  numero_telefono: '',
+  fecha_alta: new Date().toISOString().slice(0, 10),
+  fecha_baja: '',
+  actividad_ids: [],
 }
 
 function parseApiError(error: unknown, fallback: string): string {
   const axiosError = error as AxiosError<Record<string, unknown>>
+  if (axiosError?.code === 'ECONNABORTED' || axiosError?.code === 'ETIMEDOUT') {
+    return 'La consulta a RENAPER está demorando. Intentá nuevamente en unos segundos.'
+  }
   const data = axiosError?.response?.data
   if (!data) {
     return fallback
   }
   if (typeof data.detail === 'string') {
     return data.detail
+  }
+  if (typeof data.detail === 'object' && data.detail !== null) {
+    const first = Object.values(data.detail)[0]
+    if (Array.isArray(first) && first.length > 0) {
+      return String(first[0])
+    }
+    if (typeof first === 'string') {
+      return first
+    }
   }
   const firstEntry = Object.values(data)[0]
   if (Array.isArray(firstEntry) && firstEntry.length > 0) {
@@ -44,6 +74,19 @@ function parseApiError(error: unknown, fallback: string): string {
     return firstEntry
   }
   return fallback
+}
+
+function formatLatinDate(rawDate: string | null | undefined): string {
+  const value = (rawDate || '').trim()
+  if (!value) {
+    return '-'
+  }
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (match) {
+    const [, year, month, day] = match
+    return `${day}-${month}-${year}`
+  }
+  return value
 }
 
 export function CollaboratorsCard({
@@ -65,17 +108,29 @@ export function CollaboratorsCard({
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({})
-  const [formData, setFormData] = useState<SpaceCollaboratorPayload>(EMPTY_FORM)
+  const [formData, setFormData] = useState<FormState>(EMPTY_FORM)
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
+  const [preview, setPreview] = useState<CollaboratorPreview | null>(null)
+  const [genderOptions, setGenderOptions] = useState<CollaboratorGenderOption[]>([])
+  const [activityOptions, setActivityOptions] = useState<SpaceCollaboratorActivity[]>([])
+  const [collaborators, setCollaborators] = useState<SpaceCollaboratorRecord[] | undefined>(undefined)
+  const [collaboratorPendingDelete, setCollaboratorPendingDelete] =
+    useState<SpaceCollaboratorRecord | null>(null)
+  const [deletingCollaboratorId, setDeletingCollaboratorId] = useState<string | null>(null)
 
-  const collaborators = useLiveQuery(
-    async () => listLocalSpaceCollaborators(spaceId),
-    [spaceId],
-  )
+  const isEditing = Boolean(editingId)
+  const submitLabel = isEditing ? 'Guardar cambios' : !preview ? 'Validar DNI' : 'Guardar colaborador'
+  const panelTitle = isEditing ? 'Editar colaborador' : 'Alta de colaborador'
+  const infoLabelClass = isDark ? 'text-[10px] font-normal text-white/75' : 'text-[10px] font-normal text-[#232D4F]'
+  const infoValueClass = isDark ? 'text-[14px] font-medium text-white' : 'text-[14px] font-medium text-[#232D4F]'
+  const inputBaseClass = `w-full rounded-lg border px-3 py-2 text-sm outline-none ${isDark ? 'border-white/30 bg-white/10 text-white placeholder:text-white/60' : 'border-slate-300 bg-white text-slate-700 placeholder:text-slate-400'}`
 
-  const submitLabel = editingId ? 'Guardar cambios' : 'Guardar colaborador'
-  const panelTitle = editingId ? 'Editar colaborador' : 'Alta de colaborador'
+  async function refreshLocalRows() {
+    const rows = await listLocalSpaceCollaborators(spaceId)
+    setCollaborators(rows)
+  }
 
   useEffect(() => {
     let isMounted = true
@@ -84,6 +139,17 @@ export function CollaboratorsCard({
       setRefreshError('')
       try {
         await mergeRemoteCollaborators(spaceId)
+        const [rows, genders, activities] = await Promise.all([
+          listLocalSpaceCollaborators(spaceId),
+          listCollaboratorGenders(spaceId),
+          listCollaboratorActivities(spaceId),
+        ])
+        if (!isMounted) {
+          return
+        }
+        setCollaborators(rows)
+        setGenderOptions(genders)
+        setActivityOptions(activities)
       } catch (error) {
         if (!isMounted) {
           return
@@ -103,35 +169,56 @@ export function CollaboratorsCard({
     }
   }, [spaceId])
 
-  function openCreateForm() {
+  function resetForm() {
     setEditingId(null)
     setFormData(EMPTY_FORM)
     setFormError('')
+    setPreview(null)
+    setPreviewing(false)
+    setFormOpen(false)
+  }
+
+  function openCreateForm() {
+    setExpandedIds({})
+    setEditingId(null)
+    setFormData({
+      ...EMPTY_FORM,
+      fecha_alta: new Date().toISOString().slice(0, 10),
+    })
+    setFormError('')
+    setPreview(null)
     setFormOpen(true)
   }
 
   function openEditForm(item: SpaceCollaboratorRecord) {
     setEditingId(item.id)
     setFormData({
-      nombre: item.nombre,
-      apellido: item.apellido,
       dni: item.dni,
-      telefono: item.telefono,
-      email: item.email,
-      rol_funcion: item.rol_funcion,
+      genero: item.genero || 'ND',
+      codigo_telefono: item.codigo_telefono || '',
+      numero_telefono: item.numero_telefono || '',
+      fecha_alta: item.fecha_alta || new Date().toISOString().slice(0, 10),
+      fecha_baja: item.fecha_baja || '',
+      actividad_ids: item.actividades.map((actividad) => actividad.id),
+    })
+    setPreview({
+      source: item.ciudadano_id ? 'sisoc' : 'renaper',
+      ciudadano_id: item.ciudadano_id || null,
+      ya_registrado_en_espacio: false,
+      colaborador_activo_id: item.remote_id || null,
+      apellido: item.apellido,
+      nombre: item.nombre,
+      dni: item.dni,
+      prefijo_cuil: item.prefijo_cuil || null,
+      cuil_cuit: item.cuil_cuit || null,
+      sufijo_cuil: item.sufijo_cuil || null,
+      sexo: item.sexo || null,
+      fecha_nacimiento: item.fecha_nacimiento || null,
+      edad: item.edad ?? null,
     })
     setFormError('')
     setFormOpen(true)
   }
-
-  function closeForm() {
-    setFormOpen(false)
-    setEditingId(null)
-    setFormData(EMPTY_FORM)
-    setFormError('')
-  }
-
-  const currentRows = useMemo(() => collaborators ?? [], [collaborators])
 
   function toggleExpanded(collaboratorId: string) {
     setExpandedIds((current) => ({
@@ -140,38 +227,41 @@ export function CollaboratorsCard({
     }))
   }
 
-  function validateForm(data: SpaceCollaboratorPayload): string {
-    if (!data.nombre.trim() || !data.apellido.trim() || !data.dni.trim() || !data.telefono.trim() || !data.email.trim() || !data.rol_funcion.trim()) {
-      return 'Todos los campos son obligatorios.'
+  function validateForm(data: FormState): string {
+    if (!isEditing && !preview) {
+      if (!DNI_REGEX.test(data.dni.trim())) {
+        return 'El DNI debe tener 7 u 8 dígitos.'
+      }
+      return ''
     }
-    if (!DNI_REGEX.test(data.dni.trim())) {
-      return 'El DNI debe tener 7 u 8 dígitos.'
+    if (!data.fecha_alta) {
+      return 'La fecha de alta es obligatoria.'
     }
-    if (!EMAIL_REGEX.test(data.email.trim())) {
-      return 'Formato de email inválido.'
+    if (data.codigo_telefono.trim() && !/^\d+$/.test(data.codigo_telefono.trim())) {
+      return 'El código de teléfono debe contener solo números.'
     }
-    if (!PHONE_REGEX.test(data.telefono.trim())) {
-      return 'Formato de teléfono inválido.'
+    if (data.numero_telefono.trim() && !/^\d+$/.test(data.numero_telefono.trim())) {
+      return 'El número de teléfono debe contener solo números.'
     }
-
-    const dni = data.dni.trim()
-    const duplicate = currentRows.some((row) => row.dni === dni && row.id !== editingId)
-    if (duplicate) {
-      return 'Ya existe un colaborador activo con ese DNI en este espacio.'
+    if (data.actividad_ids.length === 0) {
+      return 'Debe seleccionar al menos una actividad.'
     }
-
+    if (data.fecha_baja && data.fecha_baja < data.fecha_alta) {
+      return 'La fecha de baja no puede ser anterior a la fecha de alta.'
+    }
     return ''
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const normalized: SpaceCollaboratorPayload = {
-      nombre: formData.nombre.trim(),
-      apellido: formData.apellido.trim(),
-      dni: formData.dni.trim(),
-      telefono: formData.telefono.trim(),
-      email: formData.email.trim().toLowerCase(),
-      rol_funcion: formData.rol_funcion.trim(),
+    const normalized: FormState = {
+      dni: formData.dni.replace(/\D/g, ''),
+      genero: formData.genero,
+      codigo_telefono: formData.codigo_telefono.trim(),
+      numero_telefono: formData.numero_telefono.trim(),
+      fecha_alta: formData.fecha_alta,
+      fecha_baja: formData.fecha_baja,
+      actividad_ids: formData.actividad_ids,
     }
 
     const validationError = validateForm(normalized)
@@ -180,20 +270,54 @@ export function CollaboratorsCard({
       return
     }
 
+    if (!isEditing && !preview) {
+      setPreviewing(true)
+      setFormError('')
+      try {
+        const previewResponse = await previewSpaceCollaboratorDni(spaceId, normalized.dni)
+        if (previewResponse.ya_registrado_en_espacio) {
+          setFormError('La persona ya se encuentra registrada como colaborador de este espacio.')
+          return
+        }
+        setPreview(previewResponse)
+      } catch (error) {
+        setFormError(
+          parseCommonApiError(error, 'No se pudieron obtener datos desde SISOC/RENAPER.', {
+            timeoutMessage: 'La consulta a RENAPER está demorando. Intentá nuevamente en unos segundos.',
+          }),
+        )
+      } finally {
+        setPreviewing(false)
+      }
+      return
+    }
+
+    const payload: SpaceCollaboratorPayload = {
+      ciudadano_id: preview?.ciudadano_id || undefined,
+      dni: !preview?.ciudadano_id ? normalized.dni : undefined,
+      genero: normalized.genero,
+      codigo_telefono: normalized.codigo_telefono,
+      numero_telefono: normalized.numero_telefono,
+      fecha_alta: normalized.fecha_alta,
+      fecha_baja: normalized.fecha_baja || null,
+      actividad_ids: normalized.actividad_ids,
+    }
+
     setSaving(true)
     setFormError('')
     try {
       if (editingId) {
-        const editing = currentRows.find((row) => row.id === editingId)
+        const editing = collaborators?.find((row) => row.id === editingId)
         if (!editing) {
           setFormError('No se encontró el colaborador a editar.')
           return
         }
-        await updateCollaboratorOffline(editing, normalized)
-      } else {
-        await createCollaboratorOffline(spaceId, normalized)
+        await updateCollaboratorOffline(editing, payload)
+      } else if (preview) {
+        await createCollaboratorOffline(spaceId, payload, preview)
       }
-      closeForm()
+      await refreshLocalRows()
+      resetForm()
       void syncNow()
     } catch (error) {
       setFormError(parseApiError(error, 'No se pudo guardar el colaborador.'))
@@ -203,25 +327,36 @@ export function CollaboratorsCard({
   }
 
   async function handleDelete(item: SpaceCollaboratorRecord) {
-    const confirmed = window.confirm(
-      `¿Eliminar lógicamente a ${item.nombre} ${item.apellido}?`,
-    )
-    if (!confirmed) {
+    if (deletingCollaboratorId === item.id) {
       return
     }
 
+    setDeletingCollaboratorId(item.id)
     try {
       await deleteCollaboratorOffline(item)
       if (editingId === item.id) {
-        closeForm()
+        resetForm()
       }
+      await refreshLocalRows()
+      setCollaboratorPendingDelete(null)
       void syncNow()
     } catch (error) {
-      setFormError(parseApiError(error, 'No se pudo eliminar el colaborador.'))
+      setFormError(parseApiError(error, 'No se pudo dar de baja el colaborador.'))
+    } finally {
+      setDeletingCollaboratorId(null)
     }
   }
 
-  const inputBaseClass = `w-full rounded-lg border px-3 py-2 text-sm outline-none ${isDark ? 'border-white/30 bg-white/10 text-white placeholder:text-white/60' : 'border-slate-300 bg-white text-slate-700 placeholder:text-slate-400'}`
+  const currentRows = useMemo(() => collaborators ?? [], [collaborators])
+
+  function toggleActivity(activityId: number) {
+    setFormData((current) => ({
+      ...current,
+      actividad_ids: current.actividad_ids.includes(activityId)
+        ? current.actividad_ids.filter((item) => item !== activityId)
+        : [...current.actividad_ids, activityId],
+    }))
+  }
 
   return (
     <article
@@ -229,7 +364,7 @@ export function CollaboratorsCard({
       style={{ ...cardStyle, ['--card-delay' as string]: '210ms' }}
     >
       <div className="flex items-center justify-between gap-2">
-        <h2 className={`text-[16px] font-semibold ${textClass}`}>Datos de Colaboradores</h2>
+        <h2 className={`text-[16px] font-semibold ${textClass}`}>Colaboradores del espacio</h2>
         <button
           type="button"
           onClick={openCreateForm}
@@ -242,60 +377,155 @@ export function CollaboratorsCard({
       {formOpen ? (
         <form
           onSubmit={(event) => void handleSubmit(event)}
-          className={`mt-3 grid gap-2 rounded-xl border p-3 ${subCardClass}`}
+          className={`mt-3 grid gap-3 rounded-xl border p-3 ${subCardClass}`}
         >
           <p className={`text-sm font-semibold ${textClass}`}>{panelTitle}</p>
-          <input
-            className={inputBaseClass}
-            placeholder="Nombre"
-            value={formData.nombre}
-            onChange={(event) => setFormData((current) => ({ ...current, nombre: event.target.value }))}
-          />
-          <input
-            className={inputBaseClass}
-            placeholder="Apellido"
-            value={formData.apellido}
-            onChange={(event) => setFormData((current) => ({ ...current, apellido: event.target.value }))}
-          />
-          <input
-            className={inputBaseClass}
-            placeholder="DNI"
-            value={formData.dni}
-            onChange={(event) => setFormData((current) => ({ ...current, dni: event.target.value }))}
-          />
-          <input
-            className={inputBaseClass}
-            placeholder="Teléfono"
-            value={formData.telefono}
-            onChange={(event) => setFormData((current) => ({ ...current, telefono: event.target.value }))}
-          />
-          <input
-            className={inputBaseClass}
-            placeholder="Email"
-            value={formData.email}
-            onChange={(event) => setFormData((current) => ({ ...current, email: event.target.value }))}
-          />
-          <input
-            className={inputBaseClass}
-            placeholder="Rol/Función"
-            value={formData.rol_funcion}
-            onChange={(event) => setFormData((current) => ({ ...current, rol_funcion: event.target.value }))}
-          />
+
+          {!isEditing ? (
+            <input
+              className={inputBaseClass}
+              placeholder="DNI"
+              value={formData.dni}
+              onChange={(event) => {
+                setFormData((current) => ({ ...current, dni: event.target.value }))
+                if (preview) {
+                  setPreview(null)
+                }
+              }}
+            />
+          ) : null}
+
+          {preview ? (
+            <div className={`grid gap-2 rounded-lg border p-3 ${subCardClass}`}>
+              <p className={`text-[12px] font-semibold ${textClass}`}>
+                Datos {preview.source === 'sisoc' ? 'SISOC' : 'RENAPER'}
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className={infoLabelClass}>Nombre</p>
+                  <p className={infoValueClass}>{preview.nombre || '-'}</p>
+                </div>
+                <div>
+                  <p className={infoLabelClass}>Apellido</p>
+                  <p className={infoValueClass}>{preview.apellido || '-'}</p>
+                </div>
+                <div>
+                  <p className={infoLabelClass}>DNI</p>
+                  <p className={infoValueClass}>{preview.dni || '-'}</p>
+                </div>
+                <div>
+                  <p className={infoLabelClass}>Sexo</p>
+                  <p className={infoValueClass}>{preview.sexo || '-'}</p>
+                </div>
+                <div>
+                  <p className={infoLabelClass}>Fecha nacimiento</p>
+                  <p className={infoValueClass}>{formatLatinDate(preview.fecha_nacimiento)}</p>
+                </div>
+                <div>
+                  <p className={infoLabelClass}>Edad</p>
+                  <p className={infoValueClass}>{preview.edad ?? '-'}</p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="grid gap-2 md:grid-cols-2">
+            <div className="grid gap-1">
+              <label className={`text-[12px] font-semibold ${textClass}`}>Género</label>
+              <select
+                value={formData.genero}
+                onChange={(event) => setFormData((current) => ({ ...current, genero: event.target.value }))}
+                className={inputBaseClass}
+              >
+                {genderOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid gap-1">
+              <label className={`text-[12px] font-semibold ${textClass}`}>Fecha de alta</label>
+              <input
+                type="date"
+                value={formData.fecha_alta}
+                onChange={(event) => setFormData((current) => ({ ...current, fecha_alta: event.target.value }))}
+                className={inputBaseClass}
+              />
+            </div>
+            <div className="grid gap-1">
+              <label className={`text-[12px] font-semibold ${textClass}`}>Código teléfono</label>
+              <input
+                value={formData.codigo_telefono}
+                onChange={(event) => setFormData((current) => ({ ...current, codigo_telefono: event.target.value }))}
+                className={inputBaseClass}
+                placeholder="Ej. 11"
+              />
+            </div>
+            <div className="grid gap-1">
+              <label className={`text-[12px] font-semibold ${textClass}`}>Número teléfono</label>
+              <input
+                value={formData.numero_telefono}
+                onChange={(event) => setFormData((current) => ({ ...current, numero_telefono: event.target.value }))}
+                className={inputBaseClass}
+                placeholder="Ej. 12345678"
+              />
+            </div>
+            <div className="grid gap-1 md:col-span-2">
+              <label className={`text-[12px] font-semibold ${textClass}`}>Fecha de baja</label>
+              <input
+                type="date"
+                value={formData.fecha_baja}
+                onChange={(event) => setFormData((current) => ({ ...current, fecha_baja: event.target.value }))}
+                className={inputBaseClass}
+              />
+            </div>
+          </div>
+
+          <div className={`grid gap-2 rounded-lg border p-3 ${subCardClass}`}>
+            <p className={`text-[12px] font-semibold ${textClass}`}>Actividades</p>
+            {activityOptions.length === 0 ? (
+              <p className={`text-[12px] ${detailTextClass}`}>No hay actividades disponibles.</p>
+            ) : (
+              <div className="grid gap-2">
+                {activityOptions.map((activity) => (
+                  <label key={activity.id} className={`flex items-center gap-2 text-[12px] ${detailTextClass}`}>
+                    <input
+                      type="checkbox"
+                      checked={formData.actividad_ids.includes(activity.id)}
+                      onChange={() => toggleActivity(activity.id)}
+                    />
+                    <span>{activity.nombre}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
           {formError ? <p className="text-xs text-[#C62828]">{formError}</p> : null}
           <div className="mt-1 flex justify-end gap-2">
             <button
               type="button"
-              onClick={closeForm}
+              onClick={resetForm}
               className={`rounded-full border px-3 py-1 text-xs font-semibold ${isDark ? 'border-white/40 text-white' : 'border-slate-300 text-slate-700'}`}
             >
               Cancelar
             </button>
+            {!isEditing && preview ? (
+              <button
+                type="button"
+                onClick={() => setPreview(null)}
+                className={`rounded-full border bg-white px-3 py-1 text-xs font-semibold ${isDark ? 'border-white/40 text-[#232D4F]' : 'border-slate-300 text-[#232D4F]'}`}
+              >
+                Cancelar validación
+              </button>
+            ) : null}
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || previewing}
               className="rounded-full bg-[#232D4F] px-3 py-1 text-xs font-semibold text-white disabled:opacity-60"
             >
-              {saving ? 'Guardando...' : submitLabel}
+              {previewing ? 'Consultando...' : saving ? 'Guardando...' : submitLabel}
             </button>
           </div>
         </form>
@@ -322,7 +552,9 @@ export function CollaboratorsCard({
                   <p className={`truncate text-[14px] font-semibold ${textClass}`}>
                     {collaborator.apellido}, {collaborator.nombre}
                   </p>
-                  <p className="mt-0.5 truncate text-[12px]">{collaborator.rol_funcion}</p>
+                  <p className="mt-0.5 truncate text-[12px]">
+                    {collaborator.activo ? 'Activo' : `Baja: ${formatLatinDate(collaborator.fecha_baja)}`}
+                  </p>
                 </div>
 
                 <button
@@ -342,13 +574,22 @@ export function CollaboratorsCard({
 
               <div
                 className={`grid overflow-hidden transition-all duration-300 ease-out ${
-                  expandedIds[collaborator.id] ? 'mt-2 max-h-[220px] opacity-100' : 'max-h-0 opacity-0'
+                  expandedIds[collaborator.id] ? 'mt-2 max-h-[320px] opacity-100' : 'max-h-0 opacity-0'
                 }`}
               >
                 <div className={`grid gap-1 text-[13px] ${detailTextClass}`}>
                   <p><span className={`font-semibold ${textClass}`}>DNI:</span> {collaborator.dni}</p>
-                  <p><span className={`font-semibold ${textClass}`}>Mail:</span> {collaborator.email}</p>
-                  <p><span className={`font-semibold ${textClass}`}>Teléfono:</span> {collaborator.telefono}</p>
+                  <p><span className={`font-semibold ${textClass}`}>Sexo:</span> {collaborator.sexo || '-'}</p>
+                  <p><span className={`font-semibold ${textClass}`}>Género:</span> {genderOptions.find((item) => item.id === collaborator.genero)?.label || collaborator.genero}</p>
+                  <p><span className={`font-semibold ${textClass}`}>Fecha alta:</span> {formatLatinDate(collaborator.fecha_alta)}</p>
+                  <p><span className={`font-semibold ${textClass}`}>Fecha baja:</span> {formatLatinDate(collaborator.fecha_baja)}</p>
+                  <p><span className={`font-semibold ${textClass}`}>Teléfono:</span> {[collaborator.codigo_telefono, collaborator.numero_telefono].filter(Boolean).join(' ') || '-'}</p>
+                  <p>
+                    <span className={`font-semibold ${textClass}`}>Actividades:</span>{' '}
+                    {collaborator.actividades.length > 0
+                      ? collaborator.actividades.map((actividad) => actividad.nombre).join(', ')
+                      : '-'}
+                  </p>
                   {collaborator.last_error ? (
                     <p className="text-xs text-[#C62828]">{collaborator.last_error}</p>
                   ) : null}
@@ -366,10 +607,15 @@ export function CollaboratorsCard({
                   </button>
                   <button
                     type="button"
-                    onClick={() => void handleDelete(collaborator)}
-                    className="rounded-full bg-[#C62828] px-3 py-1 text-xs font-semibold text-white"
+                    onClick={() => setCollaboratorPendingDelete(collaborator)}
+                    disabled={!collaborator.activo || deletingCollaboratorId === collaborator.id}
+                    className="rounded-full bg-[#C62828] px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
                   >
-                    Eliminar
+                    {deletingCollaboratorId === collaborator.id
+                      ? 'Eliminando...'
+                      : collaborator.activo
+                        ? 'Eliminar'
+                        : 'Dado de baja'}
                   </button>
                 </div>
               </div>
@@ -377,6 +623,25 @@ export function CollaboratorsCard({
           ))}
         </div>
       )}
+
+      <ConfirmActionModal
+        open={Boolean(collaboratorPendingDelete)}
+        title="Confirmar baja de colaborador"
+        message={
+          collaboratorPendingDelete
+            ? `Se va a dar de baja a ${collaboratorPendingDelete.nombre} ${collaboratorPendingDelete.apellido} en este espacio.`
+            : ''
+        }
+        confirmLabel="Dar de baja"
+        loading={Boolean(
+          collaboratorPendingDelete &&
+            deletingCollaboratorId === collaboratorPendingDelete.id,
+        )}
+        onCancel={() => setCollaboratorPendingDelete(null)}
+        onConfirm={() =>
+          collaboratorPendingDelete ? void handleDelete(collaboratorPendingDelete) : undefined
+        }
+      />
     </article>
   )
 }

@@ -1,25 +1,28 @@
-﻿import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { listMySpaces } from '../api/spacesApi'
 import { useAuth } from '../auth/useAuth'
+import { MOBILE_RENDICION_PERMISSION } from '../auth/permissionCodes'
+import { buildOrganizationAccessSummary } from '../features/home/organizationAccess'
 import {
   getOrganizationSpacesCache,
   setOrganizationSpacesCache,
 } from '../features/home/organizationSpacesCache'
-import { usePendingOutboxCount } from '../sync/usePendingOutboxCount'
+import { useOrganizationUnreadMessages } from '../features/home/useUnreadMessages'
 import { syncNow } from '../sync/engine'
+import { usePendingOutboxCount } from '../sync/usePendingOutboxCount'
 import { AppLoadingSpinner } from './AppLoadingSpinner'
-import { PageLoadingContext } from './PageLoadingContext'
-import { SafeScreen } from './SafeScreen'
 import { AppHeaderBar } from './AppHeaderBar'
 import {
   BottomMenuBar,
   HomeIcon,
   ListIcon,
   MessagesIcon,
+  RendicionIcon,
   SpacesIcon,
 } from './BottomMenuBar'
+import { PageLoadingContext } from './PageLoadingContext'
+import { SafeScreen } from './SafeScreen'
 import { SettingsDrawer } from './SettingsDrawer'
 import { useAppTheme } from './ThemeContext'
 
@@ -35,48 +38,58 @@ export function AppLayout({
   const location = useLocation()
   const pending = usePendingOutboxCount()
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [showPageSkeleton, setShowPageSkeleton] = useState(true)
   const [isPageLoading, setIsPageLoading] = useState(false)
   const [orgSingleSpaceId, setOrgSingleSpaceId] = useState<number | null>(null)
   const { theme, isDark, toggleTheme } = useAppTheme()
-  const orgSpaceScopedMatch = location.pathname.match(
-    /^\/app-org\/espacios\/(\d+)(?:\/(hub|informacion|mensajes|actividades|nomina|rendicion))?$/,
-  )
+  const orgSpaceScopedMatch = location.pathname.match(/^\/app-org\/espacios\/(\d+)(?:\/.*)?$/)
   const isOrgSpaceScopedRoute = Boolean(orgSpaceScopedMatch)
   const isOrgHubRoute = /^\/app-org\/espacios\/\d+(?:\/hub)?\/?$/.test(location.pathname)
   const isSyncRoute = /^\/app-(org|user)\/sincronizacion\/?$/.test(location.pathname)
   const isMessagesRoute = /^\/app-(org|user)\/mensajes\/?$/.test(location.pathname)
+  const isRendicionRoute =
+    /^\/app-org\/rendicion\/?$/.test(location.pathname)
+    || /^\/app-org\/espacios\/\d+\/rendicion(?:\/.*)?$/.test(location.pathname)
+  const isNominaFormRoute = /^\/app-org\/espacios\/\d+\/nomina\/(?:nueva|\d+\/editar)\/?$/.test(
+    location.pathname,
+  )
   const isOrgSpacesHomeRoute = roleLabel === 'Organización' && /^\/app-org\/?$/.test(location.pathname)
-  const headerState = (location.state as { spaceName?: string; programName?: string } | null) ?? null
+  const isOrgMessagesHomeRoute =
+    roleLabel === 'Organización' && /^\/app-org\/mensajes\/?$/.test(location.pathname)
+  const headerState =
+    (location.state as
+      | { spaceName?: string; programName?: string; projectName?: string; organizationName?: string }
+      | null) ?? null
+  const isRendicionSelectorRoute = /^\/app-org\/rendicion\/?$/.test(location.pathname)
   const isInstitutionalRoute = location.pathname.endsWith('/informacion')
+  const organizationWelcomeTitle = userProfile?.fullName?.trim()
+    ? `Bienvenido ${userProfile.fullName.trim()}`
+    : 'Bienvenido'
   const headerTitle = isOrgSpacesHomeRoute
-    ? 'Organización'
-    : isSyncRoute
-    ? 'Sincronización'
-    : isOrgSpaceScopedRoute
-      ? headerState?.spaceName || 'Espacio'
-      : title
+    ? organizationWelcomeTitle
+    : isOrgMessagesHomeRoute
+      ? 'Organización'
+      : isSyncRoute
+        ? 'Sincronización'
+        : isRendicionRoute
+          ? 'Rendición de Cuentas'
+          : isOrgSpaceScopedRoute
+            ? headerState?.spaceName || 'Espacio'
+            : title
   const headerSubtitle = isOrgSpacesHomeRoute
-    ? 'Selector de Espacios'
-    : isOrgSpaceScopedRoute
-    ? isInstitutionalRoute
-      ? headerState?.programName || 'Programa sin definir'
-      : ''
-    : isSyncRoute
-      ? ''
-      : roleLabel
-
-  useEffect(() => {
-    setShowPageSkeleton(true)
-
-    const timer = window.setTimeout(() => {
-      setShowPageSkeleton(false)
-    }, 180)
-
-    return () => {
-      window.clearTimeout(timer)
-    }
-  }, [location.pathname])
+    ? 'Hub de Espacios'
+    : isOrgMessagesHomeRoute
+      ? 'Mensajes'
+      : isRendicionSelectorRoute
+        ? 'Seleccioná organización y proyecto'
+        : isRendicionRoute
+          ? headerState?.projectName || headerState?.programName || 'Proyecto activo'
+          : isOrgSpaceScopedRoute
+            ? isInstitutionalRoute
+              ? headerState?.programName || 'Programa sin definir'
+              : ''
+            : isSyncRoute
+              ? ''
+              : roleLabel
 
   useEffect(() => {
     let isMounted = true
@@ -90,7 +103,7 @@ export function AppLayout({
       const cached = getOrganizationSpacesCache(cacheKey)
       if (cached) {
         if (isMounted) {
-          setOrgSingleSpaceId(cached.length === 1 ? cached[0].id : null)
+          setOrgSingleSpaceId(buildOrganizationAccessSummary(cached).autoEnterSpace?.id ?? null)
         }
         return
       }
@@ -99,7 +112,7 @@ export function AppLayout({
         const spaces = await listMySpaces()
         setOrganizationSpacesCache(cacheKey, spaces)
         if (isMounted) {
-          setOrgSingleSpaceId(spaces.length === 1 ? spaces[0].id : null)
+          setOrgSingleSpaceId(buildOrganizationAccessSummary(spaces).autoEnterSpace?.id ?? null)
         }
       } catch {
         if (isMounted) {
@@ -127,6 +140,11 @@ export function AppLayout({
     navigate('/', { replace: true })
   }
 
+  const orgRendicionRoute = '/app-org/rendicion'
+  const canManageRendicion = Boolean(
+    userProfile?.permissions?.includes(MOBILE_RENDICION_PERMISSION),
+  )
+
   const navItems =
     roleLabel === 'Organización'
       ? [
@@ -149,6 +167,16 @@ export function AppLayout({
             to: '/app-org/mensajes',
             icon: <MessagesIcon />,
           },
+          ...(canManageRendicion
+            ? [
+                {
+                  id: 'rendicion',
+                  label: 'Rendición',
+                  to: orgRendicionRoute,
+                  icon: <RendicionIcon />,
+                },
+              ]
+            : []),
         ]
       : [
           {
@@ -172,22 +200,26 @@ export function AppLayout({
         ]
 
   const hideBackOnSingleSpaceHub = Boolean(orgSingleSpaceId) && isOrgHubRoute
+  const organizationUnreadState = useOrganizationUnreadMessages(userProfile?.username)
+  const notificationsBadgeCount =
+    roleLabel === 'Organización' ? organizationUnreadState.unreadCount : 0
 
   const contentBg = isDark ? 'bg-[#3E5A7E]' : 'bg-white'
-
-  const showSkeletonOverlay = showPageSkeleton || isPageLoading
+  const showSkeletonOverlay = isPageLoading
 
   return (
     <SafeScreen className={contentBg} style={{ paddingTop: 0 }}>
       <AppHeaderBar
         title={headerTitle}
         subtitle={headerSubtitle}
-        titleOnTop={isOrgSpacesHomeRoute}
+        titleOnTop={isOrgSpacesHomeRoute || isOrgMessagesHomeRoute}
         onSync={() => void syncNow()}
         showSync={
           !(roleLabel === 'Organización' && location.pathname === '/app-org')
           && !isOrgSpaceScopedRoute
           && !isMessagesRoute
+          && !isRendicionRoute
+          && !isNominaFormRoute
         }
         showBack={(isOrgSpaceScopedRoute || isSyncRoute) && !hideBackOnSingleSpaceHub}
         onBackClick={() => {
@@ -198,12 +230,15 @@ export function AppLayout({
           navigate(roleLabel === 'Organización' ? '/app-org' : '/app-user', { replace: true })
         }}
         onNotificationsClick={() =>
-          navigate(roleLabel === 'Organización' ? '/app-org/mensajes' : '/app-user/mensajes')
+          navigate(
+            roleLabel === 'Organización' ? '/app-org/mensajes' : '/app-user/mensajes',
+          )
         }
         onSyncCenterClick={() =>
           navigate(roleLabel === 'Organización' ? '/app-org/sincronizacion' : '/app-user/sincronizacion')
         }
         hasPendingSync={pending > 0}
+        notificationsBadgeCount={notificationsBadgeCount}
       />
 
       <main
@@ -216,7 +251,6 @@ export function AppLayout({
         <div className="relative min-h-[320px]">
           <PageLoadingContext.Provider value={{ setPageLoading: setIsPageLoading }}>
             <div
-              key={location.pathname}
               className={`page-fade-in transition-opacity ${showSkeletonOverlay ? 'opacity-0' : 'opacity-100'}`}
             >
               <Outlet />
@@ -282,5 +316,3 @@ function PageSkeleton({ isDark }: { isDark: boolean }) {
     </section>
   )
 }
-
-
