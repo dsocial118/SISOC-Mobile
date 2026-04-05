@@ -7,4 +7,5 @@ services:
       args:
         NODE_VERSION: ${NODE_VERSION:-22.14.0}
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+        VITE_PUBLIC_BASE_PATH: ${VITE_PUBLIC_BASE_PATH:-/}
     image: sisoc-mobile-frontend:${IMAGE_TAG:-latest}

@@ -2,6 +2,16 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+function normalizeBasePath(value: string | undefined): string {
+  if (!value || value === '/') {
+    return '/'
+  }
+
+  const trimmed = value.trim()
+  const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+  return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -9,8 +19,10 @@ export default defineConfig(({ mode }) => {
   const host = env.VITE_HOST || '127.0.0.1'
   const port = Number(env.VITE_PORT || 5173)
   const usePolling = env.CHOKIDAR_USEPOLLING === 'true'
+  const publicBasePath = normalizeBasePath(env.VITE_PUBLIC_BASE_PATH)
 
   return {
+    base: publicBasePath,
     server: {
       host,
       port,
@@ -41,7 +53,8 @@ export default defineConfig(({ mode }) => {
           background_color: '#232D4F',
           display: 'standalone',
           display_override: ['window-controls-overlay', 'standalone'],
-          start_url: '/',
+          start_url: publicBasePath,
+          scope: publicBasePath,
           icons: [
             {
               src: 'icono.png',
