@@ -12,7 +12,7 @@ import { parseApiError } from '../../api/errorUtils'
 import type { RendicionItem } from '../../api/rendicionApi'
 import { syncNow } from '../../sync/engine'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/ThemeContext'
+import { useAppTheme } from '../../ui/theme'
 import { formatDateTime, loadRendicionesOfflineFirst } from './rendicionOffline'
 import { getRendicionListCache, setRendicionListCache } from './rendicionViewCache'
 

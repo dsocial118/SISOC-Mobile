@@ -9,7 +9,7 @@ import {
   faTableCellsLarge,
 } from '@fortawesome/free-solid-svg-icons'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useAppTheme } from './ThemeContext'
+import { useAppTheme } from './theme'
 
 interface BottomMenuItem {
   id: string

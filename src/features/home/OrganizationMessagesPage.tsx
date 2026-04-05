@@ -11,7 +11,7 @@ import {
   setOrganizationSpacesCache,
 } from './organizationSpacesCache'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/ThemeContext'
+import { useAppTheme } from '../../ui/theme'
 import { notifySpaceUnreadMessagesUpdated } from './useUnreadMessages'
 
 interface AggregatedMessageItem {

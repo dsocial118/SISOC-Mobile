@@ -5,7 +5,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { listSpaceMessages, type SpaceMessageItem } from '../../api/messagesApi'
 import { parseApiError } from '../../api/errorUtils'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/ThemeContext'
+import { useAppTheme } from '../../ui/theme'
 import { notifySpaceUnreadMessagesUpdated } from './useUnreadMessages'
 
 function formatDate(value: string | null | undefined): string {

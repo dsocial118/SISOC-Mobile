@@ -25,7 +25,7 @@ import {
 } from '../../api/nominaApi'
 import { parseApiError } from '../../api/errorUtils'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/ThemeContext'
+import { useAppTheme } from '../../ui/theme'
 
 const EMPTY_STATS: NominaStats = {
   total_nomina: 0,

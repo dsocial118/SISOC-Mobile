@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faArrowUpRightFromSquare,
@@ -23,7 +23,7 @@ import { syncNow } from '../../sync/engine'
 import { ConfirmActionModal } from '../../ui/ConfirmActionModal'
 import { NoticeModal } from '../../ui/NoticeModal'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/ThemeContext'
+import { useAppTheme } from '../../ui/theme'
 
 function formatDateTime(value: string): string {
   const parsed = new Date(value)
@@ -109,7 +109,7 @@ export function SpaceRendicionDetailPage() {
     setNoticeMessage(message)
   }
 
-  async function reloadDetail() {
+  const reloadDetail = useCallback(async () => {
     if (!spaceId || !rendicionId) {
       setLoadErrorMessage('No se encontro la rendicion seleccionada.')
       setLoading(false)
@@ -117,7 +117,7 @@ export function SpaceRendicionDetailPage() {
     }
     const detail = await getRendicionDetailOfflineFirst(spaceId, rendicionId)
     setRendicion(detail)
-  }
+  }, [rendicionId, spaceId])
 
   useEffect(() => {
     let isMounted = true
@@ -146,7 +146,7 @@ export function SpaceRendicionDetailPage() {
       isMounted = false
       setPageLoading(false)
     }
-  }, [rendicionId, setPageLoading, spaceId])
+  }, [reloadDetail, setPageLoading])
 
   const canEditFiles = useMemo(
     () => rendicion?.estado === 'elaboracion' || rendicion?.estado === 'subsanar',

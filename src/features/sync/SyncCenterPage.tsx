@@ -11,7 +11,7 @@ import type { OutboxRecord } from '../../db/database'
 import { db } from '../../db/database'
 import { isOnline } from '../../api/http'
 import { syncNow } from '../../sync/engine'
-import { useAppTheme } from '../../ui/ThemeContext'
+import { useAppTheme } from '../../ui/theme'
 import { LargeBlueButton } from '../../ui/buttons'
 
 type SyncListItem = {
