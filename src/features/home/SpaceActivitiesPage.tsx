@@ -28,7 +28,7 @@ import {
 } from '../../api/activitiesApi'
 import { ConfirmActionModal } from '../../ui/ConfirmActionModal'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/ThemeContext'
+import { useAppTheme } from '../../ui/theme'
 
 type FormState = {
   catalogo_actividad: string

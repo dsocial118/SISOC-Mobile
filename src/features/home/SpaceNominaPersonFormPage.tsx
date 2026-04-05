@@ -16,7 +16,7 @@ import {
 } from '../../api/nominaApi'
 import { syncNow } from '../../sync/engine'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/ThemeContext'
+import { useAppTheme } from '../../ui/theme'
 
 type FormState = {
   nombre: string

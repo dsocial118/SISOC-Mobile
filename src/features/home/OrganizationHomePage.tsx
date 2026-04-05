@@ -11,7 +11,7 @@ import { listMySpaces, type SpaceItem } from '../../api/spacesApi'
 import { useAuth } from '../../auth/useAuth'
 import { parseApiError } from '../../api/errorUtils'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/ThemeContext'
+import { useAppTheme } from '../../ui/theme'
 import { buildOrganizationAccessSummary } from './organizationAccess'
 import {
   getOrganizationSpacesCache,

@@ -10,7 +10,7 @@ import {
 } from '../../api/messagesApi'
 import { parseApiError } from '../../api/errorUtils'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/ThemeContext'
+import { useAppTheme } from '../../ui/theme'
 import { useAuth } from '../../auth/useAuth'
 import {
   notifySpaceUnreadMessagesUpdated,

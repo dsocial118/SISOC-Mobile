@@ -21,7 +21,7 @@ import {
 } from '../../api/nominaApi'
 import { ConfirmActionModal } from '../../ui/ConfirmActionModal'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/ThemeContext'
+import { useAppTheme } from '../../ui/theme'
 
 function formatLatinDate(rawDate: string | null | undefined): string {
   const value = (rawDate || '').trim()

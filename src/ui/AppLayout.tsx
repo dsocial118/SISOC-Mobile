@@ -24,7 +24,7 @@ import {
 import { PageLoadingContext } from './PageLoadingContext'
 import { SafeScreen } from './SafeScreen'
 import { SettingsDrawer } from './SettingsDrawer'
-import { useAppTheme } from './ThemeContext'
+import { useAppTheme } from './theme'
 
 export function AppLayout({
   title,

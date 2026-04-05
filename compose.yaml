@@ -1,0 +1,10 @@
+name: sisoc-mobile
+
+services:
+  frontend:
+    build:
+      context: .
+      args:
+        NODE_VERSION: ${NODE_VERSION:-22.14.0}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    image: sisoc-mobile-frontend:${IMAGE_TAG:-latest}

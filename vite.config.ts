@@ -6,9 +6,21 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiTarget = env.VITE_DEV_API_TARGET || 'http://localhost:8001'
+  const host = env.VITE_HOST || '127.0.0.1'
+  const port = Number(env.VITE_PORT || 5173)
+  const usePolling = env.CHOKIDAR_USEPOLLING === 'true'
 
   return {
     server: {
+      host,
+      port,
+      strictPort: true,
+      watch: usePolling
+        ? {
+            usePolling: true,
+            interval: 300,
+          }
+        : undefined,
       proxy: {
         '/api': {
           target: apiTarget,

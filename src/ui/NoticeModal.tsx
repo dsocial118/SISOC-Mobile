@@ -1,6 +1,6 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCircleExclamation } from '@fortawesome/free-solid-svg-icons'
-import { useAppTheme } from './ThemeContext'
+import { useAppTheme } from './theme'
 
 type NoticeModalProps = {
   open: boolean

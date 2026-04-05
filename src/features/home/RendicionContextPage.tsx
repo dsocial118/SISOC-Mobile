@@ -16,7 +16,7 @@ import { useAuth } from '../../auth/useAuth'
 import { syncNow } from '../../sync/engine'
 import { AppLoadingSpinner } from '../../ui/AppLoadingSpinner'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/ThemeContext'
+import { useAppTheme } from '../../ui/theme'
 import {
   getOrganizationSpacesCache,
   setOrganizationSpacesCache,
