@@ -28,6 +28,7 @@ Archivo esperado para desarrollo local:
 ```env
 VITE_API_BASE_URL=/api
 VITE_DEV_API_TARGET=http://localhost:8002
+VITE_PUBLIC_BASE_PATH=/
 ```
 
 Puedes partir de:
@@ -40,6 +41,7 @@ Notas:
 
 - `VITE_API_BASE_URL=/api` mantiene las llamadas del frontend en una ruta relativa.
 - En desarrollo, Vite hace proxy de `/api` hacia `VITE_DEV_API_TARGET`.
+- `VITE_PUBLIC_BASE_PATH` define bajo qué prefijo se publica la SPA. En local debe quedarse en `/`.
 - En produccion, el frontend se construye con `VITE_API_BASE_URL=/api` y se asume que la infraestructura externa enruta esa ruta al backend.
 
 ## Desarrollo sin Docker
@@ -122,6 +124,7 @@ FRONTEND_BIND_ADDRESS=127.0.0.1
 IMAGE_TAG=latest
 NODE_VERSION=22.14.0
 VITE_API_BASE_URL=/api
+VITE_PUBLIC_BASE_PATH=/mobile/
 ```
 
 Supuestos de infraestructura:
@@ -137,8 +140,9 @@ Si en produccion ya tienes un `nginx` a nivel servidor, la forma correcta de int
 
 - el `nginx` del servidor termina TLS y enruta por dominio;
 - el `nginx` del contenedor sirve la SPA y aplica cache/headers de PWA;
-- el `nginx` del servidor deriva `/` al frontend en `127.0.0.1:8080`;
-- el `nginx` del servidor deriva `/api/` al backend real.
+- el `nginx` del servidor deriva `/mobile/` al frontend en `127.0.0.1:8080`;
+- el resto del sitio puede seguir yendo al backend actual;
+- `/api/` puede seguir yendo al backend real.
 
 Ejemplo base:
 
@@ -150,6 +154,7 @@ Que debes adaptar:
 - rutas de certificados TLS;
 - upstream del backend, por ejemplo `127.0.0.1:8002`, `127.0.0.1:8000` o un nombre DNS interno;
 - `client_max_body_size` si la app sube archivos mas grandes.
+- el prefijo `/mobile/`, que debe coincidir con `VITE_PUBLIC_BASE_PATH=/mobile/`.
 
 ## Archivos Docker
 
@@ -201,6 +206,7 @@ Comprueba:
 - que los assets bajo `/assets/` se sirven sin errores.
 - que `manifest.webmanifest` y `sw.js` responden correctamente y no quedan cacheados de forma agresiva.
 - que la instalacion PWA y las actualizaciones siguen funcionando en movil.
+- si la publicas bajo un prefijo, que el build haya sido generado con el mismo `VITE_PUBLIC_BASE_PATH`.
 
 ## Endurecimiento de produccion
 
@@ -242,21 +248,22 @@ Secuencia exacta de verificacion post-deploy en produccion:
 ```bash
 docker compose -f compose.yaml -f compose.prod.yaml ps
 curl -I https://TU_DOMINIO/
-curl -I https://TU_DOMINIO/sw.js
-curl -I https://TU_DOMINIO/manifest.webmanifest
-curl -I https://TU_DOMINIO/assets/index-ALGUN_HASH.js
-curl -I https://TU_DOMINIO/app-user/
+curl -I https://TU_DOMINIO/mobile/
+curl -I https://TU_DOMINIO/mobile/sw.js
+curl -I https://TU_DOMINIO/mobile/manifest.webmanifest
+curl -I https://TU_DOMINIO/mobile/assets/index-ALGUN_HASH.js
+curl -I https://TU_DOMINIO/mobile/app-user/
 curl -I https://TU_DOMINIO/api/ALGun_ENDPOINT_DE_SALUD
 ```
 
 Que debes validar en esas respuestas:
 
-- `/` debe responder `200` y `Cache-Control: no-cache, no-store, must-revalidate`;
-- `/sw.js` debe responder `200` y `Cache-Control: no-cache, no-store, must-revalidate`;
-- `/manifest.webmanifest` debe responder `200` y `Cache-Control: public, max-age=0, must-revalidate`;
-- `/assets/...` debe responder `200` y `Cache-Control: public, immutable`;
+- `/mobile/` debe responder `200` y `Cache-Control: no-cache, no-store, must-revalidate`;
+- `/mobile/sw.js` debe responder `200` y `Cache-Control: no-cache, no-store, must-revalidate`;
+- `/mobile/manifest.webmanifest` debe responder `200` y `Cache-Control: public, max-age=0, must-revalidate`;
+- `/mobile/assets/...` debe responder `200` y `Cache-Control: public, max-age=31536000, immutable`;
 - todas las rutas HTML relevantes deben incluir `Content-Security-Policy`, `X-Content-Type-Options`, `Referrer-Policy` y `Permissions-Policy`;
-- una ruta SPA como `/app-user/` debe responder `200`, no `404`.
+- una ruta SPA como `/mobile/app-user/` debe responder `200`, no `404`.
 - `/api/...` debe responder segun tu backend, pero no debe devolver `502` ni `404` del proxy del servidor.
 
 Verificacion funcional manual recomendada:
