@@ -25,6 +25,7 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         includeAssets: ['icono.png'],
         manifest: {
+          id: '/',
           name: 'Mi Espacio',
           short_name: 'Mi Espacio',
           description: 'Mi Espacio',
@@ -33,6 +34,7 @@ export default defineConfig(({ mode }) => {
           display: 'standalone',
           display_override: ['window-controls-overlay', 'standalone'],
           start_url: '/',
+          scope: '/',
           icons: [
             {
               src: 'icono.png',
