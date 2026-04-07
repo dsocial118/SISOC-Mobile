@@ -18,19 +18,18 @@ import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
 import { notifySpaceUnreadMessagesUpdated } from './useUnreadMessages'
 
-interface AggregatedMessageItem {
+interface AggregatedNotificationItem {
   spaceId: number
   spaceName: string
   message: SpaceMessageItem
 }
 
-interface GroupedAggregatedMessageItem {
+interface GroupedNotificationItem {
   groupKey: string
   spaceId: number
   spaceName: string
   message: SpaceMessageItem
-  groupedItems: AggregatedMessageItem[]
-  groupedCount: number
+  groupedItems: AggregatedNotificationItem[]
   unreadCount: number
 }
 
@@ -51,23 +50,36 @@ function formatDate(value: string | null | undefined): string {
   })
 }
 
-function getMessageContextLabel(
-  message: AggregatedMessageItem['message'],
-  spaceName: string,
-): string {
-  if (message.seccion === 'general') {
-    return 'General'
+function parseRendicionNotificationTitle(title: string): {
+  projectAndConvenio: string
+  rendicionSummary: string
+} {
+  const normalizedTitle = String(title || '')
+    .trim()
+    .replace(/Rendici.n/g, 'Rendición')
+  const match = normalizedTitle.match(/^(Proyecto .+?)\s\|\s(Convenio .+?)\s\|\s(.+)$/i)
+  if (!match) {
+    return {
+      projectAndConvenio: normalizedTitle || 'Rendición',
+      rendicionSummary: '',
+    }
   }
-  return spaceName
+  return {
+    projectAndConvenio: `${match[1]} - ${match[2]}`,
+    rendicionSummary: match[3],
+  }
 }
 
-function groupOrganizationMessages(
-  messages: AggregatedMessageItem[],
-): GroupedAggregatedMessageItem[] {
-  const grouped = new Map<string, GroupedAggregatedMessageItem>()
+function groupNotifications(
+  messages: AggregatedNotificationItem[],
+): GroupedNotificationItem[] {
+  const grouped = new Map<string, GroupedNotificationItem>()
 
   messages.forEach((item) => {
-    const groupKey = `space:${item.spaceId}:message:${item.message.id}`
+    const rendicionId = item.message.accion?.rendicion_id
+    const groupKey = rendicionId
+      ? `rendicion:${rendicionId}`
+      : `space:${item.spaceId}:message:${item.message.id}`
     const existing = grouped.get(groupKey)
 
     if (!existing) {
@@ -77,32 +89,30 @@ function groupOrganizationMessages(
         spaceName: item.spaceName,
         message: item.message,
         groupedItems: [item],
-        groupedCount: 1,
         unreadCount: item.message.visto ? 0 : 1,
       })
       return
     }
 
     existing.groupedItems.push(item)
-    existing.groupedCount += 1
     existing.unreadCount += item.message.visto ? 0 : 1
   })
 
   return Array.from(grouped.values())
 }
 
-export function OrganizationMessagesPage() {
+export function OrganizationNotificationsPage() {
   const navigate = useNavigate()
   const { userProfile } = useAuth()
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
   const cacheKey = userProfile?.username || '__anonymous__'
   const cachedSpaces = getOrganizationSpacesCache(cacheKey)
-  const [messages, setMessages] = useState<AggregatedMessageItem[]>([])
+  const [notifications, setNotifications] = useState<AggregatedNotificationItem[]>([])
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
-  async function handleOpenGroupedMessage(item: GroupedAggregatedMessageItem) {
+  async function handleOpenNotification(item: GroupedNotificationItem) {
     const pendingUnreadItems = item.groupedItems.filter((row) => !row.message.visto)
     if (pendingUnreadItems.length > 0) {
       await Promise.allSettled(
@@ -114,7 +124,7 @@ export function OrganizationMessagesPage() {
         return acc
       }, {})
 
-      setMessages((current) =>
+      setNotifications((current) =>
         current.map((row) =>
           item.groupedItems.some(
             (groupedRow) =>
@@ -135,22 +145,26 @@ export function OrganizationMessagesPage() {
           Number(spaceId),
           Math.max(
             0,
-            messages.filter((row) => row.spaceId === Number(spaceId) && !row.message.visto)
-              .length - count,
+            notifications.filter(
+              (row) => row.spaceId === Number(spaceId) && !row.message.visto,
+            ).length - count,
           ),
         )
       })
     }
 
-    navigate(`/app-org/espacios/${item.spaceId}/mensajes/${item.message.id}`, {
-      state: { spaceName: item.spaceName },
-    })
+    navigate(
+      `/app-org/espacios/${item.spaceId}/rendicion/${item.message.accion?.rendicion_id}`,
+      {
+        state: { spaceName: item.spaceName },
+      },
+    )
   }
 
   useEffect(() => {
     let isMounted = true
 
-    async function loadAllMessages() {
+    async function loadNotifications() {
       setPageLoading(true)
       setLoading(true)
       setErrorMessage('')
@@ -186,11 +200,12 @@ export function OrganizationMessagesPage() {
             responses.push(result.value)
           })
         }
+
         if (!isMounted) {
           return
         }
         if (!hasAtLeastOneResponse && spaces.length > 0) {
-          throw new Error('No se pudieron cargar los mensajes de los espacios.')
+          throw new Error('No se pudieron cargar las notificaciones.')
         }
 
         responses.forEach(({ space, response }) => {
@@ -199,7 +214,7 @@ export function OrganizationMessagesPage() {
 
         const rows = responses.flatMap(({ space, response }) =>
           response.results
-            .filter((message) => message.accion?.tipo !== 'rendicion_detalle')
+            .filter((message) => message.accion?.tipo === 'rendicion_detalle')
             .map((message) => ({
               spaceId: space.id,
               spaceName: space.nombre,
@@ -207,25 +222,12 @@ export function OrganizationMessagesPage() {
             })),
         )
 
-        const dedupedGeneralMessages = new Map<number, AggregatedMessageItem>()
-        const directMessages: AggregatedMessageItem[] = []
-
-        rows.forEach((row) => {
-          if (row.message.seccion === 'general') {
-            if (!dedupedGeneralMessages.has(row.message.id)) {
-              dedupedGeneralMessages.set(row.message.id, row)
-            }
-            return
-          }
-          directMessages.push(row)
-        })
-
-        setMessages([...dedupedGeneralMessages.values(), ...directMessages])
+        setNotifications(rows)
       } catch (error) {
         if (!isMounted) {
           return
         }
-        setErrorMessage(parseApiError(error, 'No se pudieron cargar los mensajes.'))
+        setErrorMessage(parseApiError(error, 'No se pudieron cargar las notificaciones.'))
       } finally {
         if (isMounted) {
           setLoading(false)
@@ -234,38 +236,27 @@ export function OrganizationMessagesPage() {
       }
     }
 
-    void loadAllMessages()
+    void loadNotifications()
     return () => {
       isMounted = false
       setPageLoading(false)
     }
   }, [cacheKey, cachedSpaces, setPageLoading])
 
-  const sortedMessages = useMemo(
+  const groupedNotifications = useMemo(
     () =>
-      [...messages].sort((left, right) =>
-        String(
-          right.message.fecha_creacion || right.message.fecha_publicacion || '',
-        ).localeCompare(
-          String(left.message.fecha_creacion || left.message.fecha_publicacion || ''),
+      groupNotifications(
+        [...notifications].sort((left, right) =>
+          String(
+            right.message.fecha_creacion || right.message.fecha_publicacion || '',
+          ).localeCompare(
+            String(left.message.fecha_creacion || left.message.fecha_publicacion || ''),
+          ),
         ),
       ),
-    [messages],
+    [notifications],
   )
-  const generalMessages = useMemo(
-    () =>
-      groupOrganizationMessages(
-        sortedMessages.filter((item) => item.message.seccion === 'general'),
-      ),
-    [sortedMessages],
-  )
-  const spaceMessages = useMemo(
-    () =>
-      groupOrganizationMessages(
-        sortedMessages.filter((item) => item.message.seccion === 'espacio'),
-      ),
-    [sortedMessages],
-  )
+
   const cardStyle = isDark
     ? {
         backgroundColor: '#232D4F',
@@ -294,7 +285,7 @@ export function OrganizationMessagesPage() {
     )
   }
 
-  if (sortedMessages.length === 0) {
+  if (groupedNotifications.length === 0) {
     return (
       <section>
         <div
@@ -304,114 +295,70 @@ export function OrganizationMessagesPage() {
               : 'border-slate-200 bg-white text-slate-700'
           }`}
         >
-          <p className="text-sm">Todavía no hay mensajes en los espacios asignados.</p>
+          <p className="text-sm">Todavía no hay notificaciones pendientes.</p>
         </div>
       </section>
     )
   }
 
   return (
-    <section className="grid gap-5">
-      {generalMessages.length > 0 ? (
-        <OrganizationMessageSection
-          title="Mensajes generales"
-          messages={generalMessages}
-          onOpenMessage={handleOpenGroupedMessage}
-          cardStyle={cardStyle}
-          textClass={textClass}
-          detailTextClass={detailTextClass}
-          isDark={isDark}
-        />
-      ) : null}
-      {spaceMessages.length > 0 ? (
-        <OrganizationMessageSection
-          title="Comunicaciones a espacios"
-          messages={spaceMessages}
-          onOpenMessage={handleOpenGroupedMessage}
-          cardStyle={cardStyle}
-          textClass={textClass}
-          detailTextClass={detailTextClass}
-          isDark={isDark}
-        />
-      ) : null}
-    </section>
-  )
-}
-
-function OrganizationMessageSection({
-  title,
-  messages,
-  onOpenMessage,
-  cardStyle,
-  textClass,
-  detailTextClass,
-  isDark,
-}: {
-  title: string
-  messages: GroupedAggregatedMessageItem[]
-  onOpenMessage: (item: GroupedAggregatedMessageItem) => Promise<void>
-  cardStyle: Record<string, string>
-  textClass: string
-  detailTextClass: string
-  isDark: boolean
-}) {
-  return (
-    <section>
+    <section className="grid gap-3">
       <div className="flex items-center gap-2">
-        <h2 className={`text-[16px] font-semibold ${textClass}`}>{title}</h2>
+        <h2 className={`text-[16px] font-semibold ${textClass}`}>Notificaciones</h2>
         <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#C62828] px-1.5 text-[10px] font-bold text-white">
-          {messages.length}
+          {groupedNotifications.length}
         </span>
       </div>
 
-      <div className="mt-3 grid gap-3">
-        {messages.map((item, index) => (
-          <button
-            key={item.groupKey}
-            type="button"
-            onClick={() => {
-              void onOpenMessage(item)
-            }}
-            className={`progressive-card relative rounded-[15px] border p-4 pr-12 text-left ${
-              item.unreadCount > 0 ? 'ring-1 ring-[#E7BA61]/70' : ''
-            }`}
-            style={{
-              ...cardStyle,
-              ['--card-delay' as string]: `${index * 45}ms`,
-            }}
-          >
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full border border-[#E7BA61] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#E7BA61]">
-                  {getMessageContextLabel(item.message, item.spaceName)}
-                </span>
-                {item.unreadCount > 0 ? (
-                  <span className="rounded-full bg-[#E7BA61] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#232D4F]">
-                    {item.unreadCount === 1 ? 'Nuevo' : `${item.unreadCount} nuevas`}
-                  </span>
-                ) : null}
-              </div>
-              <h3 className={`mt-2 text-[15px] font-semibold ${textClass}`}>
-                {item.message.titulo}
-              </h3>
-              <p className={`mt-2 text-[12px] ${detailTextClass}`}>
-                {formatDate(item.message.fecha_creacion || item.message.fecha_publicacion)}
-              </p>
-            </div>
-
-            <span
-              className={`absolute right-4 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center ${
-                isDark ? 'text-white' : 'text-slate-700'
+      <div className="grid gap-3">
+        {groupedNotifications.map((item, index) => {
+          const parsed = parseRendicionNotificationTitle(item.message.titulo)
+          return (
+            <button
+              key={item.groupKey}
+              type="button"
+              onClick={() => {
+                void handleOpenNotification(item)
+              }}
+              className={`progressive-card relative rounded-[15px] border p-4 pr-12 text-left ${
+                item.unreadCount > 0 ? 'ring-1 ring-[#E7BA61]/70' : ''
               }`}
+              style={{
+                ...cardStyle,
+                ['--card-delay' as string]: `${index * 45}ms`,
+              }}
             >
-              <FontAwesomeIcon
-                icon={faChevronLeft}
-                aria-hidden="true"
-                style={{ fontSize: 22, transform: 'rotate(180deg)' }}
-              />
-            </span>
-          </button>
-        ))}
+              <div className="min-w-0">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className={`min-w-0 text-[15px] font-semibold ${textClass}`}>
+                    {parsed.projectAndConvenio}
+                  </h3>
+                  <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[#C62828] px-2 text-[11px] font-bold text-white">
+                    {item.unreadCount > 0 ? item.unreadCount : 1}
+                  </span>
+                </div>
+                <p className={`mt-2 text-[13px] ${detailTextClass}`}>
+                  {parsed.rendicionSummary || item.message.titulo}
+                </p>
+                <p className={`mt-2 text-[12px] ${detailTextClass}`}>
+                  {formatDate(item.message.fecha_creacion || item.message.fecha_publicacion)}
+                </p>
+              </div>
+
+              <span
+                className={`absolute right-4 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center ${
+                  isDark ? 'text-white' : 'text-slate-700'
+                }`}
+              >
+                <FontAwesomeIcon
+                  icon={faChevronLeft}
+                  aria-hidden="true"
+                  style={{ fontSize: 22, transform: 'rotate(180deg)' }}
+                />
+              </span>
+            </button>
+          )
+        })}
       </div>
     </section>
   )

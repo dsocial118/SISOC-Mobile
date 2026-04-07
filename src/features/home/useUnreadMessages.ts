@@ -20,6 +20,8 @@ interface UnreadMessagesState {
   firstUnreadSpaceId: number | null
 }
 
+const UNREAD_BATCH_SIZE = 4
+
 function readUnreadCountsFromStorage(cacheKey: string): Record<string, number> {
   if (typeof window === 'undefined') {
     return {}
@@ -244,24 +246,47 @@ export function useOrganizationUnreadMessages(username?: string | null) {
       }
 
       try {
-        const results = await Promise.all(
-          spaces.map(async (space) => {
-            try {
-              const response = await listSpaceMessages(space.id)
-              return {
-                spaceId: String(space.id),
-                unreadCount: response.unread_count,
-                unreadMessages: response.results.filter((message) => !message.visto),
+        const results: Array<{
+          spaceId: string
+          unreadCount: number
+          unreadGeneralIds: number[]
+          unreadRendicionIds: number[]
+          unreadEspacioNonRendicionCount: number
+          unreadMessages: Awaited<ReturnType<typeof listSpaceMessages>>['results']
+        }> = []
+
+        for (let start = 0; start < spaces.length; start += UNREAD_BATCH_SIZE) {
+          const batch = spaces.slice(start, start + UNREAD_BATCH_SIZE)
+          const batchResults = await Promise.all(
+            batch.map(async (space) => {
+              try {
+                const response = await listSpaceMessages(space.id)
+                return {
+                  spaceId: String(space.id),
+                  unreadCount: response.unread_count,
+                  unreadGeneralIds: response.unread_general_ids || [],
+                  unreadRendicionIds: response.unread_rendicion_ids || [],
+                  unreadEspacioNonRendicionCount:
+                    response.unread_espacio_non_rendicion_count ?? 0,
+                  unreadMessages: response.results.filter((message) => !message.visto),
+                }
+              } catch {
+                return {
+                  spaceId: String(space.id),
+                  unreadCount: 0,
+                  unreadGeneralIds: [],
+                  unreadRendicionIds: [],
+                  unreadEspacioNonRendicionCount: 0,
+                  unreadMessages: [],
+                }
               }
-            } catch {
-              return {
-                spaceId: String(space.id),
-                unreadCount: 0,
-                unreadMessages: [],
-              }
-            }
-          }),
-        )
+            }),
+          )
+          if (!isMounted) {
+            return
+          }
+          results.push(...batchResults)
+        }
         if (!isMounted) {
           return
         }
@@ -269,15 +294,56 @@ export function useOrganizationUnreadMessages(username?: string | null) {
           results.map((item) => [item.spaceId, item.unreadCount]),
         )
         const seenGeneralMessageIds = new Set<number>()
+        const seenRendicionIds = new Set<number>()
         let nextOrganizationUnreadCount = 0
         results.forEach((item) => {
+          const hasGroupedFields =
+            item.unreadGeneralIds.length > 0
+            || item.unreadRendicionIds.length > 0
+            || item.unreadEspacioNonRendicionCount > 0
+
+          if (hasGroupedFields) {
+            item.unreadGeneralIds.forEach((messageId) => {
+              if (seenGeneralMessageIds.has(messageId)) {
+                return
+              }
+              seenGeneralMessageIds.add(messageId)
+              nextOrganizationUnreadCount += 1
+            })
+            item.unreadRendicionIds.forEach((rendicionId) => {
+              if (seenRendicionIds.has(rendicionId)) {
+                return
+              }
+              seenRendicionIds.add(rendicionId)
+              nextOrganizationUnreadCount += 1
+            })
+            nextOrganizationUnreadCount += item.unreadEspacioNonRendicionCount
+            return
+          }
+
           item.unreadMessages.forEach((message) => {
             if (message.seccion === 'general') {
               if (seenGeneralMessageIds.has(message.id)) {
                 return
               }
               seenGeneralMessageIds.add(message.id)
+              nextOrganizationUnreadCount += 1
+              return
             }
+
+            if (
+              message.seccion === 'espacio' &&
+              message.accion?.tipo === 'rendicion_detalle' &&
+              message.accion.rendicion_id
+            ) {
+              if (seenRendicionIds.has(message.accion.rendicion_id)) {
+                return
+              }
+              seenRendicionIds.add(message.accion.rendicion_id)
+              nextOrganizationUnreadCount += 1
+              return
+            }
+
             nextOrganizationUnreadCount += 1
           })
         })

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { parseApiError } from '../../api/errorUtils'
 import { syncNow } from '../../sync/engine'
-import { useAppTheme } from '../../ui/theme'
+import { useAppTheme } from '../../ui/ThemeContext'
 import { createRendicionOffline } from './rendicionOffline'
 
 export function SpaceRendicionFormPage() {

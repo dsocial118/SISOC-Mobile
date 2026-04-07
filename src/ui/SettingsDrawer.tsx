@@ -7,7 +7,7 @@ import {
   faUser,
 } from '@fortawesome/free-solid-svg-icons'
 import type { AuthUserProfile } from '../auth/context-store'
-import type { AppTheme } from './theme'
+import type { AppTheme } from './ThemeContext'
 
 interface SettingsDrawerProps {
   isOpen: boolean

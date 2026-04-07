@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -10,19 +10,53 @@ import {
 import type { OutboxRecord } from '../../db/database'
 import { db } from '../../db/database'
 import { isOnline } from '../../api/http'
+import { getCurrentUserKey } from '../../auth/session'
 import { syncNow } from '../../sync/engine'
-import { useAppTheme } from '../../ui/theme'
+import { useAppTheme } from '../../ui/ThemeContext'
 import { LargeBlueButton } from '../../ui/buttons'
 
 type SyncListItem = {
   id: number
   label: string
+  type: OutboxRecord['type']
+  localRendicionId: string | null
   status: OutboxRecord['status']
   lastError: string | null
+  nextRetryAt: string | null
 }
 
-function getOutboxLabel(item: OutboxRecord): string {
-  const payload = item.payload || {}
+function buildRendicionLabel(
+  action: string,
+  payload: Record<string, unknown>,
+  numeroRendicion?: number | null,
+): string {
+  const numeroRendicionLabel = String(payload.numero_rendicion || numeroRendicion || '').trim()
+  const categoria = String(payload.categoria || '').trim()
+  const archivo = String(payload.name || '').trim()
+
+  const suffixParts = []
+  if (numeroRendicionLabel) {
+    suffixParts.push(`Rendición ${numeroRendicionLabel}`)
+  }
+  if (categoria) {
+    suffixParts.push(categoria)
+  }
+  if (archivo) {
+    suffixParts.push(archivo)
+  }
+  const suffix = suffixParts.length > 0 ? `: ${suffixParts.join(' · ')}` : ''
+  return `${action}${suffix}`
+}
+
+function getOutboxLabel(
+  item: OutboxRecord,
+  rendicionNumbersByLocalId: Map<string, number | null>,
+): string {
+  const payload = (item.payload || {}) as Record<string, unknown>
+  const localRendicionId = String(payload.local_rendicion_id || payload.local_id || '').trim()
+  const numeroRendicion = localRendicionId
+    ? rendicionNumbersByLocalId.get(localRendicionId) ?? null
+    : null
   switch (item.type) {
     case 'CREATE_NOTE':
       return `Nota: ${String(payload.name || payload.id || item.client_uuid)}`
@@ -32,24 +66,48 @@ function getOutboxLabel(item: OutboxRecord): string {
       return `Colaborador (edición): ${String((payload as { data?: { nombre?: string; apellido?: string } }).data?.nombre || '')} ${String((payload as { data?: { nombre?: string; apellido?: string } }).data?.apellido || '')}`.trim()
     case 'DELETE_COLLABORATOR':
       return 'Colaborador (eliminación)'
+    case 'CREATE_RENDICION':
+      return buildRendicionLabel('Creación de rendición', payload, numeroRendicion)
+    case 'UPLOAD_RENDICION_FILE':
+      return buildRendicionLabel('Carga de archivo de rendición', payload, numeroRendicion)
+    case 'DELETE_RENDICION_FILE':
+      return buildRendicionLabel('Eliminación de archivo de rendición', payload, numeroRendicion)
+    case 'PRESENT_RENDICION':
+      return buildRendicionLabel('Envío de rendición a revisión', payload, numeroRendicion)
+    case 'DELETE_RENDICION':
+      return buildRendicionLabel('Eliminación de rendición', payload, numeroRendicion)
     default:
       return `Pendiente: ${item.type}`
   }
 }
 
 async function getPendingOutboxItems(): Promise<SyncListItem[]> {
+  const userKey = await getCurrentUserKey()
+  if (!userKey) {
+    return []
+  }
+  const rendiciones = await db.rendiciones.toArray()
+  const rendicionNumbersByLocalId = new Map(
+    rendiciones
+      .filter((row) => row.user_key === userKey)
+      .map((row) => [row.id, row.numero_rendicion ?? null] as const),
+  )
   const rows = await db.outbox
     .where('status')
     .anyOf(['pending', 'failed', 'processing'])
     .toArray()
   return rows
+    .filter((row) => row.user_key === userKey)
     .filter((row): row is OutboxRecord & { id: number } => typeof row.id === 'number')
     .sort((a, b) => a.created_at.localeCompare(b.created_at))
     .map((row) => ({
       id: row.id,
-      label: getOutboxLabel(row),
+      label: getOutboxLabel(row, rendicionNumbersByLocalId),
+      type: row.type,
+      localRendicionId: String(row.payload.local_rendicion_id || '').trim() || null,
       status: row.status,
       lastError: row.last_error || null,
+      nextRetryAt: row.next_retry_at || null,
     }))
 }
 
@@ -59,14 +117,49 @@ function wait(ms: number): Promise<void> {
   })
 }
 
+function formatRetryLabel(nextRetryAt: string | null, nowTick: number): string | null {
+  if (!nextRetryAt) {
+    return null
+  }
+  const retryTime = new Date(nextRetryAt).getTime()
+  if (Number.isNaN(retryTime)) {
+    return null
+  }
+  const remainingMs = retryTime - nowTick
+  if (remainingMs <= 0) {
+    return 'Reintentando ahora...'
+  }
+  const totalSeconds = Math.ceil(remainingMs / 1000)
+  if (totalSeconds < 60) {
+    return `Reintentando en ${totalSeconds} s`
+  }
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `Reintentando en ${minutes} min ${String(seconds).padStart(2, '0')} s`
+}
+
 export function SyncCenterPage() {
   const { isDark } = useAppTheme()
   const pendingItems = useLiveQuery(getPendingOutboxItems, [])
   const [syncing, setSyncing] = useState(false)
   const [syncError, setSyncError] = useState('')
   const [syncedNow, setSyncedNow] = useState<string[]>([])
+  const [nowTick, setNowTick] = useState(() => Date.now())
 
   const sortedPending = useMemo(() => pendingItems ?? [], [pendingItems])
+
+  useEffect(() => {
+    const hasScheduledRetry = sortedPending.some((item) => Boolean(item.nextRetryAt))
+    if (!hasScheduledRetry) {
+      return undefined
+    }
+    const intervalId = window.setInterval(() => {
+      setNowTick(Date.now())
+    }, 1000)
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [sortedPending])
 
   async function runSync() {
     setSyncError('')
@@ -154,8 +247,16 @@ export function SyncCenterPage() {
                   )}
                   <p className={`text-[13px] ${detailTextClass}`}>{item.label}</p>
                 </div>
-                {item.status === 'failed' && item.lastError ? (
+                {item.status === 'processing' ? (
+                  <p className={`mt-1 text-[12px] ${detailTextClass}`}>Intentando sincronizar ahora...</p>
+                ) : null}
+                {item.lastError ? (
                   <p className="mt-1 text-[12px] text-[#C62828]">{item.lastError}</p>
+                ) : null}
+                {item.status !== 'processing' && item.nextRetryAt ? (
+                  <p className={`mt-1 text-[12px] ${detailTextClass}`}>
+                    {formatRetryLabel(item.nextRetryAt, nowTick)}
+                  </p>
                 ) : null}
               </div>
             ))}

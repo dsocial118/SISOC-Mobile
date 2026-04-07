@@ -7,7 +7,7 @@ import sisocLightMode from '../assets/images/sisoc_light_mode.png'
 import { requestPasswordResetByUsername } from '../api/authApi'
 import { AppLoadingSpinner } from '../ui/AppLoadingSpinner'
 import { SafeScreen } from '../ui/SafeScreen'
-import { useAppTheme } from '../ui/theme'
+import { useAppTheme } from '../ui/ThemeContext'
 import { LargeBlueButton } from '../ui/buttons'
 import { LoginInputField } from './LoginFormPage'
 

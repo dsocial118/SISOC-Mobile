@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faPaperclip } from '@fortawesome/free-solid-svg-icons'
-import { useLocation, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   getSpaceMessageDetail,
   markSpaceMessageAsSeen,
@@ -10,7 +10,7 @@ import {
 } from '../../api/messagesApi'
 import { parseApiError } from '../../api/errorUtils'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/theme'
+import { useAppTheme } from '../../ui/ThemeContext'
 import { useAuth } from '../../auth/useAuth'
 import {
   notifySpaceUnreadMessagesUpdated,
@@ -44,7 +44,19 @@ function isImageAttachment(attachment: SpaceMessageAttachment): boolean {
   )
 }
 
+function getMessageContextLabel(message: SpaceMessageItem, spaceName?: string): string | null {
+  if (message.accion?.tipo === 'rendicion_detalle') {
+    const normalizedTitle = String(message.titulo || '').trim()
+    const match = normalizedTitle.match(
+      /^(Proyecto .+?\s\|\sConvenio .+?)\s\|\sRendici.n\s/i,
+    )
+    return match ? match[1] : 'Rendicion'
+  }
+  return spaceName || null
+}
+
 export function SpaceMessageDetailPage() {
+  const navigate = useNavigate()
   const location = useLocation()
   const { spaceId, messageId } = useParams<{ spaceId: string; messageId: string }>()
   const { userProfile } = useAuth()
@@ -137,6 +149,10 @@ export function SpaceMessageDetailPage() {
         : []),
     [message],
   )
+  const contextLabel = useMemo(
+    () => (message ? getMessageContextLabel(message, routeState?.spaceName) : null),
+    [message, routeState?.spaceName],
+  )
 
   if (loading) {
     return null
@@ -170,9 +186,9 @@ export function SpaceMessageDetailPage() {
               Destacado
             </span>
           ) : null}
-          {routeState?.spaceName ? (
+          {contextLabel ? (
             <span className="rounded-full border border-[#E7BA61] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#E7BA61]">
-              {routeState.spaceName}
+              {contextLabel}
             </span>
           ) : null}
         </div>
@@ -190,6 +206,24 @@ export function SpaceMessageDetailPage() {
         <p className={`whitespace-pre-line text-[15px] leading-7 ${detailTextClass}`}>
           {message.cuerpo}
         </p>
+        {message.accion?.tipo === 'rendicion_detalle' && spaceId ? (
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  `/app-org/espacios/${spaceId}/rendicion/${message.accion?.rendicion_id}`,
+                  {
+                    state: routeState,
+                  },
+                )
+              }
+              className="inline-flex items-center justify-center rounded-xl bg-[#2E7D33] px-4 py-3 text-sm font-semibold text-white"
+            >
+              Abrir rendición
+            </button>
+          </div>
+        ) : null}
       </article>
 
       {imageAttachments.length > 0 ? (

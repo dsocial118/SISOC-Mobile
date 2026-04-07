@@ -5,7 +5,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { listSpaceMessages, type SpaceMessageItem } from '../../api/messagesApi'
 import { parseApiError } from '../../api/errorUtils'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/theme'
+import { useAppTheme } from '../../ui/ThemeContext'
 import { notifySpaceUnreadMessagesUpdated } from './useUnreadMessages'
 
 function formatDate(value: string | null | undefined): string {
@@ -21,6 +21,43 @@ function formatDate(value: string | null | undefined): string {
     month: '2-digit',
     year: 'numeric',
   })
+}
+
+interface GroupedSpaceMessageItem {
+  groupKey: string
+  message: SpaceMessageItem
+  groupedCount: number
+  unreadCount: number
+}
+
+function groupMessages(messages: SpaceMessageItem[]): GroupedSpaceMessageItem[] {
+  const grouped = new Map<string, GroupedSpaceMessageItem>()
+
+  messages.forEach((message) => {
+    const rendicionId =
+      message.accion?.tipo === 'rendicion_detalle'
+        ? message.accion.rendicion_id
+        : null
+    const groupKey = rendicionId
+      ? `rendicion:${rendicionId}`
+      : `message:${message.id}`
+    const existing = grouped.get(groupKey)
+
+    if (!existing) {
+      grouped.set(groupKey, {
+        groupKey,
+        message,
+        groupedCount: 1,
+        unreadCount: message.visto ? 0 : 1,
+      })
+      return
+    }
+
+    existing.groupedCount += 1
+    existing.unreadCount += message.visto ? 0 : 1
+  })
+
+  return Array.from(grouped.values())
 }
 
 export function SpaceMessagesPage() {
@@ -105,11 +142,11 @@ export function SpaceMessagesPage() {
     [messages],
   )
   const generalMessages = useMemo(
-    () => sortedMessages.filter((message) => message.seccion === 'general'),
+    () => groupMessages(sortedMessages.filter((message) => message.seccion === 'general')),
     [sortedMessages],
   )
   const spaceMessages = useMemo(
-    () => sortedMessages.filter((message) => message.seccion === 'espacio'),
+    () => groupMessages(sortedMessages.filter((message) => message.seccion === 'espacio')),
     [sortedMessages],
   )
 
@@ -211,7 +248,7 @@ function MessageSection({
 }: {
   title: string
   unreadCount: number
-  messages: SpaceMessageItem[]
+  messages: GroupedSpaceMessageItem[]
   emptyMessage: string
   spaceId?: string
   spaceName?: string
@@ -244,17 +281,17 @@ function MessageSection({
         </div>
       ) : (
         <div className="mt-3 grid gap-3">
-          {messages.map((message, index) => (
+          {messages.map((item, index) => (
             <button
-              key={message.id}
+              key={item.groupKey}
               type="button"
               onClick={() =>
-                navigate(`/app-org/espacios/${spaceId || ''}/mensajes/${message.id}`, {
+                navigate(`/app-org/espacios/${spaceId || ''}/mensajes/${item.message.id}`, {
                   state: { spaceName },
                 })
               }
               className={`progressive-card relative rounded-[15px] border p-4 pr-12 text-left ${
-                !message.visto ? 'ring-1 ring-[#E7BA61]/70' : ''
+                item.unreadCount > 0 ? 'ring-1 ring-[#E7BA61]/70' : ''
               }`}
               style={{
                 ...cardStyle,
@@ -263,22 +300,27 @@ function MessageSection({
             >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  {!message.visto ? (
+                  {item.unreadCount > 0 ? (
                     <span className="rounded-full bg-[#E7BA61] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#232D4F]">
-                      Nuevo
+                      {item.unreadCount === 1 ? 'Nuevo' : `${item.unreadCount} nuevas`}
                     </span>
                   ) : null}
-                  {message.destacado ? (
+                  {item.message.destacado ? (
                     <span className="rounded-full border border-[#E7BA61] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#E7BA61]">
                       Destacado
                     </span>
                   ) : null}
+                  {item.groupedCount > 1 ? (
+                    <span className="rounded-full border border-[#E7BA61] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#E7BA61]">
+                      {item.groupedCount} avisos
+                    </span>
+                  ) : null}
                 </div>
                 <h4 className={`mt-2 text-[15px] font-semibold ${textClass}`}>
-                  {message.titulo}
+                  {item.message.titulo}
                 </h4>
                 <p className={`mt-2 text-[12px] ${detailTextClass}`}>
-                  {formatDate(message.fecha_creacion || message.fecha_publicacion)}
+                  {formatDate(item.message.fecha_creacion || item.message.fecha_publicacion)}
                 </p>
               </div>
 

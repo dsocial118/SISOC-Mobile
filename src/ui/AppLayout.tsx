@@ -11,6 +11,7 @@ import {
 import { useOrganizationUnreadMessages } from '../features/home/useUnreadMessages'
 import { syncNow } from '../sync/engine'
 import { usePendingOutboxCount } from '../sync/usePendingOutboxCount'
+import { syncPushSubscriptionForCurrentUser } from '../pwa/pushNotifications'
 import { AppLoadingSpinner } from './AppLoadingSpinner'
 import { AppHeaderBar } from './AppHeaderBar'
 import {
@@ -24,7 +25,7 @@ import {
 import { PageLoadingContext } from './PageLoadingContext'
 import { SafeScreen } from './SafeScreen'
 import { SettingsDrawer } from './SettingsDrawer'
-import { useAppTheme } from './theme'
+import { useAppTheme } from './ThemeContext'
 
 export function AppLayout({
   title,
@@ -46,6 +47,7 @@ export function AppLayout({
   const isOrgHubRoute = /^\/app-org\/espacios\/\d+(?:\/hub)?\/?$/.test(location.pathname)
   const isSyncRoute = /^\/app-(org|user)\/sincronizacion\/?$/.test(location.pathname)
   const isMessagesRoute = /^\/app-(org|user)\/mensajes\/?$/.test(location.pathname)
+  const isNotificationsRoute = /^\/app-org\/notificaciones\/?$/.test(location.pathname)
   const isRendicionRoute =
     /^\/app-org\/rendicion\/?$/.test(location.pathname)
     || /^\/app-org\/espacios\/\d+\/rendicion(?:\/.*)?$/.test(location.pathname)
@@ -55,6 +57,8 @@ export function AppLayout({
   const isOrgSpacesHomeRoute = roleLabel === 'Organización' && /^\/app-org\/?$/.test(location.pathname)
   const isOrgMessagesHomeRoute =
     roleLabel === 'Organización' && /^\/app-org\/mensajes\/?$/.test(location.pathname)
+  const isOrgNotificationsHomeRoute =
+    roleLabel === 'Organización' && /^\/app-org\/notificaciones\/?$/.test(location.pathname)
   const headerState =
     (location.state as
       | { spaceName?: string; programName?: string; projectName?: string; organizationName?: string }
@@ -68,6 +72,8 @@ export function AppLayout({
     ? organizationWelcomeTitle
     : isOrgMessagesHomeRoute
       ? 'Organización'
+      : isOrgNotificationsHomeRoute
+        ? 'Organización'
       : isSyncRoute
         ? 'Sincronización'
         : isRendicionRoute
@@ -79,6 +85,8 @@ export function AppLayout({
     ? 'Hub de Espacios'
     : isOrgMessagesHomeRoute
       ? 'Mensajes'
+      : isOrgNotificationsHomeRoute
+        ? 'Notificaciones'
       : isRendicionSelectorRoute
         ? 'Seleccioná organización y proyecto'
         : isRendicionRoute
@@ -90,6 +98,10 @@ export function AppLayout({
             : isSyncRoute
               ? ''
               : roleLabel
+  const orgRendicionRoute = '/app-org/rendicion'
+  const canManageRendicion = Boolean(
+    userProfile?.permissions?.includes(MOBILE_RENDICION_PERMISSION),
+  )
 
   useEffect(() => {
     let isMounted = true
@@ -127,6 +139,19 @@ export function AppLayout({
     }
   }, [roleLabel, userProfile?.username])
 
+  useEffect(() => {
+    if (
+      roleLabel !== 'Organización'
+      || !canManageRendicion
+      || sessionStatus === 'reauth'
+    ) {
+      return
+    }
+    void syncPushSubscriptionForCurrentUser().catch(() => {
+      // No romper la carga principal si falla el alta/sync de push.
+    })
+  }, [canManageRendicion, roleLabel, sessionStatus, userProfile?.username])
+
   const sessionLabel =
     sessionStatus === 'validated'
       ? 'Sesión validada'
@@ -139,11 +164,6 @@ export function AppLayout({
     await logout()
     navigate('/', { replace: true })
   }
-
-  const orgRendicionRoute = '/app-org/rendicion'
-  const canManageRendicion = Boolean(
-    userProfile?.permissions?.includes(MOBILE_RENDICION_PERMISSION),
-  )
 
   const navItems =
     roleLabel === 'Organización'
@@ -218,6 +238,7 @@ export function AppLayout({
           !(roleLabel === 'Organización' && location.pathname === '/app-org')
           && !isOrgSpaceScopedRoute
           && !isMessagesRoute
+          && !isNotificationsRoute
           && !isRendicionRoute
           && !isNominaFormRoute
         }
@@ -231,7 +252,7 @@ export function AppLayout({
         }}
         onNotificationsClick={() =>
           navigate(
-            roleLabel === 'Organización' ? '/app-org/mensajes' : '/app-user/mensajes',
+            roleLabel === 'Organización' ? '/app-org/notificaciones' : '/app-user/mensajes',
           )
         }
         onSyncCenterClick={() =>

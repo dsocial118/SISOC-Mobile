@@ -1,6 +1,9 @@
-﻿import axios from 'axios'
+import axios from 'axios'
+import { parseApiError } from '../api/errorUtils'
+import { getSpaceRendicionDetail, type RendicionFileItem } from '../api/rendicionApi'
 import { createRemoteNote, type CreateNotePayload } from '../api/notesApi'
 import { isTransientNetworkError, OfflineError } from '../api/http'
+import { getCurrentUserKey } from '../auth/session'
 import {
   createSpaceCollaborator,
   deleteSpaceCollaborator,
@@ -24,6 +27,7 @@ import {
   markRendicionError,
   markRendicionFileError,
   presentRendicionOnServer,
+  releaseRendicionPresentError,
   removeLocalRendicion,
   removeLocalRendicionFile,
   syncDeleteRendicionFileFromServer,
@@ -42,6 +46,29 @@ const SYNC_INTERVAL_MS = 30000
 let running = false
 let started = false
 
+const RENDICION_OUTBOX_PRIORITY: Record<OutboxRecord['type'], number> = {
+  CREATE_NOTE: 99,
+  CREATE_COLLABORATOR: 99,
+  UPDATE_COLLABORATOR: 99,
+  DELETE_COLLABORATOR: 99,
+  CREATE_RENDICION: 1,
+  UPLOAD_RENDICION_FILE: 2,
+  DELETE_RENDICION_FILE: 3,
+  PRESENT_RENDICION: 4,
+  DELETE_RENDICION: 5,
+}
+
+export type RendicionSyncStage =
+  | 'preparing'
+  | 'creating'
+  | 'uploading_files'
+  | 'presenting'
+  | 'refreshing'
+
+function getSyncErrorMessage(error: unknown): string {
+  return parseApiError(error, 'Error de sincronizaci�n')
+}
+
 function nextBackoffMs(attempts: number): number {
   const base = 2000
   return Math.min(base * 2 ** Math.max(0, attempts - 1), 60000)
@@ -53,6 +80,10 @@ function normalizeText(value: string | undefined | null): string {
 
 function normalizeDni(value: string | undefined | null): string {
   return String(value || '').replace(/\D/g, '')
+}
+
+function normalizeFileName(value: string | undefined | null): string {
+  return String(value || '').trim().toLowerCase()
 }
 
 function sameCollaboratorData(
@@ -243,6 +274,45 @@ async function tryResolveCollaboratorFromRemote(item: OutboxRecord & { id: numbe
     return tryResolveCollaboratorDelete(item)
   }
   return false
+}
+
+async function tryResolveRendicionUploadFromRemote(
+  item: OutboxRecord & { id: number },
+): Promise<boolean> {
+  if (item.type !== 'UPLOAD_RENDICION_FILE') {
+    return false
+  }
+
+  const payload = item.payload as unknown as UploadRendicionFileOutboxPayload
+  const local = await getLocalRendicion(payload.local_rendicion_id)
+  const localFile = await getLocalRendicionFile(payload.local_file_id)
+
+  if (!local || !localFile) {
+    await db.outbox.delete(item.id)
+    return true
+  }
+  if (!local.remote_id) {
+    return false
+  }
+
+  const remoteDetail = await getSpaceRendicionDetail(payload.space_id, local.remote_id)
+  const remoteFiles = remoteDetail.documentacion.flatMap((category) =>
+    category.archivos.flatMap((file): RendicionFileItem[] => [file, ...(file.subsanaciones || [])]),
+  )
+  const matchedRemoteFile = remoteFiles.find(
+    (remoteFile: RendicionFileItem) =>
+      remoteFile.categoria === localFile.categoria
+      && normalizeFileName(remoteFile.nombre) === normalizeFileName(localFile.nombre)
+      && String(remoteFile.documento_subsanado ?? '') === String(localFile.documento_subsanado ?? ''),
+  )
+
+  if (!matchedRemoteFile) {
+    return false
+  }
+
+  await syncRemoteRendicionDetailToLocal(payload.space_id, remoteDetail, local.id)
+  await db.outbox.delete(item.id)
+  return true
 }
 
 async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
@@ -475,6 +545,16 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
         await db.outbox.delete(itemWithId.id)
         return true
       }
+      if (local.estado === 'subsanar') {
+        await db.rendicion_files.update(localFile.id, {
+          pending_action: null,
+          sync_status: 'synced',
+          last_error: null,
+          updated_at: new Date().toISOString(),
+        })
+        await db.outbox.delete(itemWithId.id)
+        return true
+      }
       if (!local.remote_id || !localFile.remote_id) {
         await removeLocalRendicionFile(localFile.id)
         await db.outbox.delete(itemWithId.id)
@@ -567,10 +647,25 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
       }
     }
 
+    if (
+      item.type === 'UPLOAD_RENDICION_FILE' &&
+      axios.isAxiosError(error) &&
+      error.response?.status === 400
+    ) {
+      try {
+        const resolved = await tryResolveRendicionUploadFromRemote(itemWithId)
+        if (resolved) {
+          return true
+        }
+      } catch {
+        // Continua manejo normal del error.
+      }
+    }
+
     if (localId) {
       await db.space_collaborators.update(localId, {
         sync_status: 'failed',
-        last_error: error instanceof Error ? error.message : 'Error de sincronización',
+        last_error: getSyncErrorMessage(error),
       })
     }
 
@@ -586,14 +681,30 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
     if (rendicionAction && localRendicionId) {
       await markRendicionError(
         localRendicionId,
-        error instanceof Error ? error.message : 'Error de sincronización',
+        getSyncErrorMessage(error),
       )
     }
     if (rendicionAction && localRendicionFileId) {
       await markRendicionFileError(
         localRendicionFileId,
-        error instanceof Error ? error.message : 'Error de sincronización',
+        getSyncErrorMessage(error),
       )
+    }
+
+    if (
+      item.type === 'PRESENT_RENDICION'
+      && localRendicionId
+      && axios.isAxiosError(error)
+      && error.response?.status === 400
+    ) {
+      const message = parseApiError(error, 'No se pudo enviar la rendición a revisión.')
+      await releaseRendicionPresentError(localRendicionId, message)
+      await db.outbox.update(itemWithId.id, {
+        status: 'failed',
+        next_retry_at: null,
+        last_error: message,
+      })
+      return true
     }
 
     if (error instanceof OfflineError) {
@@ -610,7 +721,7 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
         status: 'pending',
         attempts: item.attempts,
         next_retry_at: new Date(Date.now() + nextBackoffMs(item.attempts + 1)).toISOString(),
-        last_error: error instanceof Error ? error.message : 'Fallo transitorio de red',
+        last_error: parseApiError(error, 'Fallo transitorio de red'),
       })
       return false
     }
@@ -620,7 +731,7 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
       await db.outbox.update(itemWithId.id, {
         status: 'failed',
         next_retry_at: null,
-        last_error: error instanceof Error ? error.message : 'Error desconocido durante sync',
+        last_error: parseApiError(error, 'Error desconocido durante sync'),
       })
       return true
     }
@@ -628,9 +739,120 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
     await db.outbox.update(itemWithId.id, {
       status: 'failed',
       next_retry_at: new Date(Date.now() + nextBackoffMs(attempts)).toISOString(),
-      last_error: error instanceof Error ? error.message : 'Error de sincronizacion',
+      last_error: parseApiError(error, 'Error de sincronizaci�n'),
     })
     return true
+  }
+}
+
+function outboxBelongsToRendicion(item: OutboxRecord, localRendicionId: string): boolean {
+  return (
+    String(item.payload?.local_rendicion_id || '') === localRendicionId
+    || String(item.payload?.local_id || '') === localRendicionId
+  )
+}
+
+function sortRendicionOutboxItems(left: OutboxRecord, right: OutboxRecord): number {
+  const priorityDiff =
+    (RENDICION_OUTBOX_PRIORITY[left.type] || 99)
+    - (RENDICION_OUTBOX_PRIORITY[right.type] || 99)
+  if (priorityDiff !== 0) {
+    return priorityDiff
+  }
+  return String(left.created_at || '').localeCompare(String(right.created_at || ''))
+}
+
+async function waitForSyncIdle(): Promise<void> {
+  while (running) {
+    await new Promise((resolve) => {
+      window.setTimeout(resolve, 150)
+    })
+  }
+}
+
+export async function syncRendicionNow(
+  localRendicionId: string,
+  options?: {
+    onStageChange?: (stage: RendicionSyncStage) => void
+  },
+): Promise<void> {
+  await waitForSyncIdle()
+
+  running = true
+  try {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      throw new Error('Sin conexión. Los cambios quedaron guardados para sincronizar.')
+    }
+
+    const userKey = await getCurrentUserKey()
+    if (!userKey) {
+      throw new Error('La sesión expiró. Volvé a ingresar.')
+    }
+
+    options?.onStageChange?.('preparing')
+
+    while (true) {
+      const relatedItems = (await db.outbox.orderBy('created_at').toArray())
+        .filter(
+          (item) =>
+            item.user_key === userKey
+            && outboxBelongsToRendicion(item, localRendicionId),
+        )
+        .sort(sortRendicionOutboxItems)
+
+      if (relatedItems.length === 0) {
+        break
+      }
+
+      let processedAny = false
+      for (const item of relatedItems) {
+        if (item.type === 'CREATE_RENDICION') {
+          options?.onStageChange?.('creating')
+        } else if (item.type === 'UPLOAD_RENDICION_FILE') {
+          options?.onStageChange?.('uploading_files')
+        } else if (item.type === 'PRESENT_RENDICION') {
+          options?.onStageChange?.('presenting')
+        }
+
+        const shouldContinue = await processOutboxItem(item)
+        processedAny = true
+        if (!shouldContinue) {
+          throw new Error('Sin conexión. Los cambios quedaron guardados para sincronizar.')
+        }
+      }
+
+      if (!processedAny) {
+        break
+      }
+    }
+
+    options?.onStageChange?.('refreshing')
+
+    const local = await getLocalRendicion(localRendicionId)
+    const relatedRemainingItems = (await db.outbox.orderBy('created_at').toArray()).filter(
+      (item) =>
+        item.user_key === userKey
+        && outboxBelongsToRendicion(item, localRendicionId),
+    )
+    if (relatedRemainingItems.length > 0) {
+      const blockingItem = relatedRemainingItems.find((item) => item.last_error)
+      throw new Error(
+        blockingItem?.last_error
+        || local?.last_error
+        || 'Quedaron acciones pendientes de sincronización para esta rendición.',
+      )
+    }
+
+    const localFiles = await db.rendicion_files.where('rendicion_id').equals(localRendicionId).toArray()
+    const failedFile = localFiles.find((file) => file.sync_status === 'failed' || file.last_error)
+    if (failedFile?.last_error) {
+      throw new Error(failedFile.last_error)
+    }
+    if (local?.last_error) {
+      throw new Error(local.last_error)
+    }
+  } finally {
+    running = false
   }
 }
 
@@ -646,7 +868,13 @@ export async function syncNow(): Promise<void> {
     }
 
     const nowIso = new Date().toISOString()
-    const items = await db.outbox.orderBy('created_at').toArray()
+    const userKey = await getCurrentUserKey()
+    if (!userKey) {
+      return
+    }
+    const items = (await db.outbox.orderBy('created_at').toArray()).filter(
+      (item) => item.user_key === userKey,
+    )
     for (const item of items) {
       if (item.next_retry_at && item.next_retry_at > nowIso) {
         continue
@@ -678,3 +906,4 @@ export function startSyncEngine(): void {
 
   void syncNow()
 }
+

@@ -21,6 +21,11 @@ const OrganizationMessagesPage = lazy(() =>
     default: module.OrganizationMessagesPage,
   })),
 )
+const OrganizationNotificationsPage = lazy(() =>
+  import('../features/home/OrganizationNotificationsPage').then((module) => ({
+    default: module.OrganizationNotificationsPage,
+  })),
+)
 const SpaceHubPage = lazy(() =>
   import('../features/home/SpaceHubPage').then((module) => ({
     default: module.SpaceHubPage,
@@ -92,18 +97,9 @@ const SyncCenterPage = lazy(() =>
   })),
 )
 
-function getRouterBaseName(): string | undefined {
-  const baseUrl = import.meta.env.BASE_URL
-  if (!baseUrl || baseUrl === '/') {
-    return undefined
-  }
-
-  return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-}
-
 export function AppRouter() {
   return (
-    <BrowserRouter basename={getRouterBaseName()}>
+    <BrowserRouter>
       <Suspense fallback={<FullScreenPageLoader />}>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
@@ -141,6 +137,7 @@ export function AppRouter() {
                 path="espacios/:spaceId/mensajes/:messageId"
                 element={<SpaceMessageDetailPage />}
               />
+              <Route path="notificaciones" element={<OrganizationNotificationsPage />} />
               <Route path="espacios/:spaceId/actividades" element={<SpaceActivitiesPage />} />
               <Route path="espacios/:spaceId/nomina" element={<SpaceNominaPage />} />
               <Route

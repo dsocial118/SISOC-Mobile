@@ -12,7 +12,7 @@ import { parseApiError } from '../../api/errorUtils'
 import type { RendicionItem } from '../../api/rendicionApi'
 import { syncNow } from '../../sync/engine'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/theme'
+import { useAppTheme } from '../../ui/ThemeContext'
 import { formatDateTime, loadRendicionesOfflineFirst } from './rendicionOffline'
 import { getRendicionListCache, setRendicionListCache } from './rendicionViewCache'
 
@@ -174,7 +174,7 @@ export function SpaceRendicionPage() {
               className="rounded-xl border p-4 text-left"
               style={cardStyle}
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
                 <div className="min-w-0">
                   <p className={`text-[15px] font-semibold ${titleClass}`}>
                     Rendición {row.numero_rendicion ?? row.id}
@@ -187,23 +187,25 @@ export function SpaceRendicionPage() {
                   >
                     {row.estado_label}
                   </p>
+                  <div className={`mt-3 grid gap-1 text-[12px] ${subtitleClass}`}>
+                    <p className="inline-flex items-center gap-2">
+                      <FontAwesomeIcon icon={faCalendarDay} aria-hidden="true" style={{ fontSize: 11 }} />
+                      {row.periodo_label}
+                    </p>
+                    <p className="inline-flex items-center gap-2">
+                      <FontAwesomeIcon icon={faFileLines} aria-hidden="true" style={{ fontSize: 11 }} />
+                      Creada el {formatDateTime(row.fecha_creacion)}
+                    </p>
+                  </div>
                 </div>
-                <FontAwesomeIcon
-                  icon={faChevronRight}
-                  aria-hidden="true"
-                  className={isDark ? 'text-white/80' : 'text-slate-500'}
-                  style={{ fontSize: 14 }}
-                />
-              </div>
-              <div className={`mt-3 grid gap-1 text-[12px] ${subtitleClass}`}>
-                <p className="inline-flex items-center gap-2">
-                  <FontAwesomeIcon icon={faCalendarDay} aria-hidden="true" style={{ fontSize: 11 }} />
-                  {row.periodo_label}
-                </p>
-                <p className="inline-flex items-center gap-2">
-                  <FontAwesomeIcon icon={faFileLines} aria-hidden="true" style={{ fontSize: 11 }} />
-                  Creada el {formatDateTime(row.fecha_creacion)}
-                </p>
+                <div className="flex h-full items-center">
+                  <FontAwesomeIcon
+                    icon={faChevronRight}
+                    aria-hidden="true"
+                    className={isDark ? 'text-white/80' : 'text-slate-500'}
+                    style={{ fontSize: 14 }}
+                  />
+                </div>
               </div>
             </button>
           ))}

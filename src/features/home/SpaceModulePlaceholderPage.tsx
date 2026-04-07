@@ -3,7 +3,7 @@ import type { AxiosError } from 'axios'
 import { useParams } from 'react-router-dom'
 import { getSpaceDetail } from '../../api/spacesApi'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/theme'
+import { useAppTheme } from '../../ui/ThemeContext'
 
 export function SpaceModulePlaceholderPage({ moduleTitle }: { moduleTitle: string }) {
   const { spaceId } = useParams<{ spaceId: string }>()

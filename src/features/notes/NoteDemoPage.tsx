@@ -8,6 +8,7 @@ import { db } from '../../db/database'
 import { getGPS } from '../../device/geolocation'
 import { pickFromGallery, takePhoto } from '../../device/media'
 import { syncNow } from '../../sync/engine'
+import { getCurrentUserKey } from '../../auth/session'
 
 const noteSchema = z.object({
   name: z.string().min(2, 'Minimo 2 caracteres'),
@@ -34,6 +35,7 @@ export function NoteDemoPage() {
     const id = uuidv4()
     const client_uuid = uuidv4()
     const createdAt = new Date().toISOString()
+    const userKey = await getCurrentUserKey()
 
     await db.transaction('rw', db.notes, db.outbox, async () => {
       await db.notes.put({
@@ -49,6 +51,7 @@ export function NoteDemoPage() {
 
       await db.outbox.add({
         type: 'CREATE_NOTE',
+        user_key: userKey,
         client_uuid,
         payload: {
           id,

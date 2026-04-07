@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faArrowUpRightFromSquare,
@@ -6,7 +6,7 @@ import {
   faImage,
   faFileArrowUp,
   faPaperPlane,
-  faPlus,
+  faSpinner,
   faTrashCan,
 } from '@fortawesome/free-solid-svg-icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -18,12 +18,13 @@ import {
   getRendicionDetailOfflineFirst,
   presentRendicionOffline,
   queueRendicionFileUpload,
+  resolveLocalRendicionId,
 } from './rendicionOffline'
-import { syncNow } from '../../sync/engine'
+import { syncNow, syncRendicionNow, type RendicionSyncStage } from '../../sync/engine'
 import { ConfirmActionModal } from '../../ui/ConfirmActionModal'
 import { NoticeModal } from '../../ui/NoticeModal'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/theme'
+import { useAppTheme } from '../../ui/ThemeContext'
 
 function formatDateTime(value: string): string {
   const parsed = new Date(value)
@@ -60,10 +61,48 @@ function statusClasses(status: string, isDark: boolean): string {
     : 'bg-[#EEF2FF] text-[#232D4F]'
 }
 
+function fileStatusClasses(status: string, isDark: boolean): string {
+  if (status === 'validado') {
+    return isDark
+      ? 'bg-[#2E7D33]/20 text-[#A5D6A7]'
+      : 'bg-[#E8F5E9] text-[#2E7D33]'
+  }
+  if (status === 'subsanado') {
+    return isDark
+      ? 'bg-[#1565C0]/20 text-[#BBDEFB]'
+      : 'bg-[#EAF3FF] text-[#1565C0]'
+  }
+  if (status === 'subsanar') {
+    return isDark
+      ? 'bg-[#C62828]/20 text-[#FFCDD2]'
+      : 'bg-[#FDECEC] text-[#C62828]'
+  }
+  if (status === 'presentado') {
+    return isDark
+      ? 'bg-[#E7BA61]/20 text-[#F7D58D]'
+      : 'bg-[#FFF4D6] text-[#8C6A1D]'
+  }
+  return isDark
+    ? 'bg-white/10 text-white'
+    : 'bg-[#EEF2FF] text-[#232D4F]'
+}
+
 type PickerMode = 'camera' | 'gallery' | 'file'
 
 const DOCUMENT_UPLOAD_ACCEPT =
   'image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,application/pdf,application/msword,application/vnd.ms-excel,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.presentationml.presentation'
+
+function supportsSubsanacionHistory(categoria: string): boolean {
+  return categoria === 'comprobantes' || categoria === 'otros'
+}
+
+function buildCategoryUploadSlotKey(categoria: string): string {
+  return `category:${categoria}`
+}
+
+function buildDocumentUploadSlotKey(documentoId: number | string): string {
+  return `document:${documentoId}`
+}
 
 export function SpaceRendicionDetailPage() {
   const navigate = useNavigate()
@@ -77,15 +116,16 @@ export function SpaceRendicionDetailPage() {
   const [loadErrorMessage, setLoadErrorMessage] = useState('')
   const [noticeTitle, setNoticeTitle] = useState('Aviso')
   const [noticeMessage, setNoticeMessage] = useState('')
+  const [redirectToListOnNoticeClose, setRedirectToListOnNoticeClose] = useState(false)
   const [rendicion, setRendicion] = useState<RendicionDetail | null>(null)
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({})
   const [fileLabels, setFileLabels] = useState<Record<string, string>>({})
-  const [extraUploadOpen, setExtraUploadOpen] = useState<Record<string, boolean>>({})
-  const [uploadingCategory, setUploadingCategory] = useState<string | null>(null)
+  const [uploadingTargetKey, setUploadingTargetKey] = useState<string | null>(null)
   const [deletingDocumentId, setDeletingDocumentId] = useState<number | string | null>(null)
   const [deletingRendicion, setDeletingRendicion] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [presenting, setPresenting] = useState(false)
+  const [presentingStage, setPresentingStage] = useState<RendicionSyncStage | null>(null)
 
   const titleClass = isDark ? 'text-white' : 'text-[#232D4F]'
   const subtitleClass = isDark ? 'text-white/80' : 'text-slate-600'
@@ -109,7 +149,25 @@ export function SpaceRendicionDetailPage() {
     setNoticeMessage(message)
   }
 
-  const reloadDetail = useCallback(async () => {
+  function openSuccessAndReturnToList(message: string, title = 'Envio realizado') {
+    setRedirectToListOnNoticeClose(true)
+    openNotice(message, title)
+  }
+
+  function handleNoticeClose() {
+    const shouldRedirect = redirectToListOnNoticeClose
+    setRedirectToListOnNoticeClose(false)
+    setNoticeMessage('')
+    if (!shouldRedirect || !spaceId) {
+      return
+    }
+    navigate(`/app-org/espacios/${spaceId}/rendicion`, {
+      replace: true,
+      state: routeState,
+    })
+  }
+
+  async function reloadDetail() {
     if (!spaceId || !rendicionId) {
       setLoadErrorMessage('No se encontro la rendicion seleccionada.')
       setLoading(false)
@@ -117,7 +175,7 @@ export function SpaceRendicionDetailPage() {
     }
     const detail = await getRendicionDetailOfflineFirst(spaceId, rendicionId)
     setRendicion(detail)
-  }, [rendicionId, spaceId])
+  }
 
   useEffect(() => {
     let isMounted = true
@@ -146,11 +204,34 @@ export function SpaceRendicionDetailPage() {
       isMounted = false
       setPageLoading(false)
     }
-  }, [reloadDetail, setPageLoading])
+  }, [rendicionId, setPageLoading, spaceId])
 
-  const canEditFiles = useMemo(
-    () => rendicion?.estado === 'elaboracion' || rendicion?.estado === 'subsanar',
-    [rendicion?.estado],
+  const isSubmissionInFlight = useMemo(
+    () =>
+      presenting
+      || (
+        rendicion?.pending_action === 'present'
+        && rendicion?.sync_status === 'pending'
+      ),
+    [presenting, rendicion?.pending_action, rendicion?.sync_status],
+  )
+  const canUploadDuringElaboracion = useMemo(
+    () => rendicion?.estado === 'elaboracion' && !isSubmissionInFlight,
+    [isSubmissionInFlight, rendicion?.estado],
+  )
+  const canUploadDuringSubsanacion = useMemo(
+    () => rendicion?.estado === 'subsanar' && !isSubmissionInFlight,
+    [isSubmissionInFlight, rendicion?.estado],
+  )
+  const canPresentChanges = useMemo(
+    () =>
+      (rendicion?.estado === 'elaboracion' || rendicion?.estado === 'subsanar')
+      && !isSubmissionInFlight,
+    [isSubmissionInFlight, rendicion?.estado],
+  )
+  const canDeleteRendicion = useMemo(
+    () => rendicion?.estado === 'elaboracion' && !isSubmissionInFlight,
+    [isSubmissionInFlight, rendicion?.estado],
   )
 
   useEffect(() => {
@@ -161,34 +242,38 @@ export function SpaceRendicionDetailPage() {
     openNotice(syncNotice, 'Aviso de sincronizacion')
   }, [rendicion?.last_error])
 
-  async function handleUpload(categoria: string) {
+  async function handleUpload(params: {
+    categoria: string
+    slotKey: string
+    documentoSubsanadoId?: number | string
+  }) {
     if (!spaceId || !rendicionId) {
       return
     }
-    const selectedFile = selectedFiles[categoria]
+    const selectedFile = selectedFiles[params.slotKey]
     if (!selectedFile) {
       openNotice('Selecciona un archivo para adjuntar.')
       return
     }
-    setUploadingCategory(categoria)
+    setUploadingTargetKey(params.slotKey)
     setNoticeMessage('')
     try {
       const detail = await queueRendicionFileUpload({
         spaceId,
         rendicionId,
-        categoria,
+        categoria: params.categoria,
         file: selectedFile,
-        name: fileLabels[categoria],
+        name: fileLabels[params.slotKey],
+        documentoSubsanadoId: params.documentoSubsanadoId,
       })
       setRendicion(detail)
-      setSelectedFiles((current) => ({ ...current, [categoria]: null }))
-      setFileLabels((current) => ({ ...current, [categoria]: '' }))
-      setExtraUploadOpen((current) => ({ ...current, [categoria]: false }))
+      setSelectedFiles((current) => ({ ...current, [params.slotKey]: null }))
+      setFileLabels((current) => ({ ...current, [params.slotKey]: '' }))
       void syncNow()
     } catch (error) {
       openNotice(parseApiError(error, 'No se pudo adjuntar el archivo.'))
     } finally {
-      setUploadingCategory(null)
+      setUploadingTargetKey(null)
     }
   }
 
@@ -214,16 +299,97 @@ export function SpaceRendicionDetailPage() {
       return
     }
     setPresenting(true)
+    setPresentingStage('preparing')
     setNoticeMessage('')
+    return handlePresentWithSync()
     try {
-      const detail = await presentRendicionOffline(rendicionId)
+      const detail = await presentRendicionOffline(rendicionId as string)
       setRendicion(detail)
-      void syncNow()
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        await syncNow()
+        await reloadDetail()
+      }
+      openNotice(
+        rendicion?.estado === 'subsanar'
+          ? 'Los cambios se enviaron nuevamente a revisión.'
+          : 'La rendición se envió a revisión.',
+        'Envío realizado',
+      )
     } catch (error) {
-      openNotice(parseApiError(error, 'No se pudo enviar la rendicion a revision.'))
+      openNotice(
+        parseApiError(
+          error,
+          rendicion?.estado === 'subsanar'
+            ? 'No se pudieron enviar los cambios.'
+            : 'No se pudo enviar la rendicion a revision.',
+        ),
+      )
     } finally {
       setPresenting(false)
     }
+  }
+
+  async function handlePresentWithSync() {
+    try {
+      const detail = await presentRendicionOffline(rendicionId as string)
+      setRendicion(detail)
+
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        const localRendicionId = await resolveLocalRendicionId(rendicionId as string)
+        if (!localRendicionId) {
+          throw new Error('No se pudo resolver la rendición local para sincronizar.')
+        }
+        await syncRendicionNow(localRendicionId, {
+          onStageChange: (stage) => setPresentingStage(stage),
+        })
+        await reloadDetail()
+        openSuccessAndReturnToList(
+          rendicion?.estado === 'subsanar'
+            ? 'Los cambios se enviaron nuevamente a revisión.'
+            : 'La rendición se envió a revisión.',
+          'Envío realizado',
+        )
+      } else {
+        openNotice(
+          'Sin conexión. Los cambios quedaron guardados para sincronizar.',
+          'Pendiente de sincronización',
+        )
+      }
+    } catch (error) {
+      openNotice(
+        parseApiError(
+          error,
+          rendicion?.estado === 'subsanar'
+            ? 'No se pudieron enviar los cambios.'
+            : 'No se pudo enviar la rendición a revisión.',
+        ),
+      )
+    } finally {
+      setPresenting(false)
+      setPresentingStage(null)
+    }
+  }
+
+  function getPresentButtonLabel(): string {
+    if (!presenting && isSubmissionInFlight) {
+      return 'Sincronizando envío...'
+    }
+    if (!presenting) {
+      return rendicion?.estado === 'subsanar' ? 'Enviar cambios' : 'Enviar a revisión'
+    }
+    if (presentingStage === 'creating' || presentingStage === 'preparing') {
+      return 'Preparando envío...'
+    }
+    if (presentingStage === 'uploading_files') {
+      return 'Subiendo archivos...'
+    }
+    if (presentingStage === 'presenting') {
+      return 'Enviando rendición...'
+    }
+    if (presentingStage === 'refreshing') {
+      return 'Confirmando envío...'
+    }
+    return 'Procesando...'
   }
 
   async function handleDeleteRendicion() {
@@ -313,15 +479,32 @@ export function SpaceRendicionDetailPage() {
         </div>
       </article>
 
+      {isSubmissionInFlight ? (
+        <article className="rounded-xl border p-4" style={cardStyle}>
+          <p className={`text-[13px] font-semibold ${titleClass}`}>
+            La rendición se está sincronizando.
+          </p>
+          <p className={`mt-1 text-[12px] ${subtitleClass}`}>
+            Mientras se envían los cambios no se pueden cargar ni borrar archivos.
+          </p>
+        </article>
+      ) : null}
+
       <section className="grid gap-3">
         {rendicion.documentacion.map((categoria) => {
           const alreadyHasSingleFile = !categoria.multiple && categoria.archivos.length > 0
-          const canUploadInCategory = canEditFiles && !alreadyHasSingleFile
+          const categorySlotKey = buildCategoryUploadSlotKey(categoria.codigo)
+          const observedFiles = categoria.archivos.filter((item) => item.estado === 'subsanar')
+          const isHistorySubsanacionCategory = supportsSubsanacionHistory(categoria.codigo)
+          const canUploadInCategory = canUploadDuringElaboracion && !alreadyHasSingleFile
+          const canReplaceObservedFile =
+            canUploadDuringSubsanacion
+            && !isHistorySubsanacionCategory
+            && observedFiles.length > 0
           const isExtraCategory = categoria.codigo === 'otros'
-          const showUploader =
-            canUploadInCategory && (!isExtraCategory || extraUploadOpen[categoria.codigo])
-          const selectedFile = selectedFiles[categoria.codigo]
-          const currentLabel = fileLabels[categoria.codigo] || ''
+          const showUploader = canReplaceObservedFile || canUploadInCategory
+          const selectedFile = selectedFiles[categorySlotKey]
+          const currentLabel = fileLabels[categorySlotKey] || ''
 
           return (
             <article key={categoria.codigo} className="rounded-xl border p-4" style={cardStyle}>
@@ -349,60 +532,255 @@ export function SpaceRendicionDetailPage() {
                         isDark ? 'border-white/20 bg-white/10' : 'border-slate-300 bg-white/80'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className={`truncate text-[13px] font-semibold ${titleClass}`}>
-                            {item.nombre}
-                          </p>
-                          <p className={`mt-1 text-[12px] ${subtitleClass}`}>
-                            {item.estado_label} · {formatDateTime(item.fecha_creacion)}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {item.url ? (
-                            <a href={item.url} target="_blank" rel="noreferrer">
-                              <FontAwesomeIcon
-                                icon={faArrowUpRightFromSquare}
-                                aria-hidden="true"
-                                className={`${subtitleClass}`}
-                              />
-                            </a>
-                          ) : null}
-                          {canEditFiles ? (
-                            <button
-                              type="button"
-                              onClick={() => void handleDelete(item.id)}
-                              className="text-[#C62828]"
-                              disabled={deletingDocumentId === item.id}
-                              aria-label={`Eliminar ${item.nombre}`}
-                            >
-                              <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
+                      {(() => {
+                        const documentSlotKey = buildDocumentUploadSlotKey(item.id)
+                        const selectedDocumentFile = selectedFiles[documentSlotKey]
+                        const visibleStatus = item.estado_visual || item.estado
+                        const visibleStatusLabel =
+                          item.estado_label_visual || item.estado_label
+                        const canUploadHistorySubsanacion =
+                          canUploadDuringSubsanacion
+                          && isHistorySubsanacionCategory
+                          && item.estado === 'subsanar'
+
+                        return (
+                          <>
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className={`truncate text-[13px] font-semibold ${titleClass}`}>
+                                  {item.nombre}
+                                </p>
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                  <span
+                                    className={`inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${fileStatusClasses(
+                                      visibleStatus,
+                                      isDark,
+                                    )}`}
+                                  >
+                                    {visibleStatusLabel}
+                                  </span>
+                                  <span className={`text-[12px] ${subtitleClass}`}>
+                                    {formatDateTime(item.fecha_creacion)}
+                                  </span>
+                                </div>
+                                {item.observaciones ? (
+                                  <div
+                                    className={`mt-2 rounded-md border px-3 py-2 text-[12px] ${
+                                      isDark
+                                        ? 'border-[#C62828]/30 bg-[#C62828]/10 text-white/90'
+                                        : 'border-[#F3C7C7] bg-[#FFF7F7] text-slate-700'
+                                    }`}
+                                  >
+                                    <span className="font-semibold">Observaciones:</span>{' '}
+                                    {item.observaciones}
+                                  </div>
+                                ) : null}
+                              </div>
+                              <div className="flex items-center gap-3">
+                                {item.url ? (
+                                  <a href={item.url} target="_blank" rel="noreferrer">
+                                    <FontAwesomeIcon
+                                      icon={faArrowUpRightFromSquare}
+                                      aria-hidden="true"
+                                      className={`${subtitleClass}`}
+                                    />
+                                  </a>
+                                ) : null}
+                                {canUploadDuringElaboracion ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleDelete(item.id)}
+                                    className="text-[#C62828]"
+                                    disabled={deletingDocumentId === item.id}
+                                    aria-label={`Eliminar ${item.nombre}`}
+                                  >
+                                    <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
+                                  </button>
+                                ) : null}
+                              </div>
+                            </div>
+
+                            {canUploadHistorySubsanacion ? (
+                              <div className="mt-3 grid gap-3">
+                                <div className="grid gap-2">
+                                  <p className={`text-[12px] font-semibold ${titleClass}`}>
+                                    Cargar subsanacion
+                                  </p>
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {[
+                                      {
+                                        mode: 'camera' as const,
+                                        icon: faCamera,
+                                        label: 'Sacar foto',
+                                      },
+                                      {
+                                        mode: 'gallery' as const,
+                                        icon: faImage,
+                                        label: 'Imagen de galeria',
+                                      },
+                                      {
+                                        mode: 'file' as const,
+                                        icon: faFileArrowUp,
+                                        label: 'Subir archivo',
+                                      },
+                                    ].map((option) => {
+                                      const inputProps = buildInputProps(option.mode)
+                                      return (
+                                        <label
+                                          key={`${documentSlotKey}-${option.mode}`}
+                                          className={`cursor-pointer rounded-xl border px-2 py-2 text-center ${
+                                            isDark
+                                              ? 'border-white/20 bg-white/10 text-white'
+                                              : 'border-slate-300 bg-white text-slate-700'
+                                          }`}
+                                        >
+                                          <input
+                                            type="file"
+                                            accept={inputProps.accept}
+                                            capture={inputProps.capture}
+                                            className="hidden"
+                                            onChange={(event) =>
+                                              setSelectedFiles((current) => ({
+                                                ...current,
+                                                [documentSlotKey]:
+                                                  event.target.files?.[0] || null,
+                                              }))
+                                            }
+                                          />
+                                          <span className="flex flex-col items-center justify-center gap-1 text-[11px] font-semibold leading-tight sm:text-xs">
+                                            <FontAwesomeIcon icon={option.icon} aria-hidden="true" />
+                                            {option.label}
+                                          </span>
+                                        </label>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
+
+                                {selectedDocumentFile ? (
+                                  <div
+                                    className={`rounded-xl border px-3 py-3 text-sm ${
+                                      isDark
+                                        ? 'border-white/20 bg-white/10 text-white'
+                                        : 'border-slate-300 bg-white text-slate-700'
+                                    }`}
+                                  >
+                                    Archivo seleccionado: <strong>{selectedDocumentFile.name}</strong>
+                                  </div>
+                                ) : null}
+
+                                <button
+                                  type="button"
+                                  disabled={
+                                    uploadingTargetKey === documentSlotKey || !selectedDocumentFile
+                                  }
+                                  onClick={() =>
+                                    void handleUpload({
+                                      categoria: categoria.codigo,
+                                      slotKey: documentSlotKey,
+                                      documentoSubsanadoId: item.id,
+                                    })
+                                  }
+                                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2E7D33] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                                >
+                                  <FontAwesomeIcon icon={faFileArrowUp} aria-hidden="true" />
+                                  {uploadingTargetKey === documentSlotKey
+                                    ? 'Adjuntando...'
+                                    : 'Cargar subsanacion'}
+                                </button>
+                              </div>
+                            ) : null}
+
+                            {item.subsanaciones && item.subsanaciones.length > 0 ? (
+                              <div
+                                className={`mt-3 rounded-xl border p-3 ${
+                                  isDark
+                                    ? 'border-white/15 bg-black/10'
+                                    : 'border-slate-200 bg-slate-50/80'
+                                }`}
+                              >
+                                <p className={`text-[12px] font-semibold ${titleClass}`}>
+                                  Historial de subsanaciones
+                                </p>
+                                <div className="mt-2 grid gap-2">
+                                  {item.subsanaciones.map((subsanacion) => {
+                                    const historyStatus =
+                                      subsanacion.estado_visual || subsanacion.estado
+                                    const historyStatusLabel =
+                                      subsanacion.estado_label_visual
+                                      || subsanacion.estado_label
+
+                                    return (
+                                      <div
+                                        key={subsanacion.id}
+                                        className={`rounded-lg border p-3 ${
+                                          isDark
+                                            ? 'border-white/15 bg-white/5'
+                                            : 'border-slate-200 bg-white'
+                                        }`}
+                                      >
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="min-w-0">
+                                            <p
+                                              className={`truncate text-[13px] font-semibold ${titleClass}`}
+                                            >
+                                              {subsanacion.nombre}
+                                            </p>
+                                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                              <span
+                                                className={`inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${fileStatusClasses(
+                                                  historyStatus,
+                                                  isDark,
+                                                )}`}
+                                              >
+                                                {historyStatusLabel}
+                                              </span>
+                                              <span className={`text-[12px] ${subtitleClass}`}>
+                                                {formatDateTime(subsanacion.fecha_creacion)}
+                                              </span>
+                                            </div>
+                                            {subsanacion.observaciones ? (
+                                              <div
+                                                className={`mt-2 rounded-md border px-3 py-2 text-[12px] ${
+                                                  isDark
+                                                    ? 'border-[#C62828]/30 bg-[#C62828]/10 text-white/90'
+                                                    : 'border-[#F3C7C7] bg-[#FFF7F7] text-slate-700'
+                                                }`}
+                                              >
+                                                <span className="font-semibold">
+                                                  Observaciones:
+                                                </span>{' '}
+                                                {subsanacion.observaciones}
+                                              </div>
+                                            ) : null}
+                                          </div>
+                                          {subsanacion.url ? (
+                                            <a
+                                              href={subsanacion.url}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                            >
+                                              <FontAwesomeIcon
+                                                icon={faArrowUpRightFromSquare}
+                                                aria-hidden="true"
+                                                className={`${subtitleClass}`}
+                                              />
+                                            </a>
+                                          ) : null}
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            ) : null}
+                          </>
+                        )
+                      })()}
                     </div>
                   ))}
                 </div>
               )}
-
-              {canUploadInCategory && isExtraCategory && !extraUploadOpen[categoria.codigo] ? (
-                <div className="mt-4">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setExtraUploadOpen((current) => ({
-                        ...current,
-                        [categoria.codigo]: true,
-                      }))
-                    }
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#232D4F] px-4 py-3 text-sm font-semibold text-white"
-                  >
-                    <FontAwesomeIcon icon={faPlus} aria-hidden="true" />
-                    Anadir documentacion extra
-                  </button>
-                </div>
-              ) : null}
 
               {showUploader ? (
                 <div className="mt-4 grid gap-3">
@@ -416,11 +794,15 @@ export function SpaceRendicionDetailPage() {
                         onChange={(event) =>
                           setFileLabels((current) => ({
                             ...current,
-                            [categoria.codigo]: event.target.value,
+                            [categorySlotKey]: event.target.value,
                           }))
                         }
                         className={`rounded-xl border px-3 py-3 text-sm outline-none ${inputClass}`}
-                        placeholder="Opcional"
+                        placeholder={
+                          canReplaceObservedFile
+                            ? 'Nombre del nuevo archivo'
+                            : 'Opcional'
+                        }
                       />
                     </label>
                   ) : null}
@@ -455,18 +837,18 @@ export function SpaceRendicionDetailPage() {
                                 : 'border-slate-300 bg-white text-slate-700'
                             }`}
                           >
-                            <input
-                              type="file"
-                              accept={inputProps.accept}
-                              capture={inputProps.capture}
-                              className="hidden"
-                              onChange={(event) =>
-                                setSelectedFiles((current) => ({
-                                  ...current,
-                                  [categoria.codigo]: event.target.files?.[0] || null,
-                                }))
-                              }
-                            />
+                              <input
+                                type="file"
+                                accept={inputProps.accept}
+                                capture={inputProps.capture}
+                                className="hidden"
+                                onChange={(event) =>
+                                  setSelectedFiles((current) => ({
+                                    ...current,
+                                    [categorySlotKey]: event.target.files?.[0] || null,
+                                  }))
+                                }
+                              />
                             <span className="flex flex-col items-center justify-center gap-1 text-[11px] font-semibold leading-tight sm:text-xs">
                               <FontAwesomeIcon icon={option.icon} aria-hidden="true" />
                               {option.label}
@@ -491,14 +873,24 @@ export function SpaceRendicionDetailPage() {
 
                   <button
                     type="button"
-                    disabled={uploadingCategory === categoria.codigo || !selectedFile}
-                    onClick={() => void handleUpload(categoria.codigo)}
+                    disabled={uploadingTargetKey === categorySlotKey || !selectedFile}
+                    onClick={() =>
+                      void handleUpload({
+                        categoria: categoria.codigo,
+                        slotKey: categorySlotKey,
+                        documentoSubsanadoId: canReplaceObservedFile
+                          ? observedFiles[0]?.id
+                          : undefined,
+                      })
+                    }
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#232D4F] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
                   >
                     <FontAwesomeIcon icon={faFileArrowUp} aria-hidden="true" />
-                    {uploadingCategory === categoria.codigo
+                    {uploadingTargetKey === categorySlotKey
                       ? 'Adjuntando...'
-                      : isExtraCategory
+                      : canReplaceObservedFile
+                        ? 'Reemplazar archivo observado'
+                        : isExtraCategory
                         ? 'Adjuntar documentacion extra'
                         : 'Adjuntar archivo'}
                   </button>
@@ -509,7 +901,7 @@ export function SpaceRendicionDetailPage() {
         })}
       </section>
 
-      {!canEditFiles ? (
+      {!canPresentChanges && !isSubmissionInFlight ? (
         <div
           className={`rounded-xl border p-4 text-sm ${
             isDark
@@ -521,26 +913,34 @@ export function SpaceRendicionDetailPage() {
         </div>
       ) : null}
 
-      {canEditFiles ? (
-        <div className="grid grid-cols-4 gap-3">
-          <button
-            type="button"
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={deletingRendicion}
-            className="col-span-1 inline-flex items-center justify-center rounded-xl bg-[#C62828] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
-            aria-label={deletingRendicion ? 'Eliminando rendicion' : 'Borrar rendicion'}
-          >
-            <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
-          </button>
+      {canPresentChanges || isSubmissionInFlight ? (
+        <div className={`grid gap-3 ${canDeleteRendicion ? 'grid-cols-4' : 'grid-cols-1'}`}>
+          {canDeleteRendicion ? (
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={deletingRendicion}
+              className="col-span-1 inline-flex items-center justify-center rounded-xl bg-[#C62828] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+              aria-label={deletingRendicion ? 'Eliminando rendicion' : 'Borrar rendicion'}
+            >
+              <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
+            </button>
+          ) : null}
 
           <button
             type="button"
             onClick={() => void handlePresent()}
-            disabled={presenting}
-            className="col-span-3 inline-flex items-center justify-center gap-2 rounded-xl bg-[#2E7D33] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+            disabled={presenting || isSubmissionInFlight}
+            className={`inline-flex items-center justify-center gap-2 rounded-xl bg-[#2E7D33] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60 ${
+              canDeleteRendicion ? 'col-span-3' : 'col-span-1'
+            }`}
           >
-            <FontAwesomeIcon icon={faPaperPlane} aria-hidden="true" />
-            {presenting ? 'Enviando...' : 'Enviar a revision'}
+            <FontAwesomeIcon
+              icon={isSubmissionInFlight ? faSpinner : faPaperPlane}
+              spin={isSubmissionInFlight}
+              aria-hidden="true"
+            />
+            {getPresentButtonLabel()}
           </button>
         </div>
       ) : null}
@@ -558,7 +958,7 @@ export function SpaceRendicionDetailPage() {
         open={Boolean(noticeMessage)}
         title={noticeTitle}
         message={noticeMessage}
-        onClose={() => setNoticeMessage('')}
+        onClose={handleNoticeClose}
       />
     </section>
   )

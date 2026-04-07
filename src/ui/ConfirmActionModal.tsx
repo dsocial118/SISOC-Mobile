@@ -1,6 +1,6 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faTrashCan } from '@fortawesome/free-solid-svg-icons'
-import { useAppTheme } from './theme'
+import { useAppTheme } from './ThemeContext'
 
 type ConfirmActionModalProps = {
   open: boolean

@@ -7,10 +7,16 @@ export interface SpaceMessageAttachment {
   url: string | null
 }
 
+export interface SpaceMessageAction {
+  tipo: 'rendicion_detalle'
+  rendicion_id: number
+}
+
 export interface SpaceMessageItem {
   id: number
   titulo: string
   cuerpo: string
+  accion: SpaceMessageAction | null
   destacado: boolean
   subtipo: string
   seccion: 'general' | 'espacio'
@@ -27,8 +33,12 @@ export interface SpaceMessagesResponse {
   num_pages: number
   current_page: number
   unread_count: number
+  unread_grouped_count: number
   unread_general_count: number
   unread_espacio_count: number
+  unread_general_ids: number[]
+  unread_rendicion_ids: number[]
+  unread_espacio_non_rendicion_count: number
   secciones: {
     generales: SpaceMessageItem[]
     espacios: SpaceMessageItem[]
@@ -41,6 +51,9 @@ export async function listSpaceMessages(
 ): Promise<SpaceMessagesResponse> {
   const { data } = await http.get<SpaceMessagesResponse>(
     `/pwa/espacios/${spaceId}/mensajes/`,
+    {
+      timeout: 30000,
+    },
   )
   return data
 }

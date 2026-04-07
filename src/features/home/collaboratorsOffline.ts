@@ -6,6 +6,7 @@ import {
   type SpaceCollaboratorPayload,
 } from '../../api/collaboratorsApi'
 import { db, type OutboxRecord, type SpaceCollaboratorRecord } from '../../db/database'
+import { getCurrentUserKey } from '../../auth/session'
 import { enqueueOutbox } from '../../sync/outbox'
 
 export interface CreateCollaboratorOutboxPayload {
@@ -33,14 +34,23 @@ function nowIso(): string {
   return new Date().toISOString()
 }
 
+async function requireCurrentUserKey(): Promise<string> {
+  const userKey = await getCurrentUserKey()
+  if (!userKey) {
+    throw new Error('La sesión expiró. Volvé a ingresar.')
+  }
+  return userKey
+}
+
 function todayIso(): string {
   return nowIso().slice(0, 10)
 }
 
-function toLocalRecord(remote: SpaceCollaborator): SpaceCollaboratorRecord {
+function toLocalRecord(remote: SpaceCollaborator, userKey: string): SpaceCollaboratorRecord {
   const now = nowIso()
   return {
     id: `remote-${remote.id}`,
+    user_key: userKey,
     space_id: remote.comedor,
     remote_id: remote.id,
     ciudadano_id: remote.ciudadano_id,
@@ -72,16 +82,18 @@ async function findOutboxForLocalId(
   type: OutboxRecord['type'],
   localId: string,
 ): Promise<OutboxRecord | undefined> {
+  const userKey = await requireCurrentUserKey()
   return db.outbox
     .where('type')
     .equals(type)
-    .filter((row) => String(row.payload.local_id || '') === localId)
+    .filter((row) => row.user_key === userKey && String(row.payload.local_id || '') === localId)
     .first()
 }
 
 async function removeOutboxForLocalId(localId: string): Promise<void> {
+  const userKey = await requireCurrentUserKey()
   const matches = await db.outbox
-    .filter((row) => String(row.payload.local_id || '') === localId)
+    .filter((row) => row.user_key === userKey && String(row.payload.local_id || '') === localId)
     .toArray()
   await Promise.all(matches.map((row) => (row.id ? db.outbox.delete(row.id) : Promise.resolve())))
 }
@@ -98,16 +110,15 @@ function sortRows(rows: SpaceCollaboratorRecord[]): SpaceCollaboratorRecord[] {
 export async function listLocalSpaceCollaborators(
   spaceId: string | number,
 ): Promise<SpaceCollaboratorRecord[]> {
+  const userKey = await requireCurrentUserKey()
   const parsedSpaceId = Number(spaceId)
-  const rows = await db.space_collaborators
-    .where('space_id')
-    .equals(parsedSpaceId)
-    .toArray()
+  const rows = await db.space_collaborators.where('space_id').equals(parsedSpaceId).toArray()
+  const scopedRows = rows.filter((row) => row.user_key === userKey)
 
   const uniqueByRemoteId = new Map<number, SpaceCollaboratorRecord>()
   const withoutRemoteId: SpaceCollaboratorRecord[] = []
 
-  for (const row of rows) {
+  for (const row of scopedRows) {
     if (!row.remote_id) {
       withoutRemoteId.push(row)
       continue
@@ -138,12 +149,13 @@ export async function listLocalSpaceCollaborators(
 }
 
 export async function mergeRemoteCollaborators(spaceId: string | number): Promise<void> {
+  const userKey = await requireCurrentUserKey()
   const parsedSpaceId = Number(spaceId)
   const remoteRows = await listSpaceCollaborators(parsedSpaceId)
   const remoteById = new Map(remoteRows.map((row) => [row.id, row]))
 
   const locals = await db.space_collaborators.where('space_id').equals(parsedSpaceId).toArray()
-  for (const localRow of locals) {
+  for (const localRow of locals.filter((row) => row.user_key === userKey)) {
     if (localRow.pending_action && localRow.pending_action !== null) {
       if (localRow.remote_id) {
         remoteById.delete(localRow.remote_id)
@@ -164,7 +176,7 @@ export async function mergeRemoteCollaborators(spaceId: string | number): Promis
       })
       continue
     }
-    const mapped = toLocalRecord(remote)
+    const mapped = toLocalRecord(remote, userKey)
     await db.space_collaborators.put({
       ...mapped,
       id: localRow.id,
@@ -174,7 +186,7 @@ export async function mergeRemoteCollaborators(spaceId: string | number): Promis
   }
 
   for (const remote of remoteById.values()) {
-    await db.space_collaborators.put(toLocalRecord(remote))
+    await db.space_collaborators.put(toLocalRecord(remote, userKey))
   }
 }
 
@@ -183,11 +195,13 @@ export async function createCollaboratorOffline(
   payload: SpaceCollaboratorPayload,
   preview: CollaboratorPreview,
 ): Promise<SpaceCollaboratorRecord> {
+  const userKey = await requireCurrentUserKey()
   const parsedSpaceId = Number(spaceId)
   const timestamp = nowIso()
   const localId = `local-${uuidv4()}`
   const record: SpaceCollaboratorRecord = {
     id: localId,
+    user_key: userKey,
     space_id: parsedSpaceId,
     remote_id: null,
     ciudadano_id: payload.ciudadano_id || preview.ciudadano_id,

@@ -4,7 +4,7 @@ import { getSpaceDetail, type SpaceDetail } from '../../api/spacesApi'
 import { parseApiError } from '../../api/errorUtils'
 import { CollaboratorsCard } from './CollaboratorsCard'
 import { usePageLoading } from '../../ui/PageLoadingContext'
-import { useAppTheme } from '../../ui/theme'
+import { useAppTheme } from '../../ui/ThemeContext'
 
 export function SpaceDetailPage() {
   const { spaceId } = useParams<{ spaceId: string }>()

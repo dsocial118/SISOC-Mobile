@@ -14,6 +14,7 @@ export interface UserSessionRecord {
   id: 'current'
   access_token: string
   role: UserRole
+  user_key: string
   user_profile?: SessionUserProfile | null
   updated_at: string
 }
@@ -33,6 +34,7 @@ export type OutboxType =
 export interface OutboxRecord {
   id?: number
   type: OutboxType
+  user_key?: string | null
   payload: Record<string, unknown>
   client_uuid: string
   status: OutboxStatus
@@ -65,6 +67,7 @@ export type LocalRendicionFilePendingAction = 'upload' | 'delete' | null
 
 export interface SpaceCollaboratorRecord {
   id: string
+  user_key?: string | null
   space_id: number
   remote_id?: number | null
   ciudadano_id?: number | null
@@ -97,6 +100,7 @@ export interface SpaceCollaboratorRecord {
 
 export interface LocalRendicionRecord {
   id: string
+  user_key?: string | null
   space_id: number
   remote_id?: number | null
   convenio: string | null
@@ -119,10 +123,12 @@ export interface LocalRendicionRecord {
 
 export interface LocalRendicionFileRecord {
   id: string
+  user_key?: string | null
   rendicion_id: string
   remote_id?: number | null
   categoria: string
   categoria_label: string
+  documento_subsanado?: number | string | null
   nombre: string
   file_blob?: Blob | null
   mime_type?: string | null
@@ -173,6 +179,17 @@ class AppDatabase extends Dexie {
         'id, space_id, remote_id, estado, sync_status, pending_action, updated_at',
       rendicion_files:
         'id, rendicion_id, remote_id, categoria, sync_status, pending_action, updated_at',
+    })
+    this.version(5).stores({
+      users_session: 'id, role, user_key, updated_at',
+      outbox: '++id, type, user_key, status, created_at, client_uuid, next_retry_at',
+      notes: 'id, synced, created_at',
+      space_collaborators:
+        'id, user_key, space_id, remote_id, ciudadano_id, activo, sync_status, updated_at',
+      rendiciones:
+        'id, user_key, space_id, remote_id, estado, sync_status, pending_action, updated_at',
+      rendicion_files:
+        'id, user_key, rendicion_id, remote_id, categoria, sync_status, pending_action, updated_at',
     })
   }
 }

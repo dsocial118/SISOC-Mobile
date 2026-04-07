@@ -47,6 +47,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const validated = await getRoleFromCurrentToken(session.access_token)
       if (
+        !session.user_key
+        || !session.user_profile
+        ||
         validated.role !== session.role
         || validated.user_profile.username !== session.user_profile?.username
         || validated.user_profile.email !== session.user_profile?.email

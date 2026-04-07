@@ -5,12 +5,16 @@ export interface RendicionFileItem {
   nombre: string
   categoria: string
   categoria_label: string
+  documento_subsanado: number | null
   url: string | null
   estado: string
   estado_label: string
+  estado_visual?: string
+  estado_label_visual?: string
   observaciones: string | null
   fecha_creacion: string
   ultima_modificacion: string
+  subsanaciones?: RendicionFileItem[]
   sync_status?: 'pending' | 'synced' | 'failed'
   pending_action?: 'upload' | 'delete' | null
   last_error?: string | null
@@ -116,12 +120,16 @@ export async function uploadRendicionFile(params: {
   categoria: string
   file: File
   name?: string
+  documentoSubsanadoId?: number | string
 }): Promise<RendicionDetail> {
   const formData = new FormData()
   formData.append('archivo', params.file)
   formData.append('categoria', params.categoria)
   if (params.name?.trim()) {
     formData.append('nombre', params.name.trim())
+  }
+  if (params.documentoSubsanadoId !== undefined && params.documentoSubsanadoId !== null) {
+    formData.append('documento_subsanado_id', String(params.documentoSubsanadoId))
   }
   const { data } = await http.post<RendicionDetail>(
     `/comedores/${params.spaceId}/rendiciones/${params.rendicionId}/documentacion/`,

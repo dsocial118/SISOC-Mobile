@@ -19,6 +19,7 @@ import {
   type LocalRendicionRecord,
   type OutboxRecord,
 } from '../../db/database'
+import { getCurrentUserKey } from '../../auth/session'
 import { enqueueOutbox } from '../../sync/outbox'
 
 type DocumentCategoryConfig = Omit<RendicionDocumentCategory, 'archivos'>
@@ -102,6 +103,120 @@ const FILE_STATUS_LABELS: Record<string, string> = {
   validado: 'Validado',
 }
 
+function supportsSubsanacionHistoryCategory(categoria: string): boolean {
+  return categoria === 'comprobantes' || categoria === 'otros'
+}
+
+function toVisualFileStatus(file: {
+  estado_visual_override?: string | null
+  estado_label_visual_override?: string | null
+  estado: string
+  estado_label?: string
+}): { estadoVisual: string; estadoLabelVisual: string } {
+  if (file.estado_visual_override && file.estado_label_visual_override) {
+    return {
+      estadoVisual: file.estado_visual_override,
+      estadoLabelVisual: file.estado_label_visual_override,
+    }
+  }
+  return {
+    estadoVisual: file.estado,
+    estadoLabelVisual: file.estado_label || FILE_STATUS_LABELS[file.estado] || file.estado,
+  }
+}
+
+function flattenDetailFiles(detail: RendicionDetail): RendicionFileItem[] {
+  return detail.documentacion.flatMap((category) =>
+    category.archivos.flatMap((file) => [file, ...(file.subsanaciones || [])]),
+  )
+}
+
+function buildDetailDocumentacion(
+  files: LocalRendicionFileRecord[],
+): RendicionDocumentCategory[] {
+  const activeFiles = files.filter((file) => file.pending_action !== 'delete')
+
+  return DOCUMENT_CATEGORIES.map((category) => ({
+    ...category,
+    archivos: (() => {
+      const categoryFiles = activeFiles.filter((file) => file.categoria === category.codigo)
+      if (!supportsSubsanacionHistoryCategory(category.codigo)) {
+        return categoryFiles
+          .sort((left, right) => left.created_at.localeCompare(right.created_at))
+          .map((file) => {
+            const item = toRendicionFileItem(file)
+            item.subsanaciones = []
+            return item
+          })
+      }
+
+      const filesById = new Map(
+        categoryFiles.map((file) => [String(file.remote_id ?? file.id), file] as const),
+      )
+      const childrenByParentId = new Map<string, LocalRendicionFileRecord[]>()
+      for (const file of categoryFiles) {
+        const parentId = String(file.documento_subsanado ?? '').trim()
+        if (!parentId || !filesById.has(parentId)) {
+          continue
+        }
+        const current = childrenByParentId.get(parentId) || []
+        current.push(file)
+        childrenByParentId.set(parentId, current)
+      }
+
+      const roots = categoryFiles.filter((file) => {
+        const parentId = String(file.documento_subsanado ?? '').trim()
+        return !parentId || !filesById.has(parentId)
+      })
+
+      return roots
+        .sort((left, right) => left.created_at.localeCompare(right.created_at))
+        .map((root) => {
+          const chain: LocalRendicionFileRecord[] = []
+          const pending: LocalRendicionFileRecord[] = [root]
+          while (pending.length > 0) {
+            const current = pending.shift()
+            if (!current) {
+              continue
+            }
+            chain.push(current)
+            pending.push(
+              ...(
+                childrenByParentId.get(String(current.remote_id ?? current.id)) || []
+              ).sort((left, right) => left.created_at.localeCompare(right.created_at)),
+            )
+          }
+
+          const principal =
+            [...chain].sort((left, right) => {
+              const byDate = left.created_at.localeCompare(right.created_at)
+              if (byDate !== 0) {
+                return byDate
+              }
+              return String(left.remote_id ?? left.id).localeCompare(
+                String(right.remote_id ?? right.id),
+              )
+            })[chain.length - 1] || root
+          const item = toRendicionFileItem(principal, {
+            estadoVisual: principal.estado,
+            estadoLabelVisual:
+              principal.estado_label || FILE_STATUS_LABELS[principal.estado] || principal.estado,
+          })
+          item.subsanaciones = chain
+            .filter((file) => file.id !== principal.id)
+            .sort((left, right) => right.created_at.localeCompare(left.created_at))
+            .map((historyFile) =>
+              toRendicionFileItem(historyFile, {
+                estadoVisual: 'subsanado',
+                estadoLabelVisual: 'Subsanado',
+              }),
+            )
+          return item
+        })
+    })(),
+  }))
+}
+
 export interface CreateRendicionOutboxPayload {
   local_id: string
   space_id: number
@@ -114,6 +229,7 @@ export interface UploadRendicionFileOutboxPayload {
   space_id: number
   categoria: string
   name?: string
+  documento_subsanado_id?: number | string
 }
 
 export interface DeleteRendicionFileOutboxPayload {
@@ -138,6 +254,14 @@ function outboxPayload<T extends object>(value: T): Record<string, unknown> {
 
 function nowIso(): string {
   return new Date().toISOString()
+}
+
+async function requireCurrentUserKey(): Promise<string> {
+  const userKey = await getCurrentUserKey()
+  if (!userKey) {
+    throw new Error('La sesión expiró. Volvé a ingresar.')
+  }
+  return userKey
 }
 
 function parseDateParts(value: string): { month: number; year: number } {
@@ -184,6 +308,10 @@ function formatPeriodLabel(periodoInicio: string, periodoFin: string): string {
   return `${formatDate(periodoInicio)} - ${formatDate(periodoFin)}`
 }
 
+function normalizeFileName(value: string | null | undefined): string {
+  return String(value || '').trim().toLowerCase()
+}
+
 function buildLocalFileUrl(file: LocalRendicionFileRecord): string | null {
   if (file.url) {
     return file.url
@@ -216,18 +344,38 @@ function toRendicionItem(record: LocalRendicionRecord): RendicionItem {
   }
 }
 
-function toRendicionFileItem(file: LocalRendicionFileRecord): RendicionFileItem {
+function toRendicionFileItem(
+  file: LocalRendicionFileRecord,
+  overrides?: {
+    estadoVisual?: string
+    estadoLabelVisual?: string
+  },
+): RendicionFileItem {
+  const visualStatus = toVisualFileStatus({
+    ...file,
+    estado_visual_override: overrides?.estadoVisual ?? null,
+    estado_label_visual_override: overrides?.estadoLabelVisual ?? null,
+  })
   return {
     id: file.remote_id ?? file.id,
     nombre: file.nombre,
     categoria: file.categoria,
     categoria_label: file.categoria_label,
+    documento_subsanado:
+      typeof file.documento_subsanado === 'number'
+        ? file.documento_subsanado
+        : file.documento_subsanado
+          ? Number(file.documento_subsanado)
+          : null,
     url: buildLocalFileUrl(file),
     estado: file.estado,
     estado_label: file.estado_label,
+    estado_visual: visualStatus.estadoVisual,
+    estado_label_visual: visualStatus.estadoLabelVisual,
     observaciones: file.observaciones,
     fecha_creacion: file.created_at,
     ultima_modificacion: file.updated_at,
+    subsanaciones: [],
     sync_status: file.sync_status,
     pending_action: file.pending_action || null,
     last_error: file.last_error || null,
@@ -238,41 +386,29 @@ function toDetail(
   record: LocalRendicionRecord,
   files: LocalRendicionFileRecord[],
 ): RendicionDetail {
-  const grouped = new Map<string, LocalRendicionFileRecord[]>()
-  for (const file of files) {
-    if (file.pending_action === 'delete') {
-      continue
-    }
-    const current = grouped.get(file.categoria) || []
-    current.push(file)
-    grouped.set(file.categoria, current)
-  }
-
   return {
     ...toRendicionItem(record),
     comprobantes: files
       .filter((file) => file.pending_action !== 'delete')
       .map((file) => toRendicionFileItem(file)),
-    documentacion: DOCUMENT_CATEGORIES.map((category) => ({
-      ...category,
-      archivos: (grouped.get(category.codigo) || [])
-        .sort((left, right) => right.created_at.localeCompare(left.created_at))
-        .map((file) => toRendicionFileItem(file)),
-    })),
+    documentacion: buildDetailDocumentacion(files),
   }
 }
 
 function toLocalFileRecord(
   rendicionId: string,
+  userKey: string,
   file: RendicionFileItem,
 ): LocalRendicionFileRecord {
   const timestamp = nowIso()
   return {
     id: `remote-rendicion-file-${file.id}`,
+    user_key: userKey,
     rendicion_id: rendicionId,
     remote_id: Number(file.id),
     categoria: file.categoria,
     categoria_label: file.categoria_label,
+    documento_subsanado: file.documento_subsanado,
     nombre: file.nombre,
     file_blob: null,
     mime_type: null,
@@ -290,12 +426,14 @@ function toLocalFileRecord(
 
 function toLocalRendicionRecord(
   spaceId: number,
+  userKey: string,
   detail: RendicionItem,
   existingId?: string,
 ): LocalRendicionRecord {
   const timestamp = nowIso()
   return {
     id: existingId || `remote-rendicion-${detail.id}`,
+    user_key: userKey,
     space_id: spaceId,
     remote_id: Number(detail.id),
     convenio: detail.convenio,
@@ -320,16 +458,25 @@ function toLocalRendicionRecord(
 async function getExistingLocalByIdentifier(
   rendicionId: string | number,
 ): Promise<LocalRendicionRecord | undefined> {
+  const userKey = await requireCurrentUserKey()
   const rawId = String(rendicionId)
   const local = await db.rendiciones.get(rawId)
-  if (local) {
+  if (local?.user_key === userKey) {
     return local
   }
   const numericId = Number(rawId)
   if (Number.isNaN(numericId)) {
     return undefined
   }
-  return db.rendiciones.where('remote_id').equals(numericId).first()
+  const rows = await db.rendiciones.where('remote_id').equals(numericId).toArray()
+  return rows.find((row) => row.user_key === userKey)
+}
+
+export async function resolveLocalRendicionId(
+  rendicionId: string | number,
+): Promise<string | null> {
+  const local = await getExistingLocalByIdentifier(rendicionId)
+  return local?.id || null
 }
 
 export async function syncRemoteRendicionDetailToLocal(
@@ -337,13 +484,17 @@ export async function syncRemoteRendicionDetailToLocal(
   detail: RendicionDetail,
   preferredLocalId?: string,
 ): Promise<LocalRendicionRecord> {
+  const userKey = await requireCurrentUserKey()
   const parsedSpaceId = Number(spaceId)
   const existing =
     (preferredLocalId ? await db.rendiciones.get(preferredLocalId) : undefined)
-    || (await db.rendiciones.where('remote_id').equals(Number(detail.id)).first())
+    || (await db.rendiciones.where('remote_id').equals(Number(detail.id)).toArray()).find(
+      (row) => row.user_key === userKey,
+    )
 
   const localRecord = toLocalRendicionRecord(
     parsedSpaceId,
+    userKey,
     detail,
     existing?.id || preferredLocalId,
   )
@@ -363,7 +514,7 @@ export async function syncRemoteRendicionDetailToLocal(
     pendingFiles.filter((file) => file.pending_action === 'upload').map((file) => file.id),
   )
 
-  const remoteFiles = detail.documentacion.flatMap((category) => category.archivos)
+  const remoteFiles = flattenDetailFiles(detail)
   const remoteIds = new Set<number>()
   for (const remoteFile of remoteFiles) {
     remoteIds.add(Number(remoteFile.id))
@@ -373,11 +524,18 @@ export async function syncRemoteRendicionDetailToLocal(
         (file) =>
           pendingUploadIds.has(file.id)
           && file.categoria === remoteFile.categoria
-          && file.nombre === remoteFile.nombre,
+          && normalizeFileName(file.nombre) === normalizeFileName(remoteFile.nombre)
+          && String(file.documento_subsanado ?? '') === String(remoteFile.documento_subsanado ?? ''),
+      )
+      || currentFiles.find(
+        (file) =>
+          pendingUploadIds.has(file.id)
+          && file.categoria === remoteFile.categoria
+          && String(file.documento_subsanado ?? '') === String(remoteFile.documento_subsanado ?? ''),
       )
 
     await db.rendicion_files.put({
-      ...toLocalFileRecord(localRecord.id, remoteFile),
+      ...toLocalFileRecord(localRecord.id, userKey, remoteFile),
       id: existingFile?.id || `remote-rendicion-file-${remoteFile.id}`,
       file_blob: existingFile?.file_blob || null,
       mime_type: existingFile?.mime_type || null,
@@ -397,11 +555,12 @@ export async function syncRemoteRendicionDetailToLocal(
 }
 
 async function syncRemoteRendicionList(spaceId: string | number): Promise<void> {
+  const userKey = await requireCurrentUserKey()
   const parsedSpaceId = Number(spaceId)
   const response = await listSpaceRendiciones(parsedSpaceId)
   const locals = await db.rendiciones.where('space_id').equals(parsedSpaceId).toArray()
   const localByRemoteId = new Map<number, LocalRendicionRecord>()
-  for (const local of locals) {
+  for (const local of locals.filter((row) => row.user_key === userKey)) {
     if (local.remote_id) {
       localByRemoteId.set(local.remote_id, local)
     }
@@ -415,12 +574,12 @@ async function syncRemoteRendicionList(spaceId: string | number): Promise<void> 
       continue
     }
     await db.rendiciones.put({
-      ...toLocalRendicionRecord(parsedSpaceId, row, existing?.id),
+      ...toLocalRendicionRecord(parsedSpaceId, userKey, row, existing?.id),
       created_at: existing?.created_at || row.fecha_creacion || nowIso(),
     })
   }
 
-  for (const local of locals) {
+  for (const local of locals.filter((row) => row.user_key === userKey)) {
     if (local.pending_action || !local.remote_id) {
       continue
     }
@@ -435,9 +594,11 @@ async function syncRemoteRendicionList(spaceId: string | number): Promise<void> 
 export async function listOfflineRendiciones(
   spaceId: string | number,
 ): Promise<RendicionItem[]> {
+  const userKey = await requireCurrentUserKey()
   const parsedSpaceId = Number(spaceId)
   const rows = await db.rendiciones.where('space_id').equals(parsedSpaceId).toArray()
   return rows
+    .filter((row) => row.user_key === userKey)
     .filter((row) => row.pending_action !== 'delete')
     .sort((left, right) => right.created_at.localeCompare(left.created_at))
     .map((row) => toRendicionItem(row))
@@ -462,7 +623,8 @@ export async function getRendicionDetailOfflineFirst(
   const local = await getExistingLocalByIdentifier(rendicionId)
   if (local) {
     const files = await db.rendicion_files.where('rendicion_id').equals(local.id).toArray()
-    if (!local.remote_id || files.length > 0 || local.pending_action) {
+    const hasPendingFiles = files.some((file) => Boolean(file.pending_action))
+    if (!local.remote_id || local.pending_action || hasPendingFiles) {
       return toDetail(local, files)
     }
   }
@@ -478,12 +640,14 @@ export async function createRendicionOffline(
   spaceId: string | number,
   payload: CreateRendicionPayload,
 ): Promise<RendicionDetail> {
+  const userKey = await requireCurrentUserKey()
   const parsedSpaceId = Number(spaceId)
   const localId = `local-rendicion-${uuidv4()}`
   const timestamp = nowIso()
   const { month, year } = parseDateParts(payload.periodo_inicio)
   const record: LocalRendicionRecord = {
     id: localId,
+    user_key: userKey,
     space_id: parsedSpaceId,
     remote_id: null,
     convenio: payload.convenio,
@@ -524,6 +688,7 @@ export async function queueRendicionFileUpload(params: {
   categoria: string
   file: File
   name?: string
+  documentoSubsanadoId?: number | string
 }): Promise<RendicionDetail> {
   const localRendicion = await getExistingLocalByIdentifier(params.rendicionId)
   if (!localRendicion) {
@@ -545,14 +710,17 @@ export async function queueRendicionFileUpload(params: {
     .equals(localRendicion.id)
     .toArray()
 
-  if (!category.multiple) {
+  if (!category.multiple && !params.documentoSubsanadoId) {
     const previous = currentFiles.find(
-      (item) => item.categoria === params.categoria && item.pending_action !== 'delete',
+      (item) =>
+        item.categoria === params.categoria
+        && item.pending_action !== 'delete'
+        && !item.documento_subsanado,
     )
     if (previous) {
-      if (previous.remote_id) {
+      if (previous.remote_id && localRendicion.estado !== 'subsanar') {
         await deleteRendicionFileOffline(localRendicion.id, previous.id)
-      } else {
+      } else if (!previous.remote_id) {
         await db.rendicion_files.delete(previous.id)
       }
     }
@@ -563,10 +731,12 @@ export async function queueRendicionFileUpload(params: {
   const storedName = String(params.name || '').trim() || params.file.name
   await db.rendicion_files.put({
     id: fileId,
+    user_key: await requireCurrentUserKey(),
     rendicion_id: localRendicion.id,
     remote_id: null,
     categoria: category.codigo,
     categoria_label: category.label,
+    documento_subsanado: params.documentoSubsanadoId ?? null,
     nombre: storedName,
     file_blob: params.file,
     mime_type: params.file.type || null,
@@ -585,22 +755,25 @@ export async function queueRendicionFileUpload(params: {
     documento_adjunto: true,
     updated_at: timestamp,
     sync_status: localRendicion.remote_id ? localRendicion.sync_status : 'pending',
+    last_error: null,
   })
 
   await enqueueOutbox({
     type: 'UPLOAD_RENDICION_FILE',
     client_uuid: uuidv4(),
-    payload: outboxPayload<UploadRendicionFileOutboxPayload>({
-      local_rendicion_id: localRendicion.id,
-      local_file_id: fileId,
-      space_id: localRendicion.space_id,
-      categoria: category.codigo,
-      name: storedName,
-    }),
+      payload: outboxPayload<UploadRendicionFileOutboxPayload>({
+        local_rendicion_id: localRendicion.id,
+        local_file_id: fileId,
+        space_id: localRendicion.space_id,
+        categoria: category.codigo,
+        name: storedName,
+        documento_subsanado_id: params.documentoSubsanadoId,
+      }),
   })
 
+  const updated = await db.rendiciones.get(localRendicion.id)
   const files = await db.rendicion_files.where('rendicion_id').equals(localRendicion.id).toArray()
-  return toDetail(localRendicion, files)
+  return toDetail(updated || localRendicion, files)
 }
 
 export async function deleteRendicionFileOffline(
@@ -805,6 +978,18 @@ export async function markRendicionError(
   })
 }
 
+export async function releaseRendicionPresentError(
+  localRendicionId: string,
+  message?: string | null,
+): Promise<void> {
+  await db.rendiciones.update(localRendicionId, {
+    sync_status: 'failed',
+    pending_action: null,
+    last_error: message || null,
+    updated_at: nowIso(),
+  })
+}
+
 export async function markRendicionFileError(
   localFileId: string,
   message: string,
@@ -817,26 +1002,41 @@ export async function markRendicionFileError(
 }
 
 export async function getRendicionPendingUploadsCount(localRendicionId: string): Promise<number> {
-  const files = await db.rendicion_files.where('rendicion_id').equals(localRendicionId).toArray()
-  return files.filter((file) => file.pending_action === 'upload').length
+  const userKey = await requireCurrentUserKey()
+  const rows = await db.outbox
+    .where('type')
+    .equals('UPLOAD_RENDICION_FILE')
+    .filter(
+      (row) =>
+        row.user_key === userKey
+        && String(row.payload.local_rendicion_id || '') === localRendicionId,
+    )
+    .toArray()
+  return rows.length
 }
 
 export async function getLocalRendicionFile(
   localFileId: string,
 ): Promise<LocalRendicionFileRecord | undefined> {
-  return db.rendicion_files.get(localFileId)
+  const userKey = await requireCurrentUserKey()
+  const file = await db.rendicion_files.get(localFileId)
+  return file?.user_key === userKey ? file : undefined
 }
 
 export async function getLocalRendicion(
   localRendicionId: string,
 ): Promise<LocalRendicionRecord | undefined> {
-  return db.rendiciones.get(localRendicionId)
+  const userKey = await requireCurrentUserKey()
+  const rendicion = await db.rendiciones.get(localRendicionId)
+  return rendicion?.user_key === userKey ? rendicion : undefined
 }
 
 export async function getLocalRendicionByRemoteId(
   remoteId: number,
 ): Promise<LocalRendicionRecord | undefined> {
-  return db.rendiciones.where('remote_id').equals(remoteId).first()
+  const userKey = await requireCurrentUserKey()
+  const rows = await db.rendiciones.where('remote_id').equals(remoteId).toArray()
+  return rows.find((row) => row.user_key === userKey)
 }
 
 export async function removeLocalRendicion(localRendicionId: string): Promise<void> {
@@ -892,6 +1092,7 @@ export async function uploadFileToServer(params: {
     categoria: params.localFile.categoria,
     file,
     name: params.localFile.nombre,
+    documentoSubsanadoId: params.localFile.documento_subsanado ?? undefined,
   })
 }
 
