@@ -36,6 +36,16 @@ const SpaceDetailPage = lazy(() =>
     default: module.SpaceDetailPage,
   })),
 )
+const SpaceRelevamientoDetailPage = lazy(() =>
+  import('../features/home/SpaceRelevamientoDetailPage').then((module) => ({
+    default: module.SpaceRelevamientoDetailPage,
+  })),
+)
+const SpaceCapacitacionesPage = lazy(() =>
+  import('../features/home/SpaceCapacitacionesPage').then((module) => ({
+    default: module.SpaceCapacitacionesPage,
+  })),
+)
 const SpaceMessagesPage = lazy(() =>
   import('../features/home/SpaceMessagesPage').then((module) => ({
     default: module.SpaceMessagesPage,
@@ -54,6 +64,26 @@ const SpaceActivitiesPage = lazy(() =>
 const SpaceNominaPage = lazy(() =>
   import('../features/home/SpaceNominaPage').then((module) => ({
     default: module.SpaceNominaPage,
+  })),
+)
+const SpaceNominaAlimentariaPage = lazy(() =>
+  import('../features/home/SpaceNominaAlimentariaPage').then((module) => ({
+    default: module.SpaceNominaAlimentariaPage,
+  })),
+)
+const SpaceNominaAlimentariaPersonFormPage = lazy(() =>
+  import('../features/home/SpaceNominaAlimentariaPersonFormPage').then((module) => ({
+    default: module.SpaceNominaAlimentariaPersonFormPage,
+  })),
+)
+const SpaceNominaAlimentariaPersonDetailPage = lazy(() =>
+  import('../features/home/SpaceNominaAlimentariaPersonDetailPage').then((module) => ({
+    default: module.SpaceNominaAlimentariaPersonDetailPage,
+  })),
+)
+const SpaceNominaAlimentariaAttendancePage = lazy(() =>
+  import('../features/home/SpaceNominaAlimentariaAttendancePage').then((module) => ({
+    default: module.SpaceNominaAlimentariaAttendancePage,
   })),
 )
 const SpaceNominaPersonDetailPage = lazy(() =>
@@ -132,6 +162,14 @@ export function AppRouter() {
               <Route path="espacios/:spaceId" element={<SpaceHubPage />} />
               <Route path="espacios/:spaceId/hub" element={<SpaceHubPage />} />
               <Route path="espacios/:spaceId/informacion" element={<SpaceDetailPage />} />
+              <Route
+                path="espacios/:spaceId/informacion/relevamiento"
+                element={<SpaceRelevamientoDetailPage />}
+              />
+              <Route
+                path="espacios/:spaceId/informacion/capacitaciones"
+                element={<SpaceCapacitacionesPage />}
+              />
               <Route path="espacios/:spaceId/mensajes" element={<SpaceMessagesPage />} />
               <Route
                 path="espacios/:spaceId/mensajes/:messageId"
@@ -140,6 +178,22 @@ export function AppRouter() {
               <Route path="notificaciones" element={<OrganizationNotificationsPage />} />
               <Route path="espacios/:spaceId/actividades" element={<SpaceActivitiesPage />} />
               <Route path="espacios/:spaceId/nomina" element={<SpaceNominaPage />} />
+              <Route
+                path="espacios/:spaceId/nomina-alimentaria"
+                element={<SpaceNominaAlimentariaPage />}
+              />
+              <Route
+                path="espacios/:spaceId/nomina-alimentaria/nueva"
+                element={<SpaceNominaAlimentariaPersonFormPage />}
+              />
+              <Route
+                path="espacios/:spaceId/nomina-alimentaria/asistencia"
+                element={<SpaceNominaAlimentariaAttendancePage />}
+              />
+              <Route
+                path="espacios/:spaceId/nomina-alimentaria/:nominaId"
+                element={<SpaceNominaAlimentariaPersonDetailPage />}
+              />
               <Route
                 path="espacios/:spaceId/nomina/nueva"
                 element={<SpaceNominaPersonFormPage />}

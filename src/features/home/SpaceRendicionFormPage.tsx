@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { parseApiError } from '../../api/errorUtils'
 import { syncNow } from '../../sync/engine'
+import { appButtonClass } from '../../ui/buttons'
 import { useAppTheme } from '../../ui/ThemeContext'
 import { createRendicionOffline } from './rendicionOffline'
 
@@ -161,7 +162,7 @@ export function SpaceRendicionFormPage() {
         <button
           type="submit"
           disabled={saving}
-          className="inline-flex items-center justify-center rounded-xl bg-[#232D4F] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+          className={appButtonClass({ variant: 'primary', size: 'lg', fullWidth: true })}
         >
           {saving ? 'Guardando...' : 'Continuar con documentación'}
         </button>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { listSpaceMessages } from '../../api/messagesApi'
+import { listSpaceCapacitaciones } from '../../api/capacitacionesApi'
 import { listMySpaces, type SpaceItem } from '../../api/spacesApi'
 import {
   getOrganizationSpacesCache,
@@ -190,6 +191,8 @@ export function useOrganizationUnreadMessages(username?: string | null) {
   const [spaces, setSpaces] = useState<SpaceItem[]>(() => getOrganizationSpacesCache(cacheKey) ?? [])
   const [refreshVersion, setRefreshVersion] = useState(0)
   const [organizationUnreadCount, setOrganizationUnreadCount] = useState(0)
+  const [organizationRejectedCertificatesCount, setOrganizationRejectedCertificatesCount] =
+    useState(0)
   const [unreadBySpaceId, setUnreadBySpaceId] = useState<Record<string, number>>(() => {
     const storedUnreadCounts = readUnreadCountsFromStorage(cacheKey)
     syncInMemoryCache(storedUnreadCounts)
@@ -242,6 +245,7 @@ export function useOrganizationUnreadMessages(username?: string | null) {
       if (spaces.length === 0) {
         setUnreadBySpaceId({})
         setOrganizationUnreadCount(0)
+        setOrganizationRejectedCertificatesCount(0)
         return
       }
 
@@ -355,6 +359,37 @@ export function useOrganizationUnreadMessages(username?: string | null) {
         if (isMounted) {
           setUnreadBySpaceId({})
           setOrganizationUnreadCount(0)
+          setOrganizationRejectedCertificatesCount(0)
+        }
+      }
+
+      try {
+        let nextRejectedCertificatesCount = 0
+
+        for (let start = 0; start < spaces.length; start += UNREAD_BATCH_SIZE) {
+          const batch = spaces.slice(start, start + UNREAD_BATCH_SIZE)
+          const batchResults = await Promise.allSettled(
+            batch.map(async (space) => {
+              const rows = await listSpaceCapacitaciones(space.id)
+              return rows.filter((row) => row.estado === 'rechazado').length
+            }),
+          )
+          if (!isMounted) {
+            return
+          }
+          batchResults.forEach((result) => {
+            if (result.status === 'fulfilled') {
+              nextRejectedCertificatesCount += result.value
+            }
+          })
+        }
+
+        if (isMounted) {
+          setOrganizationRejectedCertificatesCount(nextRejectedCertificatesCount)
+        }
+      } catch {
+        if (isMounted) {
+          setOrganizationRejectedCertificatesCount(0)
         }
       }
     }
@@ -401,8 +436,8 @@ export function useOrganizationUnreadMessages(username?: string | null) {
           spaces.map((space) => space.id),
           unreadBySpaceId,
         ),
-        unreadCount: organizationUnreadCount,
+        unreadCount: organizationUnreadCount + organizationRejectedCertificatesCount,
       }),
-    [organizationUnreadCount, spaces, unreadBySpaceId],
+    [organizationRejectedCertificatesCount, organizationUnreadCount, spaces, unreadBySpaceId],
   )
 }

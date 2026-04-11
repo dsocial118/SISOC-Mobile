@@ -38,16 +38,16 @@ self.addEventListener('push', (event) => {
     payload = event.data.json() as Record<string, unknown>
   } catch {
     payload = {
-      title: 'SISOC',
+      title: 'SiSOC Mobil',
       body: event.data.text(),
     }
   }
 
-  const title = String(payload.title || 'SISOC')
+  const title = String(payload.title || 'SiSOC Mobil')
   const options: NotificationOptions = {
     body: String(payload.body || ''),
-    icon: String(payload.icon || '/icono.png'),
-    badge: String(payload.badge || '/icono.png'),
+    icon: String(payload.icon || '/sisoc_ico_512.png'),
+    badge: String(payload.badge || '/sisoc_ico_192.png'),
     tag: String(payload.tag || ''),
     data: payload.data || {},
   }

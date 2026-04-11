@@ -7,6 +7,7 @@ import {
   markSpaceMessageAsSeen,
   type SpaceMessageItem,
 } from '../../api/messagesApi'
+import { listSpaceCapacitaciones } from '../../api/capacitacionesApi'
 import { listMySpaces } from '../../api/spacesApi'
 import { parseApiError } from '../../api/errorUtils'
 import { useAuth } from '../../auth/useAuth'
@@ -31,6 +32,15 @@ interface GroupedNotificationItem {
   message: SpaceMessageItem
   groupedItems: AggregatedNotificationItem[]
   unreadCount: number
+}
+
+interface RejectedCertificateNotification {
+  id: string
+  spaceId: number
+  spaceName: string
+  capacitacionLabel: string
+  observacion: string | null
+  fechaRevision: string | null
 }
 
 const MESSAGE_BATCH_SIZE = 4
@@ -109,6 +119,7 @@ export function OrganizationNotificationsPage() {
   const cacheKey = userProfile?.username || '__anonymous__'
   const cachedSpaces = getOrganizationSpacesCache(cacheKey)
   const [notifications, setNotifications] = useState<AggregatedNotificationItem[]>([])
+  const [rejectedCertificates, setRejectedCertificates] = useState<RejectedCertificateNotification[]>([])
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -223,6 +234,42 @@ export function OrganizationNotificationsPage() {
         )
 
         setNotifications(rows)
+
+        const certificateResponses: Array<{
+          space: (typeof spaces)[number]
+          rows: Awaited<ReturnType<typeof listSpaceCapacitaciones>>
+        }> = []
+        for (let start = 0; start < spaces.length; start += MESSAGE_BATCH_SIZE) {
+          const batch = spaces.slice(start, start + MESSAGE_BATCH_SIZE)
+          const batchResponses = await Promise.allSettled(
+            batch.map(async (space) => ({
+              space,
+              rows: await listSpaceCapacitaciones(space.id),
+            })),
+          )
+          if (!isMounted) {
+            return
+          }
+          batchResponses.forEach((result) => {
+            if (result.status === 'fulfilled') {
+              certificateResponses.push(result.value)
+            }
+          })
+        }
+
+        const rejectedRows = certificateResponses.flatMap(({ space, rows }) =>
+          rows
+            .filter((row) => row.estado === 'rechazado')
+            .map((row) => ({
+              id: `cert-${space.id}-${row.id}`,
+              spaceId: space.id,
+              spaceName: space.nombre,
+              capacitacionLabel: row.capacitacion_label,
+              observacion: row.observacion,
+              fechaRevision: row.fecha_revision,
+            })),
+        )
+        setRejectedCertificates(rejectedRows)
       } catch (error) {
         if (!isMounted) {
           return
@@ -285,17 +332,13 @@ export function OrganizationNotificationsPage() {
     )
   }
 
-  if (groupedNotifications.length === 0) {
+  if (groupedNotifications.length === 0 && rejectedCertificates.length === 0) {
     return (
-      <section>
-        <div
-          className={`progressive-card rounded-[15px] border p-5 ${
-            isDark
-              ? 'border-white/20 bg-white/10 text-white'
-              : 'border-slate-200 bg-white text-slate-700'
-          }`}
-        >
-          <p className="text-sm">Todavía no hay notificaciones pendientes.</p>
+      <section className="flex min-h-[40vh] items-center justify-center">
+        <div className="px-4 text-center">
+          <p className={`text-sm ${isDark ? 'text-white' : 'text-slate-700'}`}>
+            No hay notificaciones.
+          </p>
         </div>
       </section>
     )
@@ -306,11 +349,57 @@ export function OrganizationNotificationsPage() {
       <div className="flex items-center gap-2">
         <h2 className={`text-[16px] font-semibold ${textClass}`}>Notificaciones</h2>
         <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#C62828] px-1.5 text-[10px] font-bold text-white">
-          {groupedNotifications.length}
+          {groupedNotifications.length + rejectedCertificates.length}
         </span>
       </div>
 
       <div className="grid gap-3">
+        {rejectedCertificates.map((item, index) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() =>
+              navigate(`/app-org/espacios/${item.spaceId}/informacion/capacitaciones`, {
+                state: { spaceName: item.spaceName },
+              })
+            }
+            className="progressive-card relative rounded-[15px] border p-4 pr-12 text-left ring-1 ring-[#C62828]/40"
+            style={{
+              ...cardStyle,
+              ['--card-delay' as string]: `${index * 45}ms`,
+            }}
+          >
+            <div className="min-w-0">
+              <div className="flex items-start justify-between gap-3">
+                <h3 className={`min-w-0 text-[15px] font-semibold ${textClass}`}>
+                  {item.spaceName}
+                </h3>
+                <span className="inline-flex rounded-full bg-[#C62828]/20 px-2 py-0.5 text-[10px] font-semibold text-[#C62828]">
+                  RECHAZADO
+                </span>
+              </div>
+              <p className={`mt-2 text-[13px] ${detailTextClass}`}>{item.capacitacionLabel}</p>
+              <p className={`mt-1 text-[12px] ${detailTextClass}`}>
+                {item.observacion || 'Certificado rechazado. Revisar observación.'}
+              </p>
+              <p className={`mt-2 text-[12px] ${detailTextClass}`}>
+                {formatDate(item.fechaRevision)}
+              </p>
+            </div>
+            <span
+              className={`absolute right-4 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center ${
+                isDark ? 'text-white' : 'text-slate-700'
+              }`}
+            >
+              <FontAwesomeIcon
+                icon={faChevronLeft}
+                aria-hidden="true"
+                style={{ fontSize: 22, transform: 'rotate(180deg)' }}
+              />
+            </span>
+          </button>
+        ))}
+
         {groupedNotifications.map((item, index) => {
           const parsed = parseRendicionNotificationTitle(item.message.titulo)
           return (
@@ -325,7 +414,7 @@ export function OrganizationNotificationsPage() {
               }`}
               style={{
                 ...cardStyle,
-                ['--card-delay' as string]: `${index * 45}ms`,
+                ['--card-delay' as string]: `${(index + rejectedCertificates.length) * 45}ms`,
               }}
             >
               <div className="min-w-0">

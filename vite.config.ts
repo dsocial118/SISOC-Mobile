@@ -23,12 +23,12 @@ export default defineConfig(({ mode }) => {
         srcDir: 'src',
         filename: 'sw.ts',
         registerType: 'autoUpdate',
-        includeAssets: ['icono.png'],
+        includeAssets: ['sisoc_ico_192.png', 'sisoc_ico_512.png'],
         manifest: {
           id: '/',
-          name: 'Mi Espacio',
-          short_name: 'Mi Espacio',
-          description: 'Mi Espacio',
+          name: 'SiSOC Mobil',
+          short_name: 'SiSOC Mobil',
+          description: 'SiSOC Mobil',
           theme_color: '#232D4F',
           background_color: '#232D4F',
           display: 'standalone',
@@ -37,7 +37,12 @@ export default defineConfig(({ mode }) => {
           scope: '/',
           icons: [
             {
-              src: 'icono.png',
+              src: 'sisoc_ico_192.png',
+              sizes: '192x192',
+              type: 'image/png',
+            },
+            {
+              src: 'sisoc_ico_512.png',
               sizes: '512x512',
               type: 'image/png',
             },

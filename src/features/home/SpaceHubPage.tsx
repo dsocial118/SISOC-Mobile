@@ -5,6 +5,7 @@ import {
   faChevronLeft,
   faCircleInfo,
   faComments,
+  faUtensils,
   faUsers,
 } from '@fortawesome/free-solid-svg-icons'
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
@@ -25,6 +26,14 @@ interface HubModule {
   title: string
   route: string
   icon: IconDefinition
+}
+
+function normalizeProgramName(value: string | null | undefined): string {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
 }
 
 export function SpaceHubPage() {
@@ -49,6 +58,7 @@ export function SpaceHubPage() {
   const [hasOperationalAssociation, setHasOperationalAssociation] = useState<boolean | null>(
     null,
   )
+  const [associatedProgramName, setAssociatedProgramName] = useState(routeState?.programName || '')
   const unreadMessagesCount = useSpaceUnreadMessages(spaceId, userProfile?.username)
 
   useEffect(() => {
@@ -75,7 +85,8 @@ export function SpaceHubPage() {
         }
         setSpaceDetail(detail)
         const nextSpaceName = detail.nombre || 'Espacio'
-        const nextProgramName = detail.programa?.nombre || ''
+        const nextProgramName =
+          detail.programa?.nombre || associatedProgramName || routeState?.programName || ''
         if (
           routeState?.spaceName !== nextSpaceName
           || routeState?.programName !== nextProgramName
@@ -109,7 +120,15 @@ export function SpaceHubPage() {
       isMounted = false
       setPageLoading(false)
     }
-  }, [hasFastContext, location.pathname, navigate, routeState, setPageLoading, spaceId])
+  }, [
+    associatedProgramName,
+    hasFastContext,
+    location.pathname,
+    navigate,
+    routeState,
+    setPageLoading,
+    spaceId,
+  ])
 
   useEffect(() => {
     let isMounted = true
@@ -118,7 +137,9 @@ export function SpaceHubPage() {
       const cacheKey = (userProfile?.username || '__anonymous__').trim() || '__anonymous__'
       const cached = getOrganizationSpacesCache(cacheKey)
       if (cached) {
+        const matchedSpace = cached.find((space) => String(space.id) === String(spaceId))
         if (isMounted) {
+          setAssociatedProgramName(matchedSpace?.programa__nombre || routeState?.programName || '')
           setIsSingleSpaceUser(cached.length === 1)
           setHasOperationalAssociation(
             Boolean(spaceId) && cached.some((space) => String(space.id) === String(spaceId)),
@@ -130,7 +151,9 @@ export function SpaceHubPage() {
       try {
         const spaces = await listMySpaces()
         setOrganizationSpacesCache(cacheKey, spaces)
+        const matchedSpace = spaces.find((space) => String(space.id) === String(spaceId))
         if (isMounted) {
+          setAssociatedProgramName(matchedSpace?.programa__nombre || routeState?.programName || '')
           setIsSingleSpaceUser(spaces.length === 1)
           setHasOperationalAssociation(
             Boolean(spaceId) && spaces.some((space) => String(space.id) === String(spaceId)),
@@ -138,6 +161,7 @@ export function SpaceHubPage() {
         }
       } catch {
         if (isMounted) {
+          setAssociatedProgramName(routeState?.programName || '')
           setIsSingleSpaceUser(false)
           setHasOperationalAssociation(null)
         }
@@ -148,13 +172,19 @@ export function SpaceHubPage() {
     return () => {
       isMounted = false
     }
-  }, [spaceId, userProfile?.username])
+  }, [routeState?.programName, spaceId, userProfile?.username])
 
+  const spaceName = spaceDetail?.nombre || routeState?.spaceName || 'Espacio'
+  const programName =
+    spaceDetail?.programa?.nombre || associatedProgramName || routeState?.programName || ''
+  const normalizedProgramName = normalizeProgramName(programName)
+  const hasProgramDefined = Boolean(normalizedProgramName)
   const modules = useMemo<HubModule[]>(() => {
     if (!spaceId) {
       return []
     }
-    return [
+
+    const baseModules: HubModule[] = [
       {
         id: 'info',
         title: 'Información Institucional',
@@ -167,23 +197,46 @@ export function SpaceHubPage() {
         route: `/app-org/espacios/${spaceId}/mensajes`,
         icon: faComments,
       },
-      {
-        id: 'actividades',
-        title: 'Actividades',
-        route: `/app-org/espacios/${spaceId}/actividades`,
-        icon: faCalendarDays,
-      },
-      {
-        id: 'nomina',
-        title: 'Nómina',
-        route: `/app-org/espacios/${spaceId}/nomina`,
-        icon: faUsers,
-      },
     ]
-  }, [spaceId])
 
-  const spaceName = spaceDetail?.nombre || routeState?.spaceName || 'Espacio'
-  const programName = spaceDetail?.programa?.nombre || routeState?.programName || ''
+    if (normalizedProgramName.includes('abordaje comunitario')) {
+      return [
+        ...baseModules,
+        {
+          id: 'actividades',
+          title: 'Actividades',
+          route: `/app-org/espacios/${spaceId}/actividades`,
+          icon: faCalendarDays,
+        },
+        {
+          id: 'nomina',
+          title: 'Nómina',
+          route: `/app-org/espacios/${spaceId}/nomina`,
+          icon: faUsers,
+        },
+      ]
+    }
+
+    if (normalizedProgramName.includes('alimentar comunidad')) {
+      return [
+        ...baseModules,
+        {
+          id: 'capacitaciones',
+          title: 'Capacitaciones',
+          route: `/app-org/espacios/${spaceId}/informacion/capacitaciones`,
+          icon: faCircleInfo,
+        },
+        {
+          id: 'nomina-alimentaria',
+          title: 'Nómina alimentaria',
+          route: `/app-org/espacios/${spaceId}/nomina-alimentaria`,
+          icon: faUtensils,
+        },
+      ]
+    }
+
+    return baseModules
+  }, [normalizedProgramName, spaceId])
   const userDisplayName = (userProfile?.fullName || '').trim() || 'Usuario'
 
   const cardStyle = isDark
@@ -224,11 +277,14 @@ export function SpaceHubPage() {
               : 'border-slate-200 bg-white text-slate-700'
           }`}
         >
-          Tu usuario no posee un espacio operativo configurado en SISOC Web. No es posible continuar hasta regularizar la configuración.
+          Tu usuario no posee un espacio operativo configurado en SISOC Web. No es posible
+          continuar hasta regularizar la configuración.
         </div>
       </section>
     )
   }
+
+  const showMissingProgramMessage = !hasProgramDefined
 
   return (
     <section>
@@ -280,8 +336,19 @@ export function SpaceHubPage() {
             </span>
           </button>
         ))}
-      </div>
 
+        {showMissingProgramMessage ? (
+          <div className="flex min-h-[32vh] items-center justify-center px-4 text-center">
+            <p
+              className={`max-w-[24rem] text-sm leading-6 ${isDark ? 'text-white' : 'text-slate-700'}`}
+            >
+              No hay programa definido.
+              <br />
+              Comuníquese con un administrador de la aplicación.
+            </p>
+          </div>
+        ) : null}
+      </div>
     </section>
   )
 }

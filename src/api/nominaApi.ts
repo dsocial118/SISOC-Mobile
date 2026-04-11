@@ -45,6 +45,7 @@ export interface NominaPerson {
   identificador_interno: string | null
   asistencia_mes_actual: NominaAttendanceRecord | null
   historial_asistencias: NominaAttendanceRecord[]
+  observaciones: string | null
 }
 
 export interface NominaResponse {
@@ -79,6 +80,14 @@ export interface CreateNominaPayload {
   asistencia_actividades: boolean
   actividad_ids: number[]
   observaciones?: string
+}
+
+export interface BulkNominaAttendanceResponse {
+  periodo_referencia: string
+  periodo_label: string
+  selected_nomina_ids: number[]
+  created_count: number
+  deleted_count: number
 }
 
 export async function listSpaceNomina(
@@ -155,6 +164,17 @@ export async function listNominaAttendanceHistory(
 ): Promise<NominaAttendanceRecord[]> {
   const { data } = await http.get<NominaAttendanceRecord[]>(
     `/pwa/espacios/${spaceId}/nomina/${nominaId}/historial-asistencia/`,
+  )
+  return data
+}
+
+export async function syncNominaAlimentariaAttendance(
+  spaceId: string | number,
+  nominaIds: number[],
+): Promise<BulkNominaAttendanceResponse> {
+  const { data } = await http.post<BulkNominaAttendanceResponse>(
+    `/pwa/espacios/${spaceId}/nomina/asistencia-alimentaria/`,
+    { nomina_ids: nominaIds },
   )
   return data
 }

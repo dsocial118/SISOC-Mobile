@@ -82,7 +82,7 @@ export function InstallPwaModal() {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
       <InstallNoticeCard
-        title="Instalar app SISOC"
+        title="Instalar app SiSOC Mobil"
         primaryAction={
           <SmallWhiteButton
             onClick={handleClose}

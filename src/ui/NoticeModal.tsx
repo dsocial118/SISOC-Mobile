@@ -1,6 +1,7 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCircleExclamation } from '@fortawesome/free-solid-svg-icons'
 import { useAppTheme } from './ThemeContext'
+import { appButtonClass } from './buttons'
 
 type NoticeModalProps = {
   open: boolean
@@ -49,7 +50,7 @@ export function NoticeModal({
         <button
           type="button"
           onClick={onClose}
-          className="mt-5 w-full rounded-xl bg-[#232D4F] px-4 py-3 text-sm font-semibold text-white"
+          className={`mt-5 ${appButtonClass({ variant: 'primary', size: 'lg', fullWidth: true })}`}
         >
           {closeLabel}
         </button>

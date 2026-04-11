@@ -19,6 +19,7 @@ import {
   type NominaAttendanceRecord,
   type NominaPerson,
 } from '../../api/nominaApi'
+import { appButtonClass, joinClasses } from '../../ui/buttons'
 import { ConfirmActionModal } from '../../ui/ConfirmActionModal'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
@@ -315,11 +316,12 @@ export function SpaceNominaPersonDetailPage() {
                 ? 'Asistencia mensual ya tomada'
                 : 'Tomar asistencia'
             }
-            className={`inline-flex items-center justify-center rounded-full text-xs font-semibold text-white disabled:opacity-60 ${
+            className={joinClasses(
               person.asistencia_mes_actual
-                ? 'h-9 w-9 bg-[#2E7D33]'
-                : 'px-3 py-1 bg-[#232D4F]'
-            }`}
+                ? appButtonClass({ variant: 'success', size: 'sm' })
+                : appButtonClass({ variant: 'primary', size: 'sm' }),
+              person.asistencia_mes_actual ? 'h-9 w-9 rounded-full p-0' : undefined,
+            )}
           >
             {savingAttendance ? (
               'Guardando...'
@@ -362,7 +364,7 @@ export function SpaceNominaPersonDetailPage() {
                 },
               })
             }
-            className="inline-flex items-center gap-2 rounded-full bg-[#232D4F] px-3 py-1 text-xs font-semibold text-white"
+            className={appButtonClass({ variant: 'primary', size: 'sm' })}
           >
             <FontAwesomeIcon icon={faCirclePlus} aria-hidden="true" style={{ fontSize: 11 }} />
             Sumar a actividad
@@ -468,7 +470,10 @@ export function SpaceNominaPersonDetailPage() {
         type="button"
         onClick={() => setShowDeleteConfirm(true)}
         disabled={deletingPerson}
-        className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#C62828] px-4 py-3 text-sm font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
+        className={joinClasses(
+          appButtonClass({ variant: 'danger', size: 'lg', fullWidth: true }),
+          'mt-1',
+        )}
       >
         <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
         {deletingPerson ? 'Dando de baja...' : 'Dar de baja de la nómina'}

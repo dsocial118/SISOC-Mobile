@@ -6,8 +6,61 @@ type AppButtonProps = PropsWithChildren<
   }
 >
 
-function joinClasses(...values: Array<string | undefined>): string {
+type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'outline-secondary'
+  | 'success'
+  | 'danger'
+  | 'outline-danger'
+
+type ButtonSize = 'sm' | 'md' | 'lg'
+
+export function joinClasses(...values: Array<string | undefined | false | null>): string {
   return values.filter(Boolean).join(' ')
+}
+
+export function appButtonClass({
+  variant = 'primary',
+  size = 'md',
+  fullWidth = false,
+}: {
+  variant?: ButtonVariant
+  size?: ButtonSize
+  fullWidth?: boolean
+} = {}): string {
+  const baseClass =
+    'inline-flex items-center justify-center gap-2 border font-semibold transition-colors duration-150 shadow-[0_1px_2px_rgba(0,0,0,0.12)] disabled:cursor-not-allowed disabled:opacity-60'
+
+  const sizeClass =
+    size === 'sm'
+      ? 'px-3 py-1.5 text-xs'
+      : size === 'lg'
+        ? 'px-4 py-3 text-sm'
+        : 'px-4 py-2 text-sm'
+
+  const radiusClass = size === 'lg' || fullWidth ? 'rounded-xl' : 'rounded-full'
+
+  const variantClass =
+    variant === 'primary'
+      ? 'border-[#232D4F] bg-[#232D4F] text-white hover:bg-[#1B2440]'
+      : variant === 'secondary'
+        ? 'border-[#6C757D] bg-[#6C757D] text-white hover:bg-[#5C636A]'
+        : variant === 'outline-secondary'
+          ? 'border-[#6C757D] bg-white text-[#6C757D] hover:bg-[#F8F9FA]'
+          : variant === 'success'
+            ? 'border-[#2E7D33] bg-[#2E7D33] text-white hover:bg-[#25672A]'
+            : variant === 'danger'
+              ? 'border-[#C62828] bg-[#C62828] text-white hover:bg-[#AA2222]'
+              : 'border-[#C62828] bg-white text-[#C62828] hover:bg-[#FFF5F5]'
+
+  return joinClasses(
+    baseClass,
+    radiusClass,
+    sizeClass,
+    fullWidth ? 'w-full' : undefined,
+    variantClass,
+  )
 }
 
 function BaseButton({ children, className, type = 'button', ...props }: AppButtonProps) {
@@ -22,7 +75,8 @@ export function LargeBlueButton({ children, className, ...props }: AppButtonProp
   return (
     <BaseButton
       className={joinClasses(
-        'h-[36px] w-[292px] rounded-[25px] bg-[#232D4F] text-[16px] font-semibold text-white shadow-[2px_2px_2px_rgba(0,0,0,0.25)] disabled:opacity-60',
+        appButtonClass({ variant: 'primary', size: 'lg' }),
+        'w-[292px] rounded-[15px]',
         className,
       )}
       {...props}
@@ -36,7 +90,8 @@ export function CreateButton({ children, className, ...props }: AppButtonProps) 
   return (
     <BaseButton
       className={joinClasses(
-        'h-[36px] w-[292px] rounded-[20px] border border-[#E7BA61] bg-white text-[14px] font-semibold text-[#232D4F] shadow-[2px_2px_4px_rgba(0,0,0,0.25)]',
+        appButtonClass({ variant: 'outline-secondary', size: 'md' }),
+        'w-[292px] rounded-[15px]',
         className,
       )}
       {...props}
@@ -50,7 +105,8 @@ export function MediumGreenButton({ children, className, ...props }: AppButtonPr
   return (
     <BaseButton
       className={joinClasses(
-        'mx-[8px] my-[12px] h-[36px] w-[108px] rounded-[25px] border border-[#2E7D33] bg-[#2E7D33] text-[14px] font-medium text-[#232D4F] shadow-[2px_2px_2px_rgba(0,0,0,0.25)] hover:bg-[rgba(46,125,51,0.7)] hover:border-[#2E7D33] active:border-[1.5px] active:border-[#E7BA61] active:bg-[#2E7D33]',
+        appButtonClass({ variant: 'success', size: 'md' }),
+        'mx-[8px] my-[12px] w-[108px]',
         className,
       )}
       {...props}
@@ -64,7 +120,8 @@ export function SmallGreenButton({ children, className, ...props }: AppButtonPro
   return (
     <BaseButton
       className={joinClasses(
-        'mx-[8px] my-[12px] h-[36px] w-[80px] rounded-[25px] border border-[#2E7D33] bg-[#2E7D33] text-[16px] font-medium text-[#232D4F] shadow-[2px_2px_2px_rgba(0,0,0,0.25)] hover:bg-[rgba(46,125,51,0.7)] hover:border-[#2E7D33] active:border-[1.5px] active:border-[#E7BA61] active:bg-[#2E7D33]',
+        appButtonClass({ variant: 'success', size: 'sm' }),
+        'mx-[8px] my-[12px] w-[80px]',
         className,
       )}
       {...props}
@@ -78,7 +135,8 @@ export function SmallRedButton({ children, className, ...props }: AppButtonProps
   return (
     <BaseButton
       className={joinClasses(
-        'mx-[8px] my-[12px] h-[36px] w-[88px] rounded-[25px] border border-[#C62828] bg-white text-[14px] font-normal text-[#C62828] shadow-[2px_2px_2px_rgba(0,0,0,0.25)] hover:border-transparent hover:bg-[rgba(198,40,40,0.7)] hover:text-white active:border active:border-[#E7BA61] active:bg-[#C62828] active:text-white',
+        appButtonClass({ variant: 'outline-danger', size: 'sm' }),
+        'mx-[8px] my-[12px] w-[88px]',
         className,
       )}
       {...props}
@@ -92,7 +150,8 @@ export function SmallWhiteButton({ children, className, ...props }: AppButtonPro
   return (
     <BaseButton
       className={joinClasses(
-        'mx-[8px] my-[12px] h-[36px] w-[75px] rounded-[25px] border-[3px] border-[#F2F2F2] bg-white text-[16px] font-semibold text-[#232D4F] shadow-[2px_2px_2px_rgba(0,0,0,0.25)] hover:bg-[rgba(255,255,255,0.7)] hover:border-[#F2F2F2] active:border-[2px] active:border-[#E7BA61] active:bg-white',
+        appButtonClass({ variant: 'outline-secondary', size: 'sm' }),
+        'mx-[8px] my-[12px] w-[75px]',
         className,
       )}
       {...props}

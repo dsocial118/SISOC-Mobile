@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faChevronDown,
   faChevronRight,
+  faChevronUp,
   faFilter,
   faMagnifyingGlass,
 } from '@fortawesome/free-solid-svg-icons'
@@ -60,6 +61,7 @@ export function OrganizationHomePage() {
   const [selectedProgramId, setSelectedProgramId] = useState('')
   const [selectedOrganizationId, setSelectedOrganizationId] = useState('')
   const [selectedProjectCode, setSelectedProjectCode] = useState('')
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false)
   const [openOrganizations, setOpenOrganizations] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
@@ -254,97 +256,111 @@ export function OrganizationHomePage() {
         }`}
         style={{ boxShadow: '4px 4px 4px rgba(0, 0, 0, 0.25)' }}
       >
-        <div className="mb-3 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#E7BA61]">
-          <FontAwesomeIcon icon={faFilter} aria-hidden="true" />
-          Filtros
-        </div>
-
-        <div className="grid gap-3">
-          <div
-            className="flex h-[44px] w-full items-center rounded-[15px] border px-3"
-            style={{
-              backgroundColor: isDark ? '#1E2A47' : '#FFFFFF',
-              borderColor: '#E7BA61',
-            }}
-          >
-            <input
-              type="text"
-              value={searchText}
-              onChange={(event) => setSearchText(event.target.value)}
-              placeholder="Buscar por nombre, provincia o localidad"
-              className="mr-2 h-full w-full border-none bg-transparent text-[12px] italic outline-none"
-              style={{ color: isDark ? '#F5F5F5' : '#555555' }}
-            />
-            <span className="flex h-8 w-8 items-center justify-center">
-              <FontAwesomeIcon
-                icon={faMagnifyingGlass}
-                aria-hidden="true"
-                style={{ fontSize: 18, color: isDark ? '#F5F5F5' : '#232D4F' }}
-              />
-            </span>
+        <button
+          type="button"
+          onClick={() => setIsFiltersOpen((current) => !current)}
+          className="flex w-full items-center justify-between gap-3 text-left"
+          aria-expanded={isFiltersOpen}
+        >
+          <div className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#E7BA61]">
+            <FontAwesomeIcon icon={faFilter} aria-hidden="true" />
+            Filtros
           </div>
+          <FontAwesomeIcon
+            icon={isFiltersOpen ? faChevronUp : faChevronDown}
+            aria-hidden="true"
+            className={isDark ? 'text-white/75' : 'text-slate-500'}
+          />
+        </button>
 
-          {hasOrganizationAssociation ? (
-            <>
-              <select
-                value={selectedProgramId}
-                onChange={(event) => setSelectedProgramId(event.target.value)}
-                className={`rounded-xl border px-3 py-2 text-sm outline-none ${
-                  isDark
-                    ? 'border-white/20 bg-[#1E2A47] text-white'
-                    : 'border-slate-300 bg-white text-slate-700'
-                }`}
-              >
-                <option value="">Todos los programas</option>
-                {programOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+        {isFiltersOpen ? (
+          <div className="mt-3 grid gap-3">
+            <div
+              className="flex h-[44px] w-full items-center rounded-[15px] border px-3"
+              style={{
+                backgroundColor: isDark ? '#1E2A47' : '#FFFFFF',
+                borderColor: '#E7BA61',
+              }}
+            >
+              <input
+                type="text"
+                value={searchText}
+                onChange={(event) => setSearchText(event.target.value)}
+                placeholder="Buscar por nombre, provincia o localidad"
+                className="mr-2 h-full w-full border-none bg-transparent text-[12px] italic outline-none"
+                style={{ color: isDark ? '#F5F5F5' : '#555555' }}
+              />
+              <span className="flex h-8 w-8 items-center justify-center">
+                <FontAwesomeIcon
+                  icon={faMagnifyingGlass}
+                  aria-hidden="true"
+                  style={{ fontSize: 18, color: isDark ? '#F5F5F5' : '#232D4F' }}
+                />
+              </span>
+            </div>
 
-              <select
-                value={selectedOrganizationId}
-                onChange={(event) => setSelectedOrganizationId(event.target.value)}
-                className={`rounded-xl border px-3 py-2 text-sm outline-none ${
-                  isDark
-                    ? 'border-white/20 bg-[#1E2A47] text-white'
-                    : 'border-slate-300 bg-white text-slate-700'
-                }`}
-              >
-                <option value="">Todas las organizaciones</option>
-                {organizationOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+            {hasOrganizationAssociation ? (
+              <>
+                <select
+                  value={selectedProgramId}
+                  onChange={(event) => setSelectedProgramId(event.target.value)}
+                  className={`rounded-xl border px-3 py-2 text-sm outline-none ${
+                    isDark
+                      ? 'border-white/20 bg-[#1E2A47] text-white'
+                      : 'border-slate-300 bg-white text-slate-700'
+                  }`}
+                >
+                  <option value="">Todos los programas</option>
+                  {programOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
 
-              <select
-                value={selectedProjectCode}
-                onChange={(event) => setSelectedProjectCode(event.target.value)}
-                className={`rounded-xl border px-3 py-2 text-sm outline-none ${
-                  isDark
-                    ? 'border-white/20 bg-[#1E2A47] text-white'
-                    : 'border-slate-300 bg-white text-slate-700'
-                }`}
-              >
-                <option value="">Todos los proyectos</option>
-                {projectOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </>
-          ) : null}
+                <select
+                  value={selectedOrganizationId}
+                  onChange={(event) => setSelectedOrganizationId(event.target.value)}
+                  className={`rounded-xl border px-3 py-2 text-sm outline-none ${
+                    isDark
+                      ? 'border-white/20 bg-[#1E2A47] text-white'
+                      : 'border-slate-300 bg-white text-slate-700'
+                  }`}
+                >
+                  <option value="">Todas las organizaciones</option>
+                  {organizationOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
 
-          {!hasOrganizationAssociation && isDirectSpaceAssociation ? (
-            <p className={`text-[12px] ${isDark ? 'text-white/75' : 'text-slate-600'}`}>
-              Usuario vinculado directamente a espacios.
-            </p>
-          ) : null}
-        </div>
+                <select
+                  value={selectedProjectCode}
+                  onChange={(event) => setSelectedProjectCode(event.target.value)}
+                  className={`rounded-xl border px-3 py-2 text-sm outline-none ${
+                    isDark
+                      ? 'border-white/20 bg-[#1E2A47] text-white'
+                      : 'border-slate-300 bg-white text-slate-700'
+                  }`}
+                >
+                  <option value="">Todos los proyectos</option>
+                  {projectOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : null}
+
+            {!hasOrganizationAssociation && isDirectSpaceAssociation ? (
+              <p className={`text-[12px] ${isDark ? 'text-white/75' : 'text-slate-600'}`}>
+                Usuario vinculado directamente a espacios.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {!loading && errorMessage ? (
@@ -413,7 +429,7 @@ export function OrganizationHomePage() {
                       </p>
                     </div>
                     <FontAwesomeIcon
-                      icon={isOpen ? faChevronDown : faChevronRight}
+                      icon={isOpen ? faChevronUp : faChevronDown}
                       aria-hidden="true"
                       className={isDark ? 'text-white/75' : 'text-slate-500'}
                     />
@@ -444,36 +460,41 @@ export function OrganizationHomePage() {
               )
             })}
 
-            {filteredAccessSummary.extraDirectSpaces.length > 0 ? (
-              <div
-                className={`overflow-hidden rounded-[16px] border ${
-                  isDark ? 'border-white/15 bg-[#1E2A47]' : 'border-[#D9D9D9] bg-white'
-                }`}
-              >
-                <div className="px-4 py-3">
-                  <p className="text-[15px] font-semibold">Espacios directos</p>
-                </div>
-                <div className="grid gap-3 border-t border-black/10 px-3 py-3">
-                  {filteredAccessSummary.extraDirectSpaces.map((space, index) => (
-                    <SpaceCard
-                      key={space.id}
-                      space={space}
-                      index={index}
-                      isDark={isDark}
-                      showProgramMeta={hasOrganizationAssociation}
-                      onOpen={() =>
-                        navigate(`/app-org/espacios/${space.id}/hub`, {
-                          state: {
-                            spaceName: space.nombre,
-                            programName: space.programa__nombre || '',
-                          },
-                        })
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {!loading && !errorMessage && filteredAccessSummary.extraDirectSpaces.length > 0 ? (
+        <section
+          className={`rounded-[18px] border p-4 ${
+            isDark ? 'border-white/15 bg-[#232D4F] text-white' : 'border-[#E0E0E0] bg-[#F5F5F5] text-[#232D4F]'
+          }`}
+          style={{ boxShadow: '4px 4px 4px rgba(0, 0, 0, 0.16)' }}
+        >
+          <div className="mb-4">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#E7BA61]">
+              Espacios
+            </p>
+          </div>
+
+          <div className="grid gap-3">
+            {filteredAccessSummary.extraDirectSpaces.map((space, index) => (
+              <SpaceCard
+                key={space.id}
+                space={space}
+                index={index}
+                isDark={isDark}
+                showProgramMeta={hasOrganizationAssociation}
+                onOpen={() =>
+                  navigate(`/app-org/espacios/${space.id}/hub`, {
+                    state: {
+                      spaceName: space.nombre,
+                      programName: space.programa__nombre || '',
+                    },
+                  })
+                }
+              />
+            ))}
           </div>
         </section>
       ) : null}
@@ -498,7 +519,7 @@ function SpaceCard({
     <button
       type="button"
       onClick={onOpen}
-      className="progressive-card rounded-[15px] border p-4 text-left transition hover:border-[#232D4F]"
+      className="progressive-card relative rounded-[15px] border p-4 pr-12 text-left transition hover:border-[#232D4F]"
       style={{
         backgroundColor: isDark ? '#16213C' : '#FFFFFF',
         borderColor: '#E0E0E0',
@@ -506,7 +527,7 @@ function SpaceCard({
         ['--card-delay' as string]: `${index * 70}ms`,
       }}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-3">
         <div>
           <h3 className={`text-[16px] font-medium ${isDark ? 'text-white' : 'text-[#232D4F]'}`}>
             {displayValue(space.nombre)}
@@ -517,13 +538,15 @@ function SpaceCard({
             </p>
           ) : null}
         </div>
-        <FontAwesomeIcon
-          icon={faChevronRight}
-          aria-hidden="true"
-          className={isDark ? 'text-white/80' : 'text-slate-500'}
-          style={{ fontSize: 14 }}
-        />
       </div>
+
+      <span
+        className={`absolute right-4 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center ${
+          isDark ? 'text-white/80' : 'text-slate-500'
+        }`}
+      >
+        <FontAwesomeIcon icon={faChevronRight} aria-hidden="true" style={{ fontSize: 14 }} />
+      </span>
 
       <div className={`mt-3 grid gap-1.5 text-sm ${isDark ? 'text-white' : 'text-slate-700'}`}>
         <p>

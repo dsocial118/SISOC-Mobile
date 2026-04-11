@@ -11,6 +11,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { parseApiError } from '../../api/errorUtils'
 import type { RendicionItem } from '../../api/rendicionApi'
 import { syncNow } from '../../sync/engine'
+import { appButtonClass, joinClasses } from '../../ui/buttons'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
 import { formatDateTime, loadRendicionesOfflineFirst } from './rendicionOffline'
@@ -219,7 +220,10 @@ export function SpaceRendicionPage() {
             state: routeState,
           })
         }
-        className="fixed bottom-20 right-4 z-20 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#2E7D33] text-white shadow-[0_10px_24px_rgba(46,125,51,0.35)]"
+        className={joinClasses(
+          appButtonClass({ variant: 'success', size: 'md' }),
+          'fixed bottom-20 right-4 z-20 h-14 w-14 rounded-full p-0 shadow-[0_10px_24px_rgba(46,125,51,0.35)]',
+        )}
         aria-label="Nueva rendición"
       >
         <FontAwesomeIcon icon={faPlus} aria-hidden="true" style={{ fontSize: 22 }} />

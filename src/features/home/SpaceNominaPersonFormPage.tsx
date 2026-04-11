@@ -15,6 +15,7 @@ import {
   type NominaRenaperPreview,
 } from '../../api/nominaApi'
 import { syncNow } from '../../sync/engine'
+import { appButtonClass, joinClasses } from '../../ui/buttons'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
 
@@ -690,9 +691,10 @@ export function SpaceNominaPersonFormPage() {
             <button
               type="button"
               onClick={() => setRenaperPreview(null)}
-              className={`rounded-full border bg-white px-3 py-1 text-xs font-semibold ${
-                isDark ? 'border-white/40 text-[#232D4F]' : 'border-slate-300 text-[#232D4F]'
-              }`}
+              className={joinClasses(
+                appButtonClass({ variant: 'outline-secondary', size: 'sm' }),
+                isDark ? 'border-white/40 bg-white text-[#232D4F]' : undefined,
+              )}
             >
               Cancelar validación
             </button>
@@ -701,7 +703,7 @@ export function SpaceNominaPersonFormPage() {
             <button
               type="button"
               onClick={() => navigate(`/app-org/espacios/${spaceId}/nomina/${nominaId}`)}
-              className="rounded-full bg-[#232D4F] px-4 py-2 text-xs font-semibold text-white"
+              className={appButtonClass({ variant: 'primary', size: 'md' })}
             >
               Volver
             </button>
@@ -709,7 +711,7 @@ export function SpaceNominaPersonFormPage() {
             <button
               type="submit"
               disabled={saving || previewingRenaper}
-              className="rounded-full bg-[#232D4F] px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+              className={appButtonClass({ variant: 'primary', size: 'md' })}
             >
               {previewingRenaper
                 ? 'Consultando RENAPER...'

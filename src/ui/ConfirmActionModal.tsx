@@ -1,6 +1,7 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faTrashCan } from '@fortawesome/free-solid-svg-icons'
 import { useAppTheme } from './ThemeContext'
+import { appButtonClass, joinClasses } from './buttons'
 
 type ConfirmActionModalProps = {
   open: boolean
@@ -54,11 +55,10 @@ export function ConfirmActionModal({
           <button
             type="button"
             onClick={onCancel}
-            className={`rounded-xl px-4 py-3 text-sm font-semibold ${
-              isDark
-                ? 'border border-white/15 bg-white/5 text-white'
-                : 'border border-slate-200 bg-slate-50 text-slate-700'
-            }`}
+            className={joinClasses(
+              appButtonClass({ variant: 'outline-secondary', size: 'lg' }),
+              isDark ? 'bg-white/5 text-white border-white/20 hover:bg-white/10' : undefined,
+            )}
           >
             {cancelLabel}
           </button>
@@ -66,7 +66,7 @@ export function ConfirmActionModal({
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className="rounded-xl bg-[#C62828] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+            className={appButtonClass({ variant: 'danger', size: 'lg' })}
           >
             {loading ? 'Procesando...' : confirmLabel}
           </button>

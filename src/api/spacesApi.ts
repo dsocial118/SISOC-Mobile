@@ -1,5 +1,10 @@
 import { http } from './http'
 
+export interface SpaceImageItem {
+  id: number
+  url: string | null
+}
+
 export interface SpaceItem {
   id: number
   nombre: string
@@ -75,6 +80,7 @@ export interface SpaceDetail {
   organizacion?: OrganizationDetail | null
   programa?: { id: number; nombre: string } | null
   referente?: SpaceReferenteDetail | null
+  imagenes?: SpaceImageItem[]
   ultimo_estado?: {
     estado_actividad?: string | null
     estado_proceso?: string | null
@@ -86,6 +92,13 @@ export interface SpaceDetail {
     items: Array<{
       pregunta: string
       respuesta: string
+    }>
+    sections?: Array<{
+      titulo: string
+      items: Array<{
+        pregunta: string
+        respuesta: string
+      }>
     }>
   } | null
 }
@@ -122,14 +135,69 @@ export async function listMySpaces(): Promise<SpaceItem[]> {
   return allSpaces
 }
 
-export async function getSpaceDetail(spaceId: string | number): Promise<SpaceDetail> {
+export async function getSpaceDetail(
+  spaceId: string | number,
+  options?: { forceRefresh?: boolean },
+): Promise<SpaceDetail> {
   const cacheKey = String(spaceId)
   const cached = spaceDetailCache.get(cacheKey)
-  if (cached) {
+  if (cached && !options?.forceRefresh) {
     return cached
   }
 
-  const { data } = await http.get<SpaceDetail>(`/comedores/${spaceId}/`)
+  const { data } = await http.get<SpaceDetail>(`/comedores/${spaceId}/`, {
+    timeout: 60000,
+  })
   spaceDetailCache.set(cacheKey, data)
   return data
+}
+
+export async function uploadSpaceImage(
+  spaceId: string | number,
+  file: File,
+): Promise<SpaceImageItem[]> {
+  const formData = new FormData()
+  formData.append('imagen', file)
+
+  const { data } = await http.post<{ imagenes: SpaceImageItem[] }>(
+    `/comedores/${spaceId}/imagenes/`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 60000,
+    },
+  )
+
+  const cacheKey = String(spaceId)
+  const cached = spaceDetailCache.get(cacheKey)
+  if (cached) {
+    spaceDetailCache.set(cacheKey, {
+      ...cached,
+      imagenes: data.imagenes,
+    })
+  }
+
+  return data.imagenes
+}
+
+export async function deleteSpaceImage(
+  spaceId: string | number,
+  imageId: string | number,
+): Promise<SpaceImageItem[]> {
+  const { data } = await http.post<{ imagenes: SpaceImageItem[] }>(
+    `/comedores/${spaceId}/imagenes/${imageId}/eliminar/`,
+  )
+
+  const cacheKey = String(spaceId)
+  const cached = spaceDetailCache.get(cacheKey)
+  if (cached) {
+    spaceDetailCache.set(cacheKey, {
+      ...cached,
+      imagenes: data.imagenes,
+    })
+  }
+
+  return data.imagenes
 }

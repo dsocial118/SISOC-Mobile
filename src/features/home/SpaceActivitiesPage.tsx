@@ -26,6 +26,7 @@ import {
   type SpaceActivityEnrollee,
   type SpaceActivityItem,
 } from '../../api/activitiesApi'
+import { appButtonClass, joinClasses } from '../../ui/buttons'
 import { ConfirmActionModal } from '../../ui/ConfirmActionModal'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
@@ -737,7 +738,7 @@ export function SpaceActivitiesPage() {
                       type="button"
                       onClick={() => removeScheduleRow(index)}
                       disabled={scheduleRows.length <= 1}
-                      className="rounded-full bg-[#C62828] px-2.5 py-1 text-[11px] font-semibold text-white disabled:opacity-40"
+                      className={appButtonClass({ variant: 'danger', size: 'sm' })}
                     >
                       Quitar
                     </button>
@@ -748,9 +749,10 @@ export function SpaceActivitiesPage() {
             <button
               type="button"
               onClick={addScheduleRow}
-              className={`mt-1 w-full rounded-lg border px-3 py-2 text-[12px] font-semibold ${
-                isDark ? 'border-white/40 text-white' : 'border-[#232D4F] text-[#232D4F]'
-              }`}
+              className={joinClasses(
+                appButtonClass({ variant: 'outline-secondary', size: 'md', fullWidth: true }),
+                isDark ? 'border-white/40 text-white hover:bg-white/10' : 'border-[#232D4F] text-[#232D4F]',
+              )}
             >
               + Agregar rango horario
             </button>
@@ -761,14 +763,17 @@ export function SpaceActivitiesPage() {
             <button
               type="button"
               onClick={closeForm}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold ${isDark ? 'border-white/40 text-white' : 'border-slate-300 text-slate-700'}`}
+              className={joinClasses(
+                appButtonClass({ variant: 'outline-secondary', size: 'sm' }),
+                isDark ? 'border-white/40 text-white hover:bg-white/10' : undefined,
+              )}
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="rounded-full bg-[#232D4F] px-3 py-1 text-xs font-semibold text-white disabled:opacity-60"
+              className={appButtonClass({ variant: 'primary', size: 'sm' })}
             >
               {saving ? 'Guardando...' : submitLabel}
             </button>
@@ -1090,7 +1095,15 @@ export function SpaceActivitiesPage() {
                                         <button
                                           type="button"
                                           onClick={() => openEditForm(activity)}
-                                          className={`rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#232D4F] ${isDark ? '' : 'border border-[#232D4F]'}`}
+                                          className={joinClasses(
+                                            appButtonClass({
+                                              variant: 'outline-secondary',
+                                              size: 'sm',
+                                            }),
+                                            isDark
+                                              ? 'border-white/40 bg-white text-[#232D4F]'
+                                              : 'border-[#232D4F] text-[#232D4F]',
+                                          )}
                                         >
                                           Editar
                                         </button>
@@ -1098,7 +1111,7 @@ export function SpaceActivitiesPage() {
                                           type="button"
                                           onClick={() => setActivityPendingDelete(activity)}
                                           disabled={deletingActivityId === activity.id}
-                                          className="rounded-full bg-[#C62828] px-3 py-1 text-xs font-semibold text-white disabled:opacity-60"
+                                          className={appButtonClass({ variant: 'danger', size: 'sm' })}
                                         >
                                           {deletingActivityId === activity.id ? 'Eliminando...' : 'Eliminar'}
                                         </button>
@@ -1124,7 +1137,10 @@ export function SpaceActivitiesPage() {
       <button
         type="button"
         onClick={openCreateForm}
-        className="fixed bottom-20 right-4 z-20 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#2E7D33] text-white shadow-[0_10px_24px_rgba(46,125,51,0.35)]"
+        className={joinClasses(
+          appButtonClass({ variant: 'success', size: 'md' }),
+          'fixed bottom-20 right-4 z-20 h-14 w-14 rounded-full p-0 shadow-[0_10px_24px_rgba(46,125,51,0.35)]',
+        )}
         aria-label="Agregar actividad"
       >
         <FontAwesomeIcon icon={faPlus} aria-hidden="true" style={{ fontSize: 22 }} />

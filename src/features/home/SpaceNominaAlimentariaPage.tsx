@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faCalendarDay,
+  faSquareCheck,
   faChevronRight,
   faChild,
   faIdCard,
@@ -11,22 +12,19 @@ import {
   faPersonDress,
   faPlus,
   faUser,
+  faUserCheck,
   faUserGraduate,
   faUsers,
+  faUserXmark,
   faUserTie,
-  faUtensils,
 } from '@fortawesome/free-solid-svg-icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import {
-  listSpaceNomina,
-  type NominaPerson,
-  type NominaStats,
-  type NominaTab,
-} from '../../api/nominaApi'
+import { listSpaceNomina, type NominaPerson, type NominaStats } from '../../api/nominaApi'
 import { parseApiError } from '../../api/errorUtils'
-import { appButtonClass, joinClasses } from '../../ui/buttons'
+import { AppToast } from '../../ui/AppToast'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
+import { appButtonClass, joinClasses } from '../../ui/buttons'
 
 const EMPTY_STATS: NominaStats = {
   total_nomina: 0,
@@ -69,18 +67,29 @@ function formatLatinDate(rawDate: string | null | undefined): string {
   return `${day}-${month}-${year}`
 }
 
-export function SpaceNominaPage() {
+export function SpaceNominaAlimentariaPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { spaceId } = useParams<{ spaceId: string }>()
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
   const routeState =
-    (location.state as { spaceName?: string; programName?: string } | null) ?? null
+    (location.state as {
+      spaceName?: string
+      programName?: string
+      attendanceToast?: {
+        tone: 'success' | 'error'
+        message: string
+      }
+      successToast?: {
+        tone: 'success' | 'error'
+        message: string
+      }
+    } | null) ?? null
 
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-  const [tab, setTab] = useState<NominaTab>('consolidada')
+  const [toast, setToast] = useState(routeState?.attendanceToast ?? routeState?.successToast ?? null)
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [stats, setStats] = useState<NominaStats>(EMPTY_STATS)
@@ -88,6 +97,8 @@ export function SpaceNominaPage() {
 
   const textClass = isDark ? 'text-white' : 'text-[#232D4F]'
   const detailTextClass = isDark ? 'text-white/85' : 'text-slate-700'
+  const summaryCardClass = isDark ? 'bg-[#232D4F]' : 'bg-[#F5F5F5]'
+  const subCardClass = isDark ? 'border-white/20 bg-white/5' : 'border-[#E0E0E0] bg-white'
   const cardStyle = isDark
     ? {
         backgroundColor: '#232D4F',
@@ -99,13 +110,26 @@ export function SpaceNominaPage() {
         borderColor: '#E0E0E0',
         boxShadow: '4px 4px 4px rgba(0, 0, 0, 0.25)',
       }
-  const subCardClass = isDark ? 'border-white/20 bg-white/5' : 'border-[#E0E0E0] bg-white'
-  const currentTitle =
-    tab === 'alimentaria'
-      ? 'Nómina alimentaria'
-      : tab === 'formacion'
-        ? 'Nómina de actividades'
-        : 'Nómina consolidada'
+  const currentTitle = 'Nómina alimentaria'
+
+  useEffect(() => {
+    const incomingToast = routeState?.attendanceToast ?? routeState?.successToast
+    if (!incomingToast) {
+      return
+    }
+
+    setToast(incomingToast)
+
+    const nextState = { ...routeState }
+    delete nextState.attendanceToast
+    delete nextState.successToast
+
+    navigate(location.pathname, {
+      replace: true,
+      state: nextState,
+    })
+  }, [location.pathname, navigate, routeState])
+
   const ageGroups = useMemo(
     () => ({
       ninos: rows.filter((row) => {
@@ -146,7 +170,7 @@ export function SpaceNominaPage() {
       setErrorMessage('')
       try {
         const nominaResponse = await listSpaceNomina(spaceId, {
-          tab,
+          tab: 'alimentaria',
           q: searchQuery.trim() || undefined,
         })
         if (!isMounted) {
@@ -172,10 +196,15 @@ export function SpaceNominaPage() {
       isMounted = false
       setPageLoading(false)
     }
-  }, [searchQuery, setPageLoading, spaceId, tab])
+  }, [searchQuery, setPageLoading, spaceId])
 
   function applySearch() {
     setSearchQuery(searchInput)
+  }
+
+  function clearSearch() {
+    setSearchInput('')
+    setSearchQuery('')
   }
 
   if (loading) {
@@ -194,34 +223,155 @@ export function SpaceNominaPage() {
 
   return (
     <section className="grid gap-3 pb-24">
-      <div>
+      <AppToast
+        open={Boolean(toast)}
+        message={toast?.message ?? ''}
+        tone={toast?.tone ?? 'success'}
+        onClose={() => setToast(null)}
+      />
+
+      <div className="flex items-center justify-between gap-3">
         <h2 className={`text-[16px] font-semibold ${textClass}`}>{currentTitle}</h2>
+        <button
+          type="button"
+          onClick={() =>
+            navigate(`/app-org/espacios/${spaceId}/nomina-alimentaria/asistencia`, {
+              state: {
+                spaceName: routeState?.spaceName,
+              },
+            })
+          }
+          className={appButtonClass({ variant: 'success', size: 'sm' })}
+        >
+          <FontAwesomeIcon icon={faSquareCheck} aria-hidden="true" />
+          Asistencia
+        </button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {([
-          ['consolidada', 'Consolidada', faUsers],
-          ['alimentaria', 'Alimentarias', faUtensils],
-          ['formacion', 'Actividades', faUserGraduate],
-        ] as Array<[NominaTab, string, typeof faUsers]>).map(([key, label, icon]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTab(key)}
-            className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-              tab === key
-                ? 'border-[#E7BA61] bg-[#232D4F] text-white'
-                : isDark
-                  ? 'border-white/30 bg-white/10 text-white'
-                  : 'border-slate-300 bg-white text-slate-700'
-            }`}
-          >
-            <span className="inline-flex items-center gap-2">
-              <FontAwesomeIcon icon={icon} aria-hidden="true" style={{ fontSize: 11 }} />
-              {label}
-            </span>
-          </button>
-        ))}
+      <div className="grid grid-cols-2 gap-2">
+        <div
+          className={`rounded-2xl border p-3 text-center ${summaryCardClass}`}
+          style={{ ...cardStyle, borderColor: '#E7BA61' }}
+        >
+          <p className={`text-[16px] font-bold ${textClass}`}>Asistentes</p>
+          <div className="mt-2 py-2">
+            <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
+              {stats.total_nomina}
+            </p>
+            <div className="mt-1 flex justify-center">
+              <FontAwesomeIcon
+                icon={faUsers}
+                aria-hidden="true"
+                className={textClass}
+                style={{ fontSize: 24 }}
+              />
+            </div>
+          </div>
+        </div>
+        <div
+          className={`rounded-2xl border p-3 text-center ${summaryCardClass}`}
+          style={{ ...cardStyle, borderColor: '#E7BA61' }}
+        >
+          <p className={`text-[16px] font-bold ${textClass}`}>Género</p>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            <div className="px-2 py-2 text-center">
+              <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
+                {stats.genero.M}
+              </p>
+              <FontAwesomeIcon
+                icon={faPerson}
+                aria-hidden="true"
+                className={`mt-1 ${textClass}`}
+                style={{ fontSize: 24 }}
+              />
+            </div>
+            <div className="px-2 py-2 text-center">
+              <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
+                {stats.genero.F}
+              </p>
+              <FontAwesomeIcon
+                icon={faPersonDress}
+                aria-hidden="true"
+                className={`mt-1 ${textClass}`}
+                style={{ fontSize: 24 }}
+              />
+            </div>
+            <div className="px-2 py-2 text-center">
+              <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
+                {stats.genero.X}
+              </p>
+              <p className={`mt-1 text-[24px] font-black leading-none ${textClass}`}>X</p>
+            </div>
+          </div>
+        </div>
+        <div
+          className={`col-span-2 rounded-2xl border p-3 text-center ${summaryCardClass}`}
+          style={{ ...cardStyle, borderColor: '#E7BA61' }}
+        >
+          <p className={`text-[16px] font-bold ${textClass}`}>Edades</p>
+          <div className="mt-2 grid grid-cols-5 gap-1">
+            <div className="px-1 py-2 text-center">
+              <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
+                {ageGroups.ninos}
+              </p>
+              <FontAwesomeIcon
+                icon={faChild}
+                aria-hidden="true"
+                className={`mt-1 ${textClass}`}
+                style={{ fontSize: 24 }}
+              />
+              <p className={`mt-1 text-[10px] font-medium ${detailTextClass}`}>0-13</p>
+            </div>
+            <div className="px-1 py-2 text-center">
+              <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
+                {ageGroups.adolescentes}
+              </p>
+              <FontAwesomeIcon
+                icon={faUserGraduate}
+                aria-hidden="true"
+                className={`mt-1 ${textClass}`}
+                style={{ fontSize: 24 }}
+              />
+              <p className={`mt-1 text-[10px] font-medium ${detailTextClass}`}>14-17</p>
+            </div>
+            <div className="px-1 py-2 text-center">
+              <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
+                {ageGroups.adultos}
+              </p>
+              <FontAwesomeIcon
+                icon={faUser}
+                aria-hidden="true"
+                className={`mt-1 ${textClass}`}
+                style={{ fontSize: 24 }}
+              />
+              <p className={`mt-1 text-[10px] font-medium ${detailTextClass}`}>18-49</p>
+            </div>
+            <div className="px-1 py-2 text-center">
+              <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
+                {ageGroups.adultosMayores}
+              </p>
+              <FontAwesomeIcon
+                icon={faUserTie}
+                aria-hidden="true"
+                className={`mt-1 ${textClass}`}
+                style={{ fontSize: 24 }}
+              />
+              <p className={`mt-1 text-[10px] font-medium ${detailTextClass}`}>50-65</p>
+            </div>
+            <div className="px-1 py-2 text-center">
+              <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
+                {ageGroups.mayoresAvanzados}
+              </p>
+              <FontAwesomeIcon
+                icon={faPersonCane}
+                aria-hidden="true"
+                className={`mt-1 ${textClass}`}
+                style={{ fontSize: 24 }}
+              />
+              <p className={`mt-1 text-[10px] font-medium ${detailTextClass}`}>66+</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div
@@ -247,149 +397,24 @@ export function SpaceNominaPage() {
             className={`${isDark ? 'text-white' : 'text-[#232D4F]'}`}
             aria-label="Buscar"
           >
-            <FontAwesomeIcon
-              icon={faMagnifyingGlass}
-              aria-hidden="true"
-              style={{ fontSize: 16 }}
-            />
+            <FontAwesomeIcon icon={faMagnifyingGlass} aria-hidden="true" style={{ fontSize: 16 }} />
           </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <div
-          className="rounded-2xl border border-[#E7BA61] p-3 text-center shadow-[0_8px_18px_rgba(35,45,79,0.28)]"
-          style={{ backgroundImage: 'linear-gradient(45deg, #232D4F 0%, #585697 100%)' }}
-        >
-          <p className="text-[16px] font-bold text-white">Asistentes</p>
-          <div className="mt-2 py-2">
-            <p className="text-[20px] font-extrabold leading-none text-white">
-              {stats.total_nomina}
-            </p>
-            <div className="mt-1 flex justify-center">
-              <FontAwesomeIcon
-                icon={faUsers}
-                aria-hidden="true"
-                className="text-white"
-                style={{ fontSize: 24 }}
-              />
-            </div>
-          </div>
-        </div>
-        <div
-          className="rounded-2xl border border-[#E7BA61] p-3 text-center shadow-[0_8px_18px_rgba(35,45,79,0.28)]"
-          style={{ backgroundImage: 'linear-gradient(45deg, #232D4F 0%, #585697 100%)' }}
-        >
-          <p className="text-[16px] font-bold text-white">Género</p>
-          <div className="mt-2 grid grid-cols-3 gap-2">
-            <div className="px-2 py-2 text-center">
-              <p className="text-[20px] font-extrabold leading-none text-white">
-                {stats.genero.M}
-              </p>
-              <FontAwesomeIcon
-                icon={faPerson}
-                aria-hidden="true"
-                className="mt-1 text-white"
-                style={{ fontSize: 24 }}
-              />
-            </div>
-            <div className="px-2 py-2 text-center">
-              <p className="text-[20px] font-extrabold leading-none text-white">
-                {stats.genero.F}
-              </p>
-              <FontAwesomeIcon
-                icon={faPersonDress}
-                aria-hidden="true"
-                className="mt-1 text-white"
-                style={{ fontSize: 24 }}
-              />
-            </div>
-            <div className="px-2 py-2 text-center">
-              <p className="text-[20px] font-extrabold leading-none text-white">
-                {stats.genero.X}
-              </p>
-              <p className="mt-1 text-[24px] font-black leading-none text-white">X</p>
-            </div>
-          </div>
-        </div>
-        <div
-          className="col-span-2 rounded-2xl border border-[#E7BA61] p-3 text-center shadow-[0_8px_18px_rgba(35,45,79,0.28)]"
-          style={{ backgroundImage: 'linear-gradient(45deg, #232D4F 0%, #585697 100%)' }}
-        >
-          <p className="text-[16px] font-bold text-white">Edades</p>
-          <div className="mt-2 grid grid-cols-5 gap-1">
-            <div className="px-1 py-2 text-center">
-              <p className="text-[20px] font-extrabold leading-none text-white">
-                {ageGroups.ninos}
-              </p>
-              <FontAwesomeIcon
-                icon={faChild}
-                aria-hidden="true"
-                className="mt-1 text-white"
-                style={{ fontSize: 24 }}
-              />
-              <p className="mt-1 text-[10px] font-medium text-white/90">0-13</p>
-            </div>
-            <div className="px-1 py-2 text-center">
-              <p className="text-[20px] font-extrabold leading-none text-white">
-                {ageGroups.adolescentes}
-              </p>
-              <FontAwesomeIcon
-                icon={faUserGraduate}
-                aria-hidden="true"
-                className="mt-1 text-white"
-                style={{ fontSize: 24 }}
-              />
-              <p className="mt-1 text-[10px] font-medium text-white/90">14-17</p>
-            </div>
-            <div className="px-1 py-2 text-center">
-              <p className="text-[20px] font-extrabold leading-none text-white">
-                {ageGroups.adultos}
-              </p>
-              <FontAwesomeIcon
-                icon={faUser}
-                aria-hidden="true"
-                className="mt-1 text-white"
-                style={{ fontSize: 24 }}
-              />
-              <p className="mt-1 text-[10px] font-medium text-white/90">18-49</p>
-            </div>
-            <div className="px-1 py-2 text-center">
-              <p className="text-[20px] font-extrabold leading-none text-white">
-                {ageGroups.adultosMayores}
-              </p>
-              <FontAwesomeIcon
-                icon={faUserTie}
-                aria-hidden="true"
-                className="mt-1 text-white"
-                style={{ fontSize: 24 }}
-              />
-              <p className="mt-1 text-[10px] font-medium text-white/90">50-65</p>
-            </div>
-            <div className="px-1 py-2 text-center">
-              <p className="text-[20px] font-extrabold leading-none text-white">
-                {ageGroups.mayoresAvanzados}
-              </p>
-              <FontAwesomeIcon
-                icon={faPersonCane}
-                aria-hidden="true"
-                className="mt-1 text-white"
-                style={{ fontSize: 24 }}
-              />
-              <p className="mt-1 text-[10px] font-medium text-white/90">66+</p>
-            </div>
-          </div>
+          {searchInput.trim() || searchQuery.trim() ? (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className={`text-xs font-semibold ${isDark ? 'text-white/80' : 'text-[#232D4F]/80'}`}
+            >
+              Limpiar
+            </button>
+          ) : null}
         </div>
       </div>
 
       {rows.length === 0 ? (
         <div className="grid gap-2">
           <p className={`text-sm ${detailTextClass}`}>
-            {tab === 'formacion'
-              ? 'No hay personas vinculadas a Actividades en este espacio.'
-              : tab === 'alimentaria'
-                ? 'No hay personas vinculadas a prestaciones alimentarias en este espacio.'
-                : 'No hay personas para el filtro seleccionado.'}
+            No hay personas vinculadas a prestaciones alimentarias en este espacio.
           </p>
         </div>
       ) : (
@@ -399,7 +424,7 @@ export function SpaceNominaPage() {
               key={row.id}
               type="button"
               onClick={() =>
-                navigate(`/app-org/espacios/${spaceId}/nomina/${row.id}`, {
+                navigate(`/app-org/espacios/${spaceId}/nomina-alimentaria/${row.id}`, {
                   state: {
                     spaceName: routeState?.spaceName,
                     personName: `${row.apellido}, ${row.nombre}`,
@@ -418,11 +443,7 @@ export function SpaceNominaPage() {
                     className={`mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] ${detailTextClass}`}
                   >
                     <span className="inline-flex items-center gap-1">
-                      <FontAwesomeIcon
-                        icon={faIdCard}
-                        aria-hidden="true"
-                        style={{ fontSize: 11 }}
-                      />
+                      <FontAwesomeIcon icon={faIdCard} aria-hidden="true" style={{ fontSize: 11 }} />
                       {row.dni || 'Sin documento'}
                     </span>
                     <span className="inline-flex items-center gap-1">
@@ -433,17 +454,20 @@ export function SpaceNominaPage() {
                       />
                       {formatLatinDate(row.fecha_nacimiento)}
                     </span>
+                    <span
+                      className={`inline-flex items-center gap-1 ${
+                        row.asistencia_mes_actual ? 'text-[#2E7D33]' : 'text-[#C62828]'
+                      }`}
+                    >
+                      <FontAwesomeIcon
+                        icon={row.asistencia_mes_actual ? faUserCheck : faUserXmark}
+                        aria-hidden="true"
+                        style={{ fontSize: 14 }}
+                      />
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {row.badges.includes('Alimentación') ? (
-                    <FontAwesomeIcon
-                      icon={faUtensils}
-                      aria-hidden="true"
-                      className="text-[#232D4F]"
-                      style={{ fontSize: 14 }}
-                    />
-                  ) : null}
                   {row.badges.includes('Actividades') ? (
                     <FontAwesomeIcon
                       icon={faUserGraduate}
@@ -468,16 +492,15 @@ export function SpaceNominaPage() {
       <button
         type="button"
         onClick={() =>
-          navigate(`/app-org/espacios/${spaceId}/nomina/nueva`, {
+          navigate(`/app-org/espacios/${spaceId}/nomina-alimentaria/nueva`, {
             state: {
               spaceName: routeState?.spaceName,
-              defaultMode: tab === 'formacion' ? 'formacion' : 'alimentaria',
             },
           })
         }
         className={joinClasses(
+          'fixed bottom-20 right-4 z-20 inline-flex h-14 w-14 items-center justify-center rounded-full shadow-[0_10px_24px_rgba(46,125,51,0.35)]',
           appButtonClass({ variant: 'success', size: 'md' }),
-          'fixed bottom-20 right-4 z-20 h-14 w-14 rounded-full p-0 shadow-[0_10px_24px_rgba(46,125,51,0.35)]',
         )}
         aria-label="Agregar persona"
       >

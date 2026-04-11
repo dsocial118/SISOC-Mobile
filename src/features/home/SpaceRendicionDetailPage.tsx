@@ -21,6 +21,7 @@ import {
   resolveLocalRendicionId,
 } from './rendicionOffline'
 import { syncNow, syncRendicionNow, type RendicionSyncStage } from '../../sync/engine'
+import { appButtonClass, joinClasses } from '../../ui/buttons'
 import { ConfirmActionModal } from '../../ui/ConfirmActionModal'
 import { NoticeModal } from '../../ui/NoticeModal'
 import { usePageLoading } from '../../ui/PageLoadingContext'
@@ -681,7 +682,11 @@ export function SpaceRendicionDetailPage() {
                                       documentoSubsanadoId: item.id,
                                     })
                                   }
-                                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2E7D33] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                                  className={appButtonClass({
+                                    variant: 'success',
+                                    size: 'lg',
+                                    fullWidth: true,
+                                  })}
                                 >
                                   <FontAwesomeIcon icon={faFileArrowUp} aria-hidden="true" />
                                   {uploadingTargetKey === documentSlotKey
@@ -883,7 +888,11 @@ export function SpaceRendicionDetailPage() {
                           : undefined,
                       })
                     }
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#232D4F] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                    className={appButtonClass({
+                      variant: canReplaceObservedFile ? 'success' : 'primary',
+                      size: 'lg',
+                      fullWidth: true,
+                    })}
                   >
                     <FontAwesomeIcon icon={faFileArrowUp} aria-hidden="true" />
                     {uploadingTargetKey === categorySlotKey
@@ -920,7 +929,10 @@ export function SpaceRendicionDetailPage() {
               type="button"
               onClick={() => setShowDeleteConfirm(true)}
               disabled={deletingRendicion}
-              className="col-span-1 inline-flex items-center justify-center rounded-xl bg-[#C62828] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+              className={joinClasses(
+                appButtonClass({ variant: 'danger', size: 'lg', fullWidth: true }),
+                'col-span-1',
+              )}
               aria-label={deletingRendicion ? 'Eliminando rendicion' : 'Borrar rendicion'}
             >
               <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
@@ -931,9 +943,10 @@ export function SpaceRendicionDetailPage() {
             type="button"
             onClick={() => void handlePresent()}
             disabled={presenting || isSubmissionInFlight}
-            className={`inline-flex items-center justify-center gap-2 rounded-xl bg-[#2E7D33] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60 ${
-              canDeleteRendicion ? 'col-span-3' : 'col-span-1'
-            }`}
+            className={joinClasses(
+              appButtonClass({ variant: 'success', size: 'lg', fullWidth: true }),
+              canDeleteRendicion ? 'col-span-3' : 'col-span-1',
+            )}
           >
             <FontAwesomeIcon
               icon={isSubmissionInFlight ? faSpinner : faPaperPlane}

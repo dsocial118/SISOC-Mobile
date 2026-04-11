@@ -66,7 +66,7 @@ export type RendicionSyncStage =
   | 'refreshing'
 
 function getSyncErrorMessage(error: unknown): string {
-  return parseApiError(error, 'Error de sincronizaci�n')
+  return parseApiError(error, 'Error de sincronización')
 }
 
 function nextBackoffMs(attempts: number): number {
