@@ -8,7 +8,8 @@ export function registerPwa(): void {
   }
 
   window.addEventListener('load', () => {
-    const wb = new Workbox('/sw.js')
+    const swUrl = `${import.meta.env.BASE_URL}sw.js`
+    const wb = new Workbox(swUrl)
     registrationPromise = wb.register().then((registration) => registration ?? null)
   })
 }
