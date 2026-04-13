@@ -11,10 +11,6 @@ import { ThemeProvider } from './ui/ThemeContext'
 
 const queryClient = new QueryClient()
 
-registerPwa()
-startSyncEngine()
-const disposeProgressiveReveal = initProgressiveReveal()
-
 if (typeof document !== 'undefined') {
   const preventZoomGesture = (event: Event) => {
     event.preventDefault()
@@ -47,8 +43,34 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
+function initializeNonCriticalRuntime(): void {
+  try {
+    registerPwa()
+  } catch {
+    // Si falla el registro del SW, la app debe seguir pintando.
+  }
+
+  try {
+    startSyncEngine()
+  } catch {
+    // La sincronización offline no debe bloquear el arranque visual.
+  }
+
+  try {
+    initProgressiveReveal()
+  } catch {
+    // Las animaciones progresivas son optativas.
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.setTimeout(() => {
+    initializeNonCriticalRuntime()
+  }, 0)
+}
+
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
-    disposeProgressiveReveal()
+    // No-op: las inicializaciones no críticas ya no bloquean el bootstrap.
   })
 }
