@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons'
 import { useParams } from 'react-router-dom'
@@ -36,7 +36,7 @@ export function SpaceRelevamientoDetailPage() {
     async function loadDetail() {
       setPageLoading(true)
       if (!spaceId) {
-        setErrorMessage('No se encontró el espacio.')
+        setErrorMessage('No se encontr? el espacio.')
         setLoading(false)
         setPageLoading(false)
         return
@@ -81,10 +81,13 @@ export function SpaceRelevamientoDetailPage() {
   }
 
   const relevamiento = spaceDetail?.relevamiento_actual_mobile
+  const hiddenQuestions = new Set(['deleted at', 'deleted by', 'estado'])
+  const shouldHideQuestion = (question: string) =>
+    hiddenQuestions.has((question || '').trim().toLowerCase())
   const sections = relevamiento?.sections
     && relevamiento.sections.length > 0
     ? relevamiento.sections
-    : relevamiento?.items
+      : relevamiento?.items
       ? [
           {
             titulo: 'Relevamiento',
@@ -108,7 +111,7 @@ export function SpaceRelevamientoDetailPage() {
   if (errorMessage) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       </section>
@@ -150,7 +153,9 @@ export function SpaceRelevamientoDetailPage() {
 
               {isOpen ? (
                 <div className="mt-3 grid gap-2">
-                  {section.items.map((item) => (
+                  {section.items
+                    .filter((item) => !shouldHideQuestion(item.pregunta))
+                    .map((item) => (
                     <div
                       key={`${section.titulo}-${item.pregunta}`}
                       className={`rounded-xl border p-3 ${isDark ? 'border-white/20 bg-white/5' : 'border-[#E0E0E0] bg-white'}`}
@@ -168,3 +173,6 @@ export function SpaceRelevamientoDetailPage() {
     </section>
   )
 }
+
+
+

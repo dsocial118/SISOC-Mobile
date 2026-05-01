@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { listMySpaces } from '../api/spacesApi'
 import { useAuth } from '../auth/useAuth'
@@ -19,8 +19,6 @@ import {
   HomeIcon,
   ListIcon,
   MessagesIcon,
-  RendicionIcon,
-  SpacesIcon,
 } from './BottomMenuBar'
 import { PageLoadingContext } from './PageLoadingContext'
 import { SafeScreen } from './SafeScreen'
@@ -41,6 +39,11 @@ export function AppLayout({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isPageLoading, setIsPageLoading] = useState(false)
   const [orgSingleSpaceId, setOrgSingleSpaceId] = useState<number | null>(null)
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false)
+  const [refreshNonce, setRefreshNonce] = useState(0)
+  const [isOffline, setIsOffline] = useState(
+    typeof navigator !== 'undefined' ? !navigator.onLine : false,
+  )
   const { theme, isDark, toggleTheme } = useAppTheme()
   const orgSpaceScopedMatch = location.pathname.match(/^\/app-org\/espacios\/(\d+)(?:\/.*)?$/)
   const isOrgSpaceScopedRoute = Boolean(orgSpaceScopedMatch)
@@ -54,6 +57,14 @@ export function AppLayout({
   const isNominaFormRoute = /^\/app-org\/espacios\/\d+\/nomina\/(?:nueva|\d+\/editar)\/?$/.test(
     location.pathname,
   )
+  const isNominaAlimentariaRoute = /^\/app-org\/espacios\/\d+\/nomina-alimentaria\/?$/.test(
+    location.pathname,
+  )
+  const isNominaAlimentariaPersonDetailRoute =
+    /^\/app-org\/espacios\/\d+\/nomina-alimentaria\/\d+\/?$/.test(location.pathname)
+  const isNominaRoute = /^\/app-org\/espacios\/\d+\/nomina\/?$/.test(location.pathname)
+  const isActivitiesRoute = /^\/app-org\/espacios\/\d+\/actividades(?:\/nueva|\/\d+)?\/?$/.test(location.pathname)
+  const isCursosRoute = /^\/app-org\/espacios\/\d+\/cursos\/?$/.test(location.pathname)
   const isOrgSpacesHomeRoute = roleLabel === 'Organización' && /^\/app-org\/?$/.test(location.pathname)
   const isOrgMessagesHomeRoute =
     roleLabel === 'Organización' && /^\/app-org\/mensajes\/?$/.test(location.pathname)
@@ -61,7 +72,13 @@ export function AppLayout({
     roleLabel === 'Organización' && /^\/app-org\/notificaciones\/?$/.test(location.pathname)
   const headerState =
     (location.state as
-      | { spaceName?: string; programName?: string; projectName?: string; organizationName?: string }
+      | {
+        spaceName?: string
+        programName?: string
+        projectName?: string
+        organizationName?: string
+        personName?: string
+      }
       | null) ?? null
   const isRendicionSelectorRoute = /^\/app-org\/rendicion\/?$/.test(location.pathname)
   const isInstitutionalRoute = location.pathname.endsWith('/informacion')
@@ -76,11 +93,20 @@ export function AppLayout({
         ? 'Organización'
       : isSyncRoute
         ? 'Sincronización'
-        : isRendicionRoute
-          ? 'Rendición de Cuentas'
-          : isOrgSpaceScopedRoute
-            ? headerState?.spaceName || 'Espacio'
-            : title
+      : isRendicionRoute
+        ? 'Rendición de Cuentas'
+        : isNominaAlimentariaRoute
+          || isNominaRoute
+          ? 'Beneficiarios'
+        : isActivitiesRoute
+          ? 'Actividades del Espacio'
+        : isCursosRoute
+          ? 'Cursos'
+        : isNominaAlimentariaPersonDetailRoute
+          ? headerState?.spaceName || 'Espacio'
+        : isOrgSpaceScopedRoute
+          ? headerState?.spaceName || 'Espacio'
+          : title
   const headerSubtitle = isOrgSpacesHomeRoute
     ? 'Hub de Espacios'
     : isOrgMessagesHomeRoute
@@ -89,16 +115,24 @@ export function AppLayout({
         ? 'Notificaciones'
       : isRendicionSelectorRoute
         ? 'Seleccioná organización y proyecto'
-        : isRendicionRoute
-          ? headerState?.projectName || headerState?.programName || 'Proyecto activo'
-          : isOrgSpaceScopedRoute
-            ? isInstitutionalRoute
-              ? headerState?.programName || 'Programa sin definir'
+      : isRendicionRoute
+        ? headerState?.projectName || headerState?.programName || 'Proyecto activo'
+        : isNominaAlimentariaRoute
+          || isNominaRoute
+          ? headerState?.spaceName || 'Espacio'
+        : isActivitiesRoute
+          ? headerState?.spaceName || 'Espacio'
+        : isCursosRoute
+          ? headerState?.spaceName || 'Espacio'
+        : isNominaAlimentariaPersonDetailRoute
+          ? headerState?.personName || ''
+        : isOrgSpaceScopedRoute
+          ? isInstitutionalRoute
+            ? headerState?.programName || 'Programa sin definir'
               : ''
             : isSyncRoute
               ? ''
               : roleLabel
-  const orgRendicionRoute = '/app-org/rendicion'
   const canManageRendicion = Boolean(
     userProfile?.permissions?.includes(MOBILE_RENDICION_PERMISSION),
   )
@@ -152,12 +186,121 @@ export function AppLayout({
     })
   }, [canManageRendicion, roleLabel, sessionStatus, userProfile?.username])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    let touchStartY = 0
+    let touchStartX = 0
+    let canPull = false
+    let pulling = false
+    let gestureLocked = false
+    const pullThreshold = 90
+    const verticalTolerance = 12
+
+    function isScrollableElement(element: Element): element is HTMLElement {
+      if (!(element instanceof HTMLElement)) {
+        return false
+      }
+      const overflowY = window.getComputedStyle(element).overflowY
+      return (
+        (overflowY === 'auto' || overflowY === 'scroll')
+        && element.scrollHeight > element.clientHeight
+      )
+    }
+
+    function canStartPullFromTarget(target: EventTarget | null): boolean {
+      let current = target instanceof Element ? target : null
+      while (current) {
+        if (isScrollableElement(current)) {
+          return current.scrollTop <= 0
+        }
+        current = current.parentElement
+      }
+      return window.scrollY <= 0
+    }
+
+    const onTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) {
+        canPull = false
+        pulling = false
+        gestureLocked = false
+        return
+      }
+      touchStartY = event.touches[0].clientY
+      touchStartX = event.touches[0].clientX
+      canPull = canStartPullFromTarget(event.target)
+      pulling = false
+      gestureLocked = false
+    }
+
+    const onTouchMove = (event: TouchEvent) => {
+      if (!canPull || isPullRefreshing || event.touches.length !== 1) {
+        return
+      }
+      const deltaY = event.touches[0].clientY - touchStartY
+      const deltaX = event.touches[0].clientX - touchStartX
+
+      if (!gestureLocked) {
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+          canPull = false
+          return
+        }
+        if (deltaY < -verticalTolerance) {
+          canPull = false
+          return
+        }
+        if (deltaY > verticalTolerance) {
+          gestureLocked = true
+        }
+      }
+
+      if (deltaY > pullThreshold) {
+        pulling = true
+      }
+    }
+
+    const onTouchEnd = () => {
+      if (!pulling || isPullRefreshing) {
+        return
+      }
+      setIsPullRefreshing(true)
+      window.setTimeout(() => {
+        setRefreshNonce((current) => current + 1)
+        setIsPullRefreshing(false)
+      }, 180)
+    }
+
+    window.addEventListener('touchstart', onTouchStart, { passive: true })
+    window.addEventListener('touchmove', onTouchMove, { passive: true })
+    window.addEventListener('touchend', onTouchEnd, { passive: true })
+
+    return () => {
+      window.removeEventListener('touchstart', onTouchStart)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [isPullRefreshing, navigate])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+    const handleOnline = () => setIsOffline(false)
+    const handleOffline = () => setIsOffline(true)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
   const sessionLabel =
     sessionStatus === 'validated'
       ? 'Sesión validada'
-      : sessionStatus === 'local'
-        ? 'Sesión local sin red'
-        : 'Requiere reingreso online'
+      : 'Requiere reingreso online'
 
   async function handleLogout() {
     setIsSettingsOpen(false)
@@ -187,16 +330,6 @@ export function AppLayout({
             to: '/app-org/mensajes',
             icon: <MessagesIcon />,
           },
-          ...(canManageRendicion
-            ? [
-                {
-                  id: 'rendicion',
-                  label: 'Rendición',
-                  to: orgRendicionRoute,
-                  icon: <RendicionIcon />,
-                },
-              ]
-            : []),
         ]
       : [
           {
@@ -204,12 +337,6 @@ export function AppLayout({
             label: 'Inicio',
             to: '/app-user',
             icon: <HomeIcon />,
-          },
-          {
-            id: 'notas',
-            label: 'Notas',
-            to: '/app-user/notas',
-            icon: <SpacesIcon />,
           },
           {
             id: 'mensajes',
@@ -220,6 +347,19 @@ export function AppLayout({
         ]
 
   const hideBackOnSingleSpaceHub = Boolean(orgSingleSpaceId) && isOrgHubRoute
+  const isOrgRootRoute = /^\/app-org\/?$/.test(location.pathname)
+  const isUserRootRoute = /^\/app-user\/?$/.test(location.pathname)
+  const isOrgMessagesRootRoute = /^\/app-org\/mensajes\/?$/.test(location.pathname)
+  const isUserMessagesRootRoute = /^\/app-user\/mensajes\/?$/.test(location.pathname)
+  const isOrgNotificationsRootRoute = /^\/app-org\/notificaciones\/?$/.test(location.pathname)
+  const isRootNavigationRoute =
+    isOrgRootRoute
+    || isUserRootRoute
+    || isOrgMessagesRootRoute
+    || isUserMessagesRootRoute
+    || isOrgNotificationsRootRoute
+    || hideBackOnSingleSpaceHub
+  const shouldShowBack = !isRootNavigationRoute
   const organizationUnreadState = useOrganizationUnreadMessages(userProfile?.username)
   const notificationsBadgeCount =
     roleLabel === 'Organización' ? organizationUnreadState.unreadCount : 0
@@ -242,7 +382,7 @@ export function AppLayout({
           && !isRendicionRoute
           && !isNominaFormRoute
         }
-        showBack={(isOrgSpaceScopedRoute || isSyncRoute) && !hideBackOnSingleSpaceHub}
+        showBack={shouldShowBack}
         onBackClick={() => {
           if (window.history.length > 1) {
             navigate(-1)
@@ -262,16 +402,42 @@ export function AppLayout({
         notificationsBadgeCount={notificationsBadgeCount}
       />
 
+      {isPullRefreshing ? (
+        <div className="fixed inset-x-0 top-[calc(102px+env(safe-area-inset-top))] z-40 flex justify-center px-4">
+          <div
+            className={`mt-2 inline-flex items-center gap-2 rounded-full border px-3 py-2 shadow-sm ${
+              isDark
+                ? 'border-white/20 bg-[#232D4F] text-white'
+                : 'border-slate-200 bg-white text-[#232D4F]'
+            }`}
+          >
+            <AppLoadingSpinner size={22} />
+            <span className="text-[12px] font-semibold">Cargando tu información</span>
+          </div>
+        </div>
+      ) : null}
+
+      {isOffline ? (
+        <div className="fixed inset-x-0 top-[calc(102px+env(safe-area-inset-top))] z-30 px-4">
+          <div className="mx-auto w-full max-w-4xl rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 px-4 py-2 text-center text-[12px] font-semibold text-white">
+            Sin conexión. Mostrando datos guardados.
+          </div>
+        </div>
+      ) : null}
+
       <main
         className="mx-auto w-full max-w-4xl px-4"
         style={{
-          paddingTop: 'calc(102px + env(safe-area-inset-top) + 14px)',
+          paddingTop: isOffline
+            ? 'calc(102px + env(safe-area-inset-top) + 52px)'
+            : 'calc(102px + env(safe-area-inset-top) + 14px)',
           paddingBottom: 'calc(61px + env(safe-area-inset-bottom) + 16px)',
         }}
       >
         <div className="relative min-h-[320px]">
           <PageLoadingContext.Provider value={{ setPageLoading: setIsPageLoading }}>
             <div
+              key={`${location.pathname}:${refreshNonce}`}
               className={`page-fade-in transition-opacity ${showSkeletonOverlay ? 'opacity-0' : 'opacity-100'}`}
             >
               <Outlet />
@@ -337,3 +503,4 @@ function PageSkeleton({ isDark }: { isDark: boolean }) {
     </section>
   )
 }
+

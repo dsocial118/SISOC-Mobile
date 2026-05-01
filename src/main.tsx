@@ -10,7 +10,10 @@ import { initProgressiveReveal } from './ui/progressiveReveal'
 import { ThemeProvider } from './ui/ThemeContext'
 
 const queryClient = new QueryClient()
-let disposeProgressiveReveal = () => {}
+
+registerPwa()
+startSyncEngine()
+const disposeProgressiveReveal = initProgressiveReveal()
 
 if (typeof document !== 'undefined') {
   const preventZoomGesture = (event: Event) => {
@@ -43,32 +46,6 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </StrictMode>,
 )
-
-function initializeNonCriticalRuntime(): void {
-  try {
-    registerPwa()
-  } catch {
-    // Si falla el registro del SW, la app debe seguir pintando.
-  }
-
-  try {
-    startSyncEngine()
-  } catch {
-    // La sincronización offline no debe bloquear el arranque visual.
-  }
-
-  try {
-    disposeProgressiveReveal = initProgressiveReveal()
-  } catch {
-    // Las animaciones progresivas son optativas.
-  }
-}
-
-if (typeof window !== 'undefined') {
-  window.setTimeout(() => {
-    initializeNonCriticalRuntime()
-  }, 0)
-}
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {

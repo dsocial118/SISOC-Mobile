@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCheck } from '@fortawesome/free-solid-svg-icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -91,7 +91,7 @@ export function SpaceNominaAlimentariaPersonFormPage() {
 
     async function bootstrap() {
       if (!spaceId) {
-        setErrorMessage('No se encontró el espacio seleccionado.')
+        setErrorMessage('No se encontr? el espacio seleccionado.')
         setLoading(false)
         return
       }
@@ -134,7 +134,7 @@ export function SpaceNominaAlimentariaPersonFormPage() {
     const normalizedDni = formData.dni.replace(/\D/g, '')
     if (!formData.es_indocumentado && !renaperPreview) {
       if (!/^\d{7,8}$/.test(normalizedDni)) {
-        setFormError('Formato de DNI inválido. Debe contener 7 u 8 dígitos.')
+        setFormError('Formato de DNI inv?lido. Debe contener 7 u 8 d?gitos.')
         return
       }
       setPreviewingRenaper(true)
@@ -146,7 +146,7 @@ export function SpaceNominaAlimentariaPersonFormPage() {
         setFormError(
           parseApiError(error, 'No se pudieron obtener datos desde RENAPER.', {
             timeoutMessage:
-              'La validación del DNI está demorando. Intentá nuevamente en unos segundos.',
+              'La validaci?n del DNI est? demorando. Intent? nuevamente en unos segundos.',
           }),
         )
       } finally {
@@ -182,12 +182,12 @@ export function SpaceNominaAlimentariaPersonFormPage() {
           spaceName: routeState?.spaceName,
           successToast: {
             tone: 'success',
-            message: `Se agregó a ${created.apellido}, ${created.nombre} a la nómina alimentaria.`,
+            message: `Se agreg? a ${created.apellido}, ${created.nombre} a beneficiarios alimentarios.`,
           },
         },
       })
     } catch (error) {
-      setFormError(parseApiError(error, 'No se pudo guardar la persona en nómina.'))
+      setFormError(parseApiError(error, 'No se pudo guardar la persona en beneficiarios.'))
     } finally {
       setSaving(false)
     }
@@ -200,7 +200,7 @@ export function SpaceNominaAlimentariaPersonFormPage() {
   if (errorMessage) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       </section>
@@ -212,8 +212,8 @@ export function SpaceNominaAlimentariaPersonFormPage() {
       <div>
         <h2 className={`text-[16px] font-semibold ${textClass}`}>Alta de persona</h2>
         <p className={`mt-1 text-sm ${detailTextClass}`}>
-          {routeState?.spaceName ? `${routeState.spaceName} · ` : ''}
-          Nómina alimentaria
+          {routeState?.spaceName ? `${routeState.spaceName} ? ` : ''}
+          Beneficiarios alimentarios
         </p>
       </div>
 
@@ -265,7 +265,7 @@ export function SpaceNominaAlimentariaPersonFormPage() {
               }`}
             >
               <p className={`text-[12px] font-semibold ${isDark ? 'text-white' : 'text-slate-700'}`}>
-                Género
+                G?nero
               </p>
               <div
                 className={`grid gap-1 rounded-xl p-1 ${isDark ? 'bg-[#1A223E]/80' : 'bg-slate-100'}`}
@@ -363,7 +363,11 @@ export function SpaceNominaAlimentariaPersonFormPage() {
           </div>
         ) : null}
 
-        {formError ? <p className="text-xs text-[#C62828]">{formError}</p> : null}
+        {formError ? (
+          <div className="rounded-lg border border-[#F2B8B5] bg-[#7A1C1C]/50 p-3 text-sm text-white">
+            {formError}
+          </div>
+        ) : null}
 
         <div className="flex justify-end gap-2">
           {!formData.es_indocumentado && renaperPreview ? (
@@ -375,7 +379,7 @@ export function SpaceNominaAlimentariaPersonFormPage() {
                 isDark ? 'border-white/40 bg-white text-[#232D4F]' : undefined,
               )}
             >
-              Cancelar validación
+              Cancelar validaci?n
             </button>
           ) : null}
           <button
@@ -396,3 +400,6 @@ export function SpaceNominaAlimentariaPersonFormPage() {
     </section>
   )
 }
+
+
+

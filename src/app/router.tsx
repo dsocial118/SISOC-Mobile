@@ -46,6 +46,11 @@ const SpaceCapacitacionesPage = lazy(() =>
     default: module.SpaceCapacitacionesPage,
   })),
 )
+const SpaceCursosPage = lazy(() =>
+  import('../features/home/SpaceCursosPage').then((module) => ({
+    default: module.SpaceCursosPage,
+  })),
+)
 const SpaceMessagesPage = lazy(() =>
   import('../features/home/SpaceMessagesPage').then((module) => ({
     default: module.SpaceMessagesPage,
@@ -59,6 +64,11 @@ const SpaceMessageDetailPage = lazy(() =>
 const SpaceActivitiesPage = lazy(() =>
   import('../features/home/SpaceActivitiesPage').then((module) => ({
     default: module.SpaceActivitiesPage,
+  })),
+)
+const SpaceActivityDetailPage = lazy(() =>
+  import('../features/home/SpaceActivityDetailPage').then((module) => ({
+    default: module.SpaceActivityDetailPage,
   })),
 )
 const SpaceNominaPage = lazy(() =>
@@ -127,18 +137,9 @@ const SyncCenterPage = lazy(() =>
   })),
 )
 
-function getRouterBaseName(): string | undefined {
-  const baseUrl = import.meta.env.BASE_URL
-  if (!baseUrl || baseUrl === '/') {
-    return undefined
-  }
-
-  return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-}
-
 export function AppRouter() {
   return (
-    <BrowserRouter basename={getRouterBaseName()}>
+    <BrowserRouter>
       <Suspense fallback={<FullScreenPageLoader />}>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
@@ -179,6 +180,7 @@ export function AppRouter() {
                 path="espacios/:spaceId/informacion/capacitaciones"
                 element={<SpaceCapacitacionesPage />}
               />
+              <Route path="espacios/:spaceId/cursos" element={<SpaceCursosPage />} />
               <Route path="espacios/:spaceId/mensajes" element={<SpaceMessagesPage />} />
               <Route
                 path="espacios/:spaceId/mensajes/:messageId"
@@ -186,6 +188,8 @@ export function AppRouter() {
               />
               <Route path="notificaciones" element={<OrganizationNotificationsPage />} />
               <Route path="espacios/:spaceId/actividades" element={<SpaceActivitiesPage />} />
+              <Route path="espacios/:spaceId/actividades/nueva" element={<SpaceActivitiesPage />} />
+              <Route path="espacios/:spaceId/actividades/:activityId" element={<SpaceActivityDetailPage />} />
               <Route path="espacios/:spaceId/nomina" element={<SpaceNominaPage />} />
               <Route
                 path="espacios/:spaceId/nomina-alimentaria"

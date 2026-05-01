@@ -22,6 +22,12 @@ interface UnreadMessagesState {
 }
 
 const UNREAD_BATCH_SIZE = 4
+const CAPACITACIONES_PROGRAM_KEYWORD = 'alimentar comunidad'
+
+function supportsCapacitaciones(space: SpaceItem): boolean {
+  const programName = (space.programa__nombre || '').trim().toLowerCase()
+  return programName.includes(CAPACITACIONES_PROGRAM_KEYWORD)
+}
 
 function readUnreadCountsFromStorage(cacheKey: string): Record<string, number> {
   if (typeof window === 'undefined') {
@@ -366,8 +372,9 @@ export function useOrganizationUnreadMessages(username?: string | null) {
       try {
         let nextRejectedCertificatesCount = 0
 
-        for (let start = 0; start < spaces.length; start += UNREAD_BATCH_SIZE) {
-          const batch = spaces.slice(start, start + UNREAD_BATCH_SIZE)
+        const spacesWithCapacitaciones = spaces.filter((space) => supportsCapacitaciones(space))
+        for (let start = 0; start < spacesWithCapacitaciones.length; start += UNREAD_BATCH_SIZE) {
+          const batch = spacesWithCapacitaciones.slice(start, start + UNREAD_BATCH_SIZE)
           const batchResults = await Promise.allSettled(
             batch.map(async (space) => {
               const rows = await listSpaceCapacitaciones(space.id)
@@ -428,6 +435,32 @@ export function useOrganizationUnreadMessages(username?: string | null) {
       }
     }
   }, [cacheKey])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const triggerRefresh = () => {
+      setRefreshVersion((current) => current + 1)
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        triggerRefresh()
+      }
+    }
+
+    const intervalId = window.setInterval(triggerRefresh, 30000)
+    window.addEventListener('focus', triggerRefresh)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', triggerRefresh)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
 
   return useMemo(
     () =>

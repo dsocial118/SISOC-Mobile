@@ -1,8 +1,10 @@
 import { http } from './http'
+import axios from 'axios'
 
 export interface SpaceImageItem {
   id: number
   url: string | null
+  origen?: 'web' | 'mobile' | string
 }
 
 export interface SpaceItem {
@@ -101,9 +103,60 @@ export interface SpaceDetail {
       }>
     }>
   } | null
+  datos_convenio_mobile?: {
+    tipo?: 'pnud' | 'alimentar_comunidad' | 'otro' | string
+    vigencia_convenio_meses?: number | null
+    prestaciones_gescom_total_mensual?: number | null
+    monto_total_convenio?: number | null
+    organizacion_solicitante?: string | null
+    codigo_proyecto?: string | null
+    monto_total_conveniado?: number | null
+    nro_convenio?: string | null
+    estado_general?: string | null
+    subestado?: string | null
+    nombre_espacio_comunitario?: string | null
+    id_externo?: string | number | null
+    domicilio_completo_espacio?: string | null
+    monto_total_convenio_por_espacio?: number | null
+    prestaciones_financiadas_mensuales?: number | null
+    personas_conveniadas?: number | null
+    cantidad_modulos?: number | null
+  } | null
+  _source?: 'network' | 'cache'
 }
 
 const spaceDetailCache = new Map<string, SpaceDetail>()
+const inFlightSpaceDetail = new Map<string, Promise<SpaceDetail>>()
+const SPACE_DETAIL_STORAGE_PREFIX = 'sisoc:space-detail:'
+
+function readSpaceDetailFromStorage(spaceId: string | number): SpaceDetail | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  try {
+    const raw = window.sessionStorage.getItem(`${SPACE_DETAIL_STORAGE_PREFIX}${spaceId}`)
+    if (!raw) {
+      return null
+    }
+    return JSON.parse(raw) as SpaceDetail
+  } catch {
+    return null
+  }
+}
+
+function writeSpaceDetailToStorage(spaceId: string | number, detail: SpaceDetail): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+  try {
+    window.sessionStorage.setItem(
+      `${SPACE_DETAIL_STORAGE_PREFIX}${spaceId}`,
+      JSON.stringify(detail),
+    )
+  } catch {
+    // no-op
+  }
+}
 
 function isPaginatedResponse<T>(value: unknown): value is PaginatedResponse<T> {
   if (!value || typeof value !== 'object') {
@@ -113,26 +166,50 @@ function isPaginatedResponse<T>(value: unknown): value is PaginatedResponse<T> {
 }
 
 export async function listMySpaces(): Promise<SpaceItem[]> {
-  let url: string | null = '/comedores/'
-  const allSpaces: SpaceItem[] = []
+  async function fetchSpacesWithTimeout(timeout: number): Promise<SpaceItem[]> {
+    let url: string | null = '/comedores/'
+    const allSpaces: SpaceItem[] = []
 
-  while (url) {
-    const payloadUnknown: unknown = (await http.get(url)).data
-    const payload: PaginatedResponse<SpaceItem> | SpaceItem[] =
-      payloadUnknown as PaginatedResponse<SpaceItem> | SpaceItem[]
-    if (Array.isArray(payload)) {
-      allSpaces.push(...payload)
+    while (url) {
+      const payloadUnknown: unknown = (await http.get(url, { timeout })).data
+      const payload: PaginatedResponse<SpaceItem> | SpaceItem[] =
+        payloadUnknown as PaginatedResponse<SpaceItem> | SpaceItem[]
+      if (Array.isArray(payload)) {
+        allSpaces.push(...payload)
+        break
+      }
+      if (isPaginatedResponse<SpaceItem>(payload)) {
+        allSpaces.push(...payload.results)
+        url = payload.next
+        continue
+      }
       break
     }
-    if (isPaginatedResponse<SpaceItem>(payload)) {
-      allSpaces.push(...payload.results)
-      url = payload.next
-      continue
-    }
-    break
+
+    return allSpaces
   }
 
-  return allSpaces
+  function isTimeoutError(error: unknown): boolean {
+    return axios.isAxiosError(error) && (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT')
+  }
+
+  try {
+    return await fetchSpacesWithTimeout(15000)
+  } catch (error) {
+    if (!isTimeoutError(error)) {
+      throw error
+    }
+  }
+
+  try {
+    return await fetchSpacesWithTimeout(30000)
+  } catch (error) {
+    if (!isTimeoutError(error)) {
+      throw error
+    }
+  }
+
+  return await fetchSpacesWithTimeout(60000)
 }
 
 export async function getSpaceDetail(
@@ -144,12 +221,87 @@ export async function getSpaceDetail(
   if (cached && !options?.forceRefresh) {
     return cached
   }
+  const running = inFlightSpaceDetail.get(cacheKey)
+  if (running && !options?.forceRefresh) {
+    return running
+  }
 
-  const { data } = await http.get<SpaceDetail>(`/comedores/${spaceId}/`, {
-    timeout: 60000,
-  })
-  spaceDetailCache.set(cacheKey, data)
-  return data
+  async function fetchWithTimeout(timeout: number): Promise<SpaceDetail> {
+    const { data } = await http.get<SpaceDetail>(`/comedores/${spaceId}/`, {
+      timeout,
+    })
+    const withSource: SpaceDetail = {
+      ...data,
+      _source: 'network',
+    }
+    spaceDetailCache.set(cacheKey, withSource)
+    writeSpaceDetailToStorage(spaceId, withSource)
+    return withSource
+  }
+
+  function isTimeoutError(error: unknown): boolean {
+    return axios.isAxiosError(error) && (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT')
+  }
+
+  const request = (async () => {
+    try {
+      return await fetchWithTimeout(12000)
+    } catch (error) {
+      if (isTimeoutError(error)) {
+        try {
+          return await fetchWithTimeout(25000)
+        } catch (retryError) {
+          if (isTimeoutError(retryError)) {
+            try {
+              return await fetchWithTimeout(60000)
+            } catch (lastRetryError) {
+              const persisted = readSpaceDetailFromStorage(spaceId)
+              if (persisted) {
+                const withSource: SpaceDetail = {
+                  ...persisted,
+                  _source: 'cache',
+                }
+                spaceDetailCache.set(cacheKey, withSource)
+                return withSource
+              }
+              throw lastRetryError
+            }
+          }
+
+          const persisted = readSpaceDetailFromStorage(spaceId)
+          if (persisted) {
+            const withSource: SpaceDetail = {
+              ...persisted,
+              _source: 'cache',
+            }
+            spaceDetailCache.set(cacheKey, withSource)
+            return withSource
+          }
+          throw retryError
+        }
+      }
+
+      const persisted = readSpaceDetailFromStorage(spaceId)
+      if (persisted) {
+        const withSource: SpaceDetail = {
+          ...persisted,
+          _source: 'cache',
+        }
+        spaceDetailCache.set(cacheKey, withSource)
+        return withSource
+      }
+      throw error
+    }
+  })()
+
+  inFlightSpaceDetail.set(cacheKey, request)
+  try {
+    return await request
+  } finally {
+    if (inFlightSpaceDetail.get(cacheKey) === request) {
+      inFlightSpaceDetail.delete(cacheKey)
+    }
+  }
 }
 
 export async function uploadSpaceImage(

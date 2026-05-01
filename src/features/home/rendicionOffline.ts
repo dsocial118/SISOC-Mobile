@@ -151,11 +151,11 @@ function buildDetailDocumentacion(
       }
 
       const filesById = new Map(
-        categoryFiles.map((file) => [String(file.remote_id ?? file.id), file] as const),
+        categoryFiles.map((file) => [String(file.remote_id || file.id), file] as const),
       )
       const childrenByParentId = new Map<string, LocalRendicionFileRecord[]>()
       for (const file of categoryFiles) {
-        const parentId = String(file.documento_subsanado ?? '').trim()
+        const parentId = String(file.documento_subsanado || '').trim()
         if (!parentId || !filesById.has(parentId)) {
           continue
         }
@@ -165,7 +165,7 @@ function buildDetailDocumentacion(
       }
 
       const roots = categoryFiles.filter((file) => {
-        const parentId = String(file.documento_subsanado ?? '').trim()
+        const parentId = String(file.documento_subsanado || '').trim()
         return !parentId || !filesById.has(parentId)
       })
 
@@ -182,7 +182,7 @@ function buildDetailDocumentacion(
             chain.push(current)
             pending.push(
               ...(
-                childrenByParentId.get(String(current.remote_id ?? current.id)) || []
+                childrenByParentId.get(String(current.remote_id || current.id)) || []
               ).sort((left, right) => left.created_at.localeCompare(right.created_at)),
             )
           }
@@ -193,8 +193,8 @@ function buildDetailDocumentacion(
               if (byDate !== 0) {
                 return byDate
               }
-              return String(left.remote_id ?? left.id).localeCompare(
-                String(right.remote_id ?? right.id),
+              return String(left.remote_id || left.id).localeCompare(
+                String(right.remote_id || right.id),
               )
             })[chain.length - 1] || root
           const item = toRendicionFileItem(principal, {
@@ -357,7 +357,7 @@ function toRendicionFileItem(
     estado_label_visual_override: overrides?.estadoLabelVisual ?? null,
   })
   return {
-    id: file.remote_id ?? file.id,
+    id: file.remote_id || file.id,
     nombre: file.nombre,
     categoria: file.categoria,
     categoria_label: file.categoria_label,
@@ -415,6 +415,8 @@ function toLocalFileRecord(
     url: file.url,
     estado: file.estado,
     estado_label: file.estado_label,
+    estado_visual_override: file.estado_visual || null,
+    estado_label_visual_override: file.estado_label_visual || null,
     observaciones: file.observaciones,
     sync_status: 'synced',
     pending_action: null,
@@ -525,13 +527,13 @@ export async function syncRemoteRendicionDetailToLocal(
           pendingUploadIds.has(file.id)
           && file.categoria === remoteFile.categoria
           && normalizeFileName(file.nombre) === normalizeFileName(remoteFile.nombre)
-          && String(file.documento_subsanado ?? '') === String(remoteFile.documento_subsanado ?? ''),
+          && String(file.documento_subsanado || '') === String(remoteFile.documento_subsanado || ''),
       )
       || currentFiles.find(
         (file) =>
           pendingUploadIds.has(file.id)
           && file.categoria === remoteFile.categoria
-          && String(file.documento_subsanado ?? '') === String(remoteFile.documento_subsanado ?? ''),
+          && String(file.documento_subsanado || '') === String(remoteFile.documento_subsanado || ''),
       )
 
     await db.rendicion_files.put({

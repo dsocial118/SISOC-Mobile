@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -36,7 +36,7 @@ function buildRendicionLabel(
 
   const suffixParts = []
   if (numeroRendicionLabel) {
-    suffixParts.push(`Rendición ${numeroRendicionLabel}`)
+    suffixParts.push(`Rendici?n ${numeroRendicionLabel}`)
   }
   if (categoria) {
     suffixParts.push(categoria)
@@ -44,7 +44,7 @@ function buildRendicionLabel(
   if (archivo) {
     suffixParts.push(archivo)
   }
-  const suffix = suffixParts.length > 0 ? `: ${suffixParts.join(' · ')}` : ''
+  const suffix = suffixParts.length > 0 ? `: ${suffixParts.join(' ? ')}` : ''
   return `${action}${suffix}`
 }
 
@@ -55,7 +55,7 @@ function getOutboxLabel(
   const payload = (item.payload || {}) as Record<string, unknown>
   const localRendicionId = String(payload.local_rendicion_id || payload.local_id || '').trim()
   const numeroRendicion = localRendicionId
-    ? rendicionNumbersByLocalId.get(localRendicionId) ?? null
+    ? (rendicionNumbersByLocalId.get(localRendicionId) ?? null)
     : null
   switch (item.type) {
     case 'CREATE_NOTE':
@@ -63,19 +63,19 @@ function getOutboxLabel(
     case 'CREATE_COLLABORATOR':
       return `Colaborador (alta): ${String((payload as { data?: { nombre?: string; apellido?: string } }).data?.nombre || '')} ${String((payload as { data?: { nombre?: string; apellido?: string } }).data?.apellido || '')}`.trim()
     case 'UPDATE_COLLABORATOR':
-      return `Colaborador (edición): ${String((payload as { data?: { nombre?: string; apellido?: string } }).data?.nombre || '')} ${String((payload as { data?: { nombre?: string; apellido?: string } }).data?.apellido || '')}`.trim()
+      return `Colaborador (edici?n): ${String((payload as { data?: { nombre?: string; apellido?: string } }).data?.nombre || '')} ${String((payload as { data?: { nombre?: string; apellido?: string } }).data?.apellido || '')}`.trim()
     case 'DELETE_COLLABORATOR':
-      return 'Colaborador (eliminación)'
+      return 'Colaborador (eliminaci?n)'
     case 'CREATE_RENDICION':
-      return buildRendicionLabel('Creación de rendición', payload, numeroRendicion)
+      return buildRendicionLabel('Creaci?n de rendici?n', payload, numeroRendicion)
     case 'UPLOAD_RENDICION_FILE':
-      return buildRendicionLabel('Carga de archivo de rendición', payload, numeroRendicion)
+      return buildRendicionLabel('Carga de archivo de rendici?n', payload, numeroRendicion)
     case 'DELETE_RENDICION_FILE':
-      return buildRendicionLabel('Eliminación de archivo de rendición', payload, numeroRendicion)
+      return buildRendicionLabel('Eliminaci?n de archivo de rendici?n', payload, numeroRendicion)
     case 'PRESENT_RENDICION':
-      return buildRendicionLabel('Envío de rendición a revisión', payload, numeroRendicion)
+      return buildRendicionLabel('Env?o de rendici?n a revisi?n', payload, numeroRendicion)
     case 'DELETE_RENDICION':
-      return buildRendicionLabel('Eliminación de rendición', payload, numeroRendicion)
+      return buildRendicionLabel('Eliminaci?n de rendici?n', payload, numeroRendicion)
     default:
       return `Pendiente: ${item.type}`
   }
@@ -165,7 +165,7 @@ export function SyncCenterPage() {
     setSyncError('')
     const online = await isOnline()
     if (!online) {
-      setSyncError('No hay conexión a internet para sincronizar.')
+      setSyncError('No hay conexi?n a internet para sincronizar.')
       return
     }
 
@@ -216,7 +216,7 @@ export function SyncCenterPage() {
               style={{ color: '#32A852', fontSize: 82, opacity: 0.6 }}
             />
           </div>
-          <p className={`mt-2 text-center text-[16px] font-semibold ${textClass}`}>Todo está sincronizado</p>
+          <p className={`mt-2 text-center text-[16px] font-semibold ${textClass}`}>Todo est? sincronizado</p>
         </div>
       ) : (
         <div className="grid gap-3">
@@ -232,7 +232,11 @@ export function SyncCenterPage() {
             </LargeBlueButton>
           </div>
 
-          {syncError ? <p className="text-xs text-[#C62828]">{syncError}</p> : null}
+          {syncError ? (
+            <div className="rounded-lg border border-[#F2B8B5] bg-[#7A1C1C]/50 p-3 text-sm text-white">
+              {syncError}
+            </div>
+          ) : null}
 
           <div className="grid gap-2">
             {sortedPending.map((item) => (
@@ -251,7 +255,9 @@ export function SyncCenterPage() {
                   <p className={`mt-1 text-[12px] ${detailTextClass}`}>Intentando sincronizar ahora...</p>
                 ) : null}
                 {item.lastError ? (
-                  <p className="mt-1 text-[12px] text-[#C62828]">{item.lastError}</p>
+                  <div className="mt-2 rounded-lg border border-[#F2B8B5] bg-[#7A1C1C]/50 px-3 py-2 text-[12px] text-white">
+                    {item.lastError}
+                  </div>
                 ) : null}
                 {item.status !== 'processing' && item.nextRetryAt ? (
                   <p className={`mt-1 text-[12px] ${detailTextClass}`}>
@@ -266,7 +272,7 @@ export function SyncCenterPage() {
 
       {syncedNow.length > 0 ? (
         <div className="progressive-card grid gap-2" style={{ ['--card-delay' as string]: '80ms' }}>
-          <h3 className={`text-[14px] font-semibold ${textClass}`}>Sincronizados recién</h3>
+          <h3 className={`text-[14px] font-semibold ${textClass}`}>Sincronizados reci?n</h3>
           <div className="grid gap-2">
             {syncedNow.map((label, index) => (
               <div
@@ -285,3 +291,4 @@ export function SyncCenterPage() {
     </section>
   )
 }
+

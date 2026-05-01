@@ -7,7 +7,7 @@ export async function enqueueOutbox(
   const userKey = await getCurrentUserKey()
   return db.outbox.add({
     ...input,
-    user_key: input.user_key ?? userKey,
+    user_key: input.user_key || userKey,
     status: 'pending',
     created_at: new Date().toISOString(),
     attempts: 0,

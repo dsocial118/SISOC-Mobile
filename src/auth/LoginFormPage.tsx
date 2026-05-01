@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faEye, faEyeSlash, faLock, faUser } from '@fortawesome/free-solid-svg-icons'
@@ -64,7 +64,7 @@ export function LoginFormPage() {
       <div className="w-full max-w-md">
         <form onSubmit={handleSubmit}>
           {error ? (
-            <div className="mb-4 rounded-lg border border-[#C62828]/20 bg-[#C62828]/10 p-3 text-sm text-[#C62828]">
+            <div className="mb-4 rounded-lg border border-[#F2B8B5] bg-[#7A1C1C]/50 p-3 text-sm text-white">
               {error}
             </div>
           ) : null}
@@ -212,3 +212,6 @@ function EyeIcon() {
 function EyeOffIcon() {
   return <FontAwesomeIcon icon={faEyeSlash} aria-hidden="true" style={{ fontSize: 14 }} />
 }
+
+
+

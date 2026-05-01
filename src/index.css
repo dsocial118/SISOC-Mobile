@@ -6,7 +6,7 @@
 
 :root {
   color: #111827;
-  background: linear-gradient(180deg, #232d4f 20%, #e7ba61 80%);
+  background-color: #3e5a7e;
   font-family: 'Montserrat', sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -35,8 +35,7 @@ body,
   height: 100dvh;
   width: 100%;
   overflow-x: hidden;
-  background: linear-gradient(180deg, #232d4f 20%, #e7ba61 80%);
-  background-color: #232d4f;
+  background-color: #3e5a7e;
   overscroll-behavior: none;
   touch-action: manipulation;
   -webkit-overflow-scrolling: touch;

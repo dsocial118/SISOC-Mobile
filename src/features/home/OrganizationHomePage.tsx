@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faChevronDown,
@@ -53,7 +53,7 @@ export function OrganizationHomePage() {
   const { isDark } = useAppTheme()
   const cacheKey = userProfile?.username || '__anonymous__'
   const initialCachedSpaces = getOrganizationSpacesCache(cacheKey)
-  const hasCachedSpaces = initialCachedSpaces !== null
+  const hasCachedSpaces = (initialCachedSpaces?.length ?? 0) > 0
   const [spaces, setSpaces] = useState<SpaceItem[]>(initialCachedSpaces ?? [])
   const [loading, setLoading] = useState(!hasCachedSpaces)
   const [errorMessage, setErrorMessage] = useState('')
@@ -238,6 +238,7 @@ export function OrganizationHomePage() {
       return
     }
     const singleSpace = accessSummary.autoEnterSpace
+    setPageLoading(true)
     navigate(`/app-org/espacios/${singleSpace.id}/hub`, {
       replace: true,
       state: {
@@ -246,7 +247,7 @@ export function OrganizationHomePage() {
         fromSingleSpaceAuto: true,
       },
     })
-  }, [accessSummary.autoEnterSpace, errorMessage, loading, navigate])
+  }, [accessSummary.autoEnterSpace, errorMessage, loading, navigate, setPageLoading])
 
   return (
     <section className="grid gap-4">
@@ -364,7 +365,7 @@ export function OrganizationHomePage() {
       </div>
 
       {!loading && errorMessage ? (
-        <div className="rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       ) : null}
@@ -375,7 +376,8 @@ export function OrganizationHomePage() {
             isDark ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-white text-slate-700'
           }`}
         >
-          Tu usuario no posee espacios configurados en SISOC Web. No es posible continuar hasta regularizar la configuración.
+          Tu usuario ({userProfile?.username || 'sin usuario'}) no posee espacios configurados en SISOC Web.
+          No es posible continuar hasta regularizar la configuración.
         </div>
       ) : null}
 
@@ -404,7 +406,8 @@ export function OrganizationHomePage() {
 
           <div className="grid gap-3">
             {filteredAccessSummary.organizationGroups.map((group) => {
-              const isOpen = openOrganizations[group.organizationId] ?? true
+              const groupOpenValue = openOrganizations[group.organizationId]
+              const isOpen = groupOpenValue === undefined ? true : groupOpenValue
               return (
                 <div
                   key={group.organizationId}
@@ -445,12 +448,15 @@ export function OrganizationHomePage() {
                           isDark={isDark}
                           showProgramMeta
                           onOpen={() =>
-                            navigate(`/app-org/espacios/${space.id}/hub`, {
-                              state: {
-                                spaceName: space.nombre,
-                                programName: space.programa__nombre || '',
-                              },
-                            })
+                            {
+                              setPageLoading(true)
+                              navigate(`/app-org/espacios/${space.id}/hub`, {
+                                state: {
+                                  spaceName: space.nombre,
+                                  programName: space.programa__nombre || '',
+                                },
+                              })
+                            }
                           }
                         />
                       ))}
@@ -486,12 +492,15 @@ export function OrganizationHomePage() {
                 isDark={isDark}
                 showProgramMeta={hasOrganizationAssociation}
                 onOpen={() =>
-                  navigate(`/app-org/espacios/${space.id}/hub`, {
-                    state: {
-                      spaceName: space.nombre,
-                      programName: space.programa__nombre || '',
-                    },
-                  })
+                  {
+                    setPageLoading(true)
+                    navigate(`/app-org/espacios/${space.id}/hub`, {
+                      state: {
+                        spaceName: space.nombre,
+                        programName: space.programa__nombre || '',
+                      },
+                    })
+                  }
                 }
               />
             ))}
@@ -569,3 +578,6 @@ function SpaceCard({
     </button>
   )
 }
+
+
+

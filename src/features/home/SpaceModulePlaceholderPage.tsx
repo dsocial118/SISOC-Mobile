@@ -48,7 +48,7 @@ export function SpaceModulePlaceholderPage({ moduleTitle }: { moduleTitle: strin
   if (errorMessage) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       </section>
@@ -66,3 +66,6 @@ export function SpaceModulePlaceholderPage({ moduleTitle }: { moduleTitle: strin
     </section>
   )
 }
+
+
+

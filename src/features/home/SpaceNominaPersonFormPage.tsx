@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCheck, faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -219,7 +219,7 @@ export function SpaceNominaPersonFormPage() {
         if (!isMounted) {
           return
         }
-        setErrorMessage(parseApiError(error, 'No se pudo cargar el formulario de nómina.'))
+        setErrorMessage(parseApiError(error, 'No se pudo cargar el formulario de beneficiarios.'))
       } finally {
         if (isMounted) {
           setLoading(false)
@@ -316,7 +316,7 @@ export function SpaceNominaPersonFormPage() {
       }
 
       if (isActivitiesMode) {
-        payload.asistencia_alimentaria = formData.asistencia_alimentaria
+        payload.asistencia_alimentaria = false
         payload.asistencia_actividades = formData.actividad_ids.length > 0
         payload.actividad_ids = formData.actividad_ids
       }
@@ -353,7 +353,7 @@ export function SpaceNominaPersonFormPage() {
         },
       })
     } catch (error) {
-      setFormError(parseApiError(error, 'No se pudo guardar la persona en nómina.'))
+      setFormError(parseApiError(error, 'No se pudo guardar la persona en beneficiarios.'))
     } finally {
       setSaving(false)
     }
@@ -366,7 +366,7 @@ export function SpaceNominaPersonFormPage() {
   if (errorMessage) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       </section>
@@ -381,7 +381,7 @@ export function SpaceNominaPersonFormPage() {
         </h2>
         <p className={`mt-1 text-sm ${detailTextClass}`}>
           {routeState?.spaceName ? `${routeState.spaceName} · ` : ''}
-          {isActivitiesMode ? 'Vinculación con actividades' : 'Nómina del espacio'}
+          {isActivitiesMode ? 'Vinculación con actividades' : 'Beneficiarios del espacio'}
         </p>
       </div>
 
@@ -684,7 +684,11 @@ export function SpaceNominaPersonFormPage() {
           </div>
         ) : null}
 
-        {formError ? <p className="text-xs text-[#C62828]">{formError}</p> : null}
+        {formError ? (
+          <div className="rounded-lg border border-[#F2B8B5] bg-[#7A1C1C]/50 p-3 text-sm text-white">
+            {formError}
+          </div>
+        ) : null}
 
         <div className="flex justify-end gap-2">
           {!isEditing && !formData.es_indocumentado && renaperPreview ? (
@@ -731,3 +735,6 @@ export function SpaceNominaPersonFormPage() {
     </section>
   )
 }
+
+
+

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faTrashCan } from '@fortawesome/free-solid-svg-icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -65,6 +65,8 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [observacionesDraft, setObservacionesDraft] = useState('')
   const [savingObservaciones, setSavingObservaciones] = useState(false)
+  const [showAllAsistencias, setShowAllAsistencias] = useState(false)
+  const [showAllObservaciones, setShowAllObservaciones] = useState(false)
   const [toast, setToast] = useState<{ tone: 'success' | 'error'; message: string } | null>(null)
 
   useEffect(() => {
@@ -89,7 +91,9 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
           return
         }
         setPerson(detail)
-        setObservacionesDraft(detail.observaciones || '')
+        setObservacionesDraft('')
+        setShowAllAsistencias(false)
+        setShowAllObservaciones(false)
         setHistory(attendanceHistory)
       } catch (error) {
         if (!isMounted) {
@@ -137,14 +141,18 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
     if (!spaceId || !nominaId || !person || savingObservaciones) {
       return
     }
+    const nextObservacion = observacionesDraft.trim()
+    if (!nextObservacion) {
+      return
+    }
     setSavingObservaciones(true)
     try {
       const updated = await updateNominaPerson(spaceId, nominaId, {
-        observaciones: observacionesDraft,
+        observaciones: nextObservacion,
       })
       setPerson(updated)
-      setObservacionesDraft(updated.observaciones || '')
-      setToast({ tone: 'success', message: 'Observaciones guardadas.' })
+      setObservacionesDraft('')
+      setToast({ tone: 'success', message: 'Observación guardada.' })
     } catch (error) {
       setToast({
         tone: 'error',
@@ -174,7 +182,6 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
   const infoValueClass = isDark
     ? 'text-[14px] font-medium text-white'
     : 'text-[14px] font-medium text-[#232D4F]'
-  const hasLockedObservaciones = Boolean((person?.observaciones || '').trim())
   if (loading) {
     return null
   }
@@ -182,7 +189,7 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
   if (errorMessage) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       </section>
@@ -192,6 +199,13 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
   if (!person) {
     return null
   }
+  const observacionesHistorial = person.observaciones_historial ?? []
+  const hasMoreObservaciones = observacionesHistorial.length > 2
+  const visibleObservaciones = showAllObservaciones
+    ? observacionesHistorial
+    : observacionesHistorial.slice(0, 2)
+  const hasMoreAsistencias = history.length > 2
+  const visibleAsistencias = showAllAsistencias ? history : history.slice(0, 2)
 
   return (
     <section className="grid gap-3">
@@ -202,17 +216,6 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
         onClose={() => setToast(null)}
       />
 
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className={`text-[16px] font-semibold ${textClass}`}>
-            {person.apellido}, {person.nombre}
-          </h2>
-          {routeState?.spaceName ? (
-            <p className={`mt-1 text-sm ${detailTextClass}`}>{routeState.spaceName}</p>
-          ) : null}
-        </div>
-      </div>
-
       <article className="rounded-xl border p-4" style={cardStyle}>
         <div className="grid grid-cols-3 gap-3">
           <div>
@@ -220,7 +223,7 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
             <p className={infoValueClass}>{person.dni || 'Sin documento'}</p>
           </div>
           <div>
-            <p className={infoLabelClass}>Fecha nacimiento</p>
+            <p className={infoLabelClass}>Fecha de nacimiento</p>
             <p className={infoValueClass}>{formatLatinDate(person.fecha_nacimiento)}</p>
           </div>
           <div>
@@ -238,8 +241,8 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
         {history.length === 0 ? (
           <p className={`mt-2 text-[12px] ${detailTextClass}`}>Sin asistencias registradas.</p>
         ) : (
-          <div className="mt-2 grid gap-2">
-            {history.map((registro) => (
+          <div className={`mt-2 grid gap-2 ${showAllAsistencias ? 'max-h-52 overflow-y-auto pr-1' : ''}`}>
+            {visibleAsistencias.map((registro) => (
               <div
                 key={registro.id}
                 className={`rounded-md border px-3 py-2 ${
@@ -259,6 +262,17 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
             ))}
           </div>
         )}
+        {hasMoreAsistencias ? (
+          <div className="mt-3 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setShowAllAsistencias((current) => !current)}
+              className={appButtonClass({ variant: 'outline-secondary', size: 'sm' })}
+            >
+              {showAllAsistencias ? 'Ver menos' : 'Ver más'}
+            </button>
+          </div>
+        ) : null}
       </article>
 
       <article className="rounded-xl border p-4" style={cardStyle}>
@@ -267,26 +281,54 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
           value={observacionesDraft}
           onChange={(event) => setObservacionesDraft(event.target.value)}
           rows={4}
-          disabled={hasLockedObservaciones}
           className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
             isDark
               ? 'border-white/20 bg-white/10 text-white placeholder:text-white/60'
               : 'border-slate-300 bg-white text-slate-700 placeholder:text-slate-400'
           }`}
-          placeholder="Agregar observaciones de la persona"
+          placeholder="Agregar nueva observación"
         />
-        {!hasLockedObservaciones ? (
-          <div className="mt-3 flex justify-end">
+        <div className="mt-3 flex justify-end">
+          <button
+            type="button"
+            onClick={() => void handleSaveObservaciones()}
+            disabled={savingObservaciones || !observacionesDraft.trim()}
+            className={joinClasses(
+              appButtonClass({ variant: 'success', size: 'sm' }),
+              savingObservaciones ? 'cursor-not-allowed opacity-60' : undefined,
+            )}
+          >
+            {savingObservaciones ? 'Guardando...' : 'Agregar observación'}
+          </button>
+        </div>
+
+        {observacionesHistorial.length > 0 ? (
+          <div className={`mt-3 grid gap-2 ${showAllObservaciones ? 'max-h-52 overflow-y-auto pr-1' : ''}`}>
+            {visibleObservaciones.map((item) => (
+              <div
+                key={item.id}
+                className={`rounded-md border px-3 py-2 ${
+                  isDark ? 'border-white/10 bg-[#1E2A47]/70' : 'border-slate-200 bg-slate-50/90'
+                }`}
+              >
+                <p className={`text-[12px] ${detailTextClass}`}>{item.texto}</p>
+                <p className={`mt-1 text-[11px] ${detailTextClass}`}>
+                  {formatAttendanceTimestamp(item.fecha_creacion)} · {item.creada_por || 'usuario'}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className={`mt-3 text-[12px] ${detailTextClass}`}>Sin observaciones registradas.</p>
+        )}
+        {hasMoreObservaciones ? (
+          <div className="mt-3 flex justify-center">
             <button
               type="button"
-              onClick={() => void handleSaveObservaciones()}
-              disabled={savingObservaciones}
-              className={joinClasses(
-                appButtonClass({ variant: 'success', size: 'sm' }),
-                savingObservaciones ? 'cursor-not-allowed opacity-60' : undefined,
-              )}
+              onClick={() => setShowAllObservaciones((current) => !current)}
+              className={appButtonClass({ variant: 'outline-secondary', size: 'sm' })}
             >
-              {savingObservaciones ? 'Guardando...' : 'Guardar observaciones'}
+              {showAllObservaciones ? 'Ver menos' : 'Ver más'}
             </button>
           </div>
         ) : null}
@@ -302,13 +344,13 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
         )}
       >
         <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
-        {deletingPerson ? 'Dando de baja...' : 'Dar de baja de la nómina'}
+        {deletingPerson ? 'Dando de baja...' : 'Dar de baja de beneficiarios'}
       </button>
       <ConfirmActionModal
         open={showDeleteConfirm}
-        title="Confirmar baja de nomina"
+        title="Confirmar baja de beneficiarios"
         message={
-          person ? `Se va a dar de baja a ${person.apellido}, ${person.nombre} de la nomina.` : ''
+          person ? `Se va a dar de baja a ${person.apellido}, ${person.nombre} de beneficiarios.` : ''
         }
         confirmLabel="Dar de baja"
         loading={deletingPerson}
@@ -318,3 +360,6 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
     </section>
   )
 }
+
+
+

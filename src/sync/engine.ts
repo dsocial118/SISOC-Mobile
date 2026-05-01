@@ -303,7 +303,7 @@ async function tryResolveRendicionUploadFromRemote(
     (remoteFile: RendicionFileItem) =>
       remoteFile.categoria === localFile.categoria
       && normalizeFileName(remoteFile.nombre) === normalizeFileName(localFile.nombre)
-      && String(remoteFile.documento_subsanado ?? '') === String(localFile.documento_subsanado ?? ''),
+      && String(remoteFile.documento_subsanado || '') === String(localFile.documento_subsanado || ''),
   )
 
   if (!matchedRemoteFile) {
@@ -467,7 +467,7 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
         sexo: remote?.sexo || local.sexo || null,
         genero: remote?.genero || local.genero,
         fecha_nacimiento: remote?.fecha_nacimiento || local.fecha_nacimiento || null,
-        edad: remote?.edad ?? local.edad ?? null,
+        edad: remote?.edad || local.edad || null,
         codigo_telefono: remote?.codigo_telefono || local.codigo_telefono,
         numero_telefono: remote?.numero_telefono || local.numero_telefono,
         fecha_alta: remote?.fecha_alta || local.fecha_alta,
@@ -739,7 +739,7 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
     await db.outbox.update(itemWithId.id, {
       status: 'failed',
       next_retry_at: new Date(Date.now() + nextBackoffMs(attempts)).toISOString(),
-      last_error: parseApiError(error, 'Error de sincronizaci�n'),
+      last_error: parseApiError(error, 'Error de sincronización'),
     })
     return true
   }

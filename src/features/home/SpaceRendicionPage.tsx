@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faCalendarDay,
@@ -79,7 +79,7 @@ export function SpaceRendicionPage() {
 
     async function loadData() {
       if (!spaceId) {
-        setErrorMessage('No se encontró el espacio seleccionado.')
+        setErrorMessage('No se encontr? el espacio seleccionado.')
         setLoading(false)
         return
       }
@@ -103,9 +103,9 @@ export function SpaceRendicionPage() {
           return
         }
         setErrorMessage(
-          parseApiError(error, 'No se pudo cargar la rendición de cuentas.', {
+          parseApiError(error, 'No se pudo cargar la rendici?n de cuentas.', {
             timeoutMessage:
-              'La rendición está demorando más de lo esperado. Probá nuevamente en unos segundos.',
+              'La rendici?n est? demorando m?s de lo esperado. Prob? nuevamente en unos segundos.',
           }),
         )
       } finally {
@@ -131,7 +131,7 @@ export function SpaceRendicionPage() {
   if (errorMessage) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       </section>
@@ -141,10 +141,10 @@ export function SpaceRendicionPage() {
   return (
     <section className="grid gap-3 pb-24">
       <div>
-        <h2 className={`text-[16px] font-semibold ${titleClass}`}>Rendición de cuentas</h2>
+        <h2 className={`text-[16px] font-semibold ${titleClass}`}>Rendici?n de cuentas</h2>
         <p className={`mt-1 text-sm ${subtitleClass}`}>
           {routeState?.organizationName && (routeState?.projectName || routeState?.programName)
-            ? `${routeState.organizationName} · ${routeState.projectName || routeState.programName}`
+            ? `${routeState.organizationName} ? ${routeState.projectName || routeState.programName}`
             : 'Historial del contexto operativo activo.'}
         </p>
       </div>
@@ -158,7 +158,7 @@ export function SpaceRendicionPage() {
             style={{ fontSize: 24 }}
           />
           <p className={`mt-3 text-sm ${subtitleClass}`}>
-            Todavía no hay rendiciones cargadas para este contexto.
+            Todav?a no hay rendiciones cargadas para este contexto.
           </p>
         </article>
       ) : (
@@ -224,10 +224,13 @@ export function SpaceRendicionPage() {
           appButtonClass({ variant: 'success', size: 'md' }),
           'fixed bottom-20 right-4 z-20 h-14 w-14 rounded-full p-0 shadow-[0_10px_24px_rgba(46,125,51,0.35)]',
         )}
-        aria-label="Nueva rendición"
+        aria-label="Nueva rendici?n"
       >
         <FontAwesomeIcon icon={faPlus} aria-hidden="true" style={{ fontSize: 22 }} />
       </button>
     </section>
   )
 }
+
+
+

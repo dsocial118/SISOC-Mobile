@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faArrowRight,
@@ -309,7 +309,7 @@ export function RendicionContextPage() {
   if (errorMessage) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       </section>
@@ -388,7 +388,7 @@ export function RendicionContextPage() {
         onClick={handleContinue}
         className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#232D4F] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
       >
-        Continuar
+        Continuá
         <FontAwesomeIcon icon={faArrowRight} aria-hidden="true" />
       </button>
 
@@ -400,7 +400,7 @@ export function RendicionContextPage() {
       {existingLoading ? (
         <RendicionesSkeleton isDark={isDark} />
       ) : existingError ? (
-        <div className="rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {existingError}
         </div>
       ) : existingRendiciones.length === 0 ? (
@@ -469,3 +469,6 @@ export function RendicionContextPage() {
     </section>
   )
 }
+
+
+

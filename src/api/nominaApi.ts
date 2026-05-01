@@ -30,6 +30,13 @@ export interface NominaAttendanceRecord {
   tomado_por: string | null
 }
 
+export interface NominaObservationRecord {
+  id: number
+  texto: string
+  fecha_creacion: string
+  creada_por: string | null
+}
+
 export interface NominaPerson {
   id: number
   nombre: string
@@ -46,12 +53,14 @@ export interface NominaPerson {
   asistencia_mes_actual: NominaAttendanceRecord | null
   historial_asistencias: NominaAttendanceRecord[]
   observaciones: string | null
+  observaciones_historial?: NominaObservationRecord[]
 }
 
 export interface NominaResponse {
   tab: NominaTab
   stats: NominaStats
   results: NominaPerson[]
+  _source?: 'network' | 'cache'
 }
 
 export interface NominaGender {
@@ -90,14 +99,90 @@ export interface BulkNominaAttendanceResponse {
   deleted_count: number
 }
 
+function buildNominaCacheKey(
+  spaceId: string | number,
+  options?: { tab?: NominaTab; q?: string },
+): string {
+  const tab = options?.tab || 'consolidada'
+  const query = (options?.q || '').trim().toLowerCase()
+  return `sisoc:nomina:list:${spaceId}:${tab}:${query}`
+}
+
+function readNominaCache(cacheKey: string): NominaResponse | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  try {
+    const raw = window.sessionStorage.getItem(cacheKey)
+    if (!raw) {
+      return null
+    }
+    return JSON.parse(raw) as NominaResponse
+  } catch {
+    return null
+  }
+}
+
+function writeNominaCache(cacheKey: string, value: NominaResponse): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+  try {
+    window.sessionStorage.setItem(cacheKey, JSON.stringify(value))
+  } catch {
+    // no-op
+  }
+}
+
 export async function listSpaceNomina(
   spaceId: string | number,
   options?: { tab?: NominaTab; q?: string },
 ): Promise<NominaResponse> {
-  const { data } = await http.get<NominaResponse>(`/pwa/espacios/${spaceId}/nomina/`, {
-    params: options,
-  })
-  return data
+  const cacheKey = buildNominaCacheKey(spaceId, options)
+  async function fetchWithTimeout(timeout: number): Promise<NominaResponse> {
+    const { data } = await http.get<NominaResponse>(`/pwa/espacios/${spaceId}/nomina/`, {
+      params: options,
+      timeout,
+    })
+    const response = { ...data, _source: 'network' as const }
+    writeNominaCache(cacheKey, response)
+    return response
+  }
+
+  function isTimeoutError(error: unknown): boolean {
+    const code = (error as { code?: string } | null)?.code
+    const message = String((error as { message?: string } | null)?.message || '')
+    return code === 'ECONNABORTED' || message.toLowerCase().includes('timeout')
+  }
+
+  try {
+    return await fetchWithTimeout(12000)
+  } catch (error) {
+    if (!isTimeoutError(error)) {
+      throw error
+    }
+  }
+
+  try {
+    return await fetchWithTimeout(30000)
+  } catch (error) {
+    if (!isTimeoutError(error)) {
+      throw error
+    }
+  }
+
+  try {
+    return await fetchWithTimeout(60000)
+  } catch (error) {
+    if (!isTimeoutError(error)) {
+      throw error
+    }
+    const cached = readNominaCache(cacheKey)
+    if (cached) {
+      return { ...cached, _source: 'cache' }
+    }
+    throw error
+  }
 }
 
 export async function listNominaGenders(spaceId: string | number): Promise<NominaGender[]> {

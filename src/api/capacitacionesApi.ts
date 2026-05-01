@@ -1,4 +1,5 @@
 import { http } from './http'
+import axios from 'axios'
 
 export type CapacitacionEstado = 'sin_presentar' | 'presentado' | 'rechazado' | 'aceptado'
 
@@ -20,11 +21,18 @@ export interface CapacitacionCertificadoItem {
 export async function listSpaceCapacitaciones(
   spaceId: string | number,
 ): Promise<CapacitacionCertificadoItem[]> {
-  const { data } = await http.get<CapacitacionCertificadoItem[]>(
-    `/comedores/${spaceId}/capacitaciones/`,
-    { timeout: 60000 },
-  )
-  return data
+  try {
+    const { data } = await http.get<CapacitacionCertificadoItem[]>(
+      `/comedores/${spaceId}/capacitaciones/`,
+      { timeout: 60000 },
+    )
+    return data
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return []
+    }
+    throw error
+  }
 }
 
 export async function uploadSpaceCapacitacionCertificado(

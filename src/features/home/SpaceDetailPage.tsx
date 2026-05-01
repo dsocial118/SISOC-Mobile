@@ -30,6 +30,7 @@ export function SpaceDetailPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [deletingImageId, setDeletingImageId] = useState<number | null>(null)
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null)
+  const isCachedDetail = spaceDetail?._source === 'cache'
 
   useEffect(() => {
     let isMounted = true
@@ -47,7 +48,7 @@ export function SpaceDetailPage() {
       setErrorMessage('')
 
       try {
-        const detail = await getSpaceDetail(spaceId)
+        const detail = await getSpaceDetail(spaceId, { forceRefresh: true })
 
         if (!isMounted) {
           return
@@ -63,7 +64,7 @@ export function SpaceDetailPage() {
           navigate(location.pathname, {
             replace: true,
             state: {
-              ...(currentState ?? {}),
+              ...(currentState ? currentState : {}),
               spaceName: nextSpaceName,
               programName: nextProgramName,
             },
@@ -74,7 +75,12 @@ export function SpaceDetailPage() {
           return
         }
 
-        setErrorMessage(parseApiError(error, 'No se pudo cargar la información institucional.'))
+        setErrorMessage(
+          parseApiError(error, 'No se pudo cargar la información institucional.', {
+            timeoutMessage:
+              'La carga está demorando más de lo esperado. Deslizá hacia abajo para reintentar.',
+          }),
+        )
       } finally {
         if (isMounted) {
           setLoading(false)
@@ -88,7 +94,7 @@ export function SpaceDetailPage() {
       isMounted = false
       setPageLoading(false)
     }
-  }, [location.pathname, location.state, navigate, setPageLoading, spaceId])
+  }, [location.pathname, navigate, setPageLoading, spaceId])
 
   const cardStyle = isDark
     ? {
@@ -111,6 +117,13 @@ export function SpaceDetailPage() {
       return 'Sin dato'
     }
     return value
+  }
+
+  function displayNumber(value: number | null | undefined): string {
+    if (value === null || value === undefined) {
+      return 'Sin dato'
+    }
+    return new Intl.NumberFormat('es-AR').format(value)
   }
 
   function formatDate(value: string | number | null | undefined): string {
@@ -167,9 +180,10 @@ export function SpaceDetailPage() {
     && spaceDetail?.latitud !== undefined
     && spaceDetail?.longitud !== null
     && spaceDetail?.longitud !== undefined
-  const imageItems = (spaceDetail?.imagenes ?? []).filter(
+  const rawImageItems = (spaceDetail?.imagenes ?? []).filter(
     (item): item is SpaceImageItem => Boolean(item?.url),
   )
+  const imageItems = rawImageItems.filter((item) => String(item.origen || '').toLowerCase() === 'mobile')
   const visibleImageCount = Math.min(imageItems.length, 3)
   const canUploadMorePhotos = visibleImageCount < 3
 
@@ -261,13 +275,18 @@ export function SpaceDetailPage() {
       ) : null}
 
       {!loading && errorMessage ? (
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       ) : null}
 
       {!loading && !errorMessage ? (
         <div className="grid gap-4">
+          {isCachedDetail ? (
+            <div className="rounded-xl border border-amber-300/50 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Mostrando datos guardados por conexión lenta.
+            </div>
+          ) : null}
           <article
             className="progressive-card rounded-[15px] border p-5"
             style={{ ...cardStyle, ['--card-delay' as string]: '0ms' }}
@@ -363,7 +382,7 @@ export function SpaceDetailPage() {
                 {formatAddress(spaceDetail)}
               </p>
               <p>
-                <span className={`font-semibold ${textClass}`}>Domicilio electrónico:</span> Sin dato
+                <span className={`font-semibold ${textClass}`}>Correo electrónico:</span> Sin dato
               </p>
             </div>
 
@@ -439,21 +458,42 @@ export function SpaceDetailPage() {
           >
             <h2 className={`text-[16px] font-semibold ${textClass}`}>Datos de Convenio</h2>
 
-            <div className={`mt-3 space-y-1.5 text-sm ${detailTextClass}`}>
-              <p>
-                <span className={`font-semibold ${textClass}`}>Fecha de Inicio de Convenio:</span> Sin dato
-              </p>
-              <p>
-                <span className={`font-semibold ${textClass}`}>Vigencia de Convenio:</span> 12 meses
-              </p>
-              <p>
-                <span className={`font-semibold ${textClass}`}>Prestaciones GESCOM:</span>{' '}
-                {displayValue(spaceDetail?.codigo_de_proyecto)}
-              </p>
-              <p>
-                <span className={`font-semibold ${textClass}`}>Monto total del convenio:</span> Sin dato
-              </p>
-            </div>
+            {spaceDetail?.datos_convenio_mobile?.tipo === 'pnud' ? (
+              <div className={`mt-3 space-y-1.5 text-sm ${detailTextClass}`}>
+                <p><span className={`font-semibold ${textClass}`}>Organización solicitante:</span> {displayValue(spaceDetail.datos_convenio_mobile.organizacion_solicitante || null)}</p>
+                <p><span className={`font-semibold ${textClass}`}>Código del proyecto:</span> {displayValue(spaceDetail.datos_convenio_mobile.codigo_proyecto || null)}</p>
+                <p><span className={`font-semibold ${textClass}`}>Monto total conveniado:</span> {displayNumber(spaceDetail.datos_convenio_mobile.monto_total_conveniado ?? null)}</p>
+                <p><span className={`font-semibold ${textClass}`}>Nro convenio:</span> {displayValue(spaceDetail.datos_convenio_mobile.nro_convenio || null)}</p>
+                <p><span className={`font-semibold ${textClass}`}>Estado general:</span> {displayValue(spaceDetail.datos_convenio_mobile.estado_general || null)}</p>
+                <p><span className={`font-semibold ${textClass}`}>Subestado:</span> {displayValue(spaceDetail.datos_convenio_mobile.subestado || null)}</p>
+                <p><span className={`font-semibold ${textClass}`}>Nombre del espacio comunitario:</span> {displayValue(spaceDetail.datos_convenio_mobile.nombre_espacio_comunitario || null)}</p>
+                <p><span className={`font-semibold ${textClass}`}>ID externo:</span> {displayValue(spaceDetail.datos_convenio_mobile.id_externo ? String(spaceDetail.datos_convenio_mobile.id_externo) : null)}</p>
+                <p><span className={`font-semibold ${textClass}`}>Domicilio completo del espacio:</span> {displayValue(spaceDetail.datos_convenio_mobile.domicilio_completo_espacio || null)}</p>
+                <p><span className={`font-semibold ${textClass}`}>Monto total de convenio por espacio:</span> {displayNumber(spaceDetail.datos_convenio_mobile.monto_total_convenio_por_espacio ?? null)}</p>
+                <p><span className={`font-semibold ${textClass}`}>Prestaciones financiadas mensuales:</span> {displayNumber(spaceDetail.datos_convenio_mobile.prestaciones_financiadas_mensuales ?? null)}</p>
+                <p><span className={`font-semibold ${textClass}`}>Personas conveniadas:</span> {displayNumber(spaceDetail.datos_convenio_mobile.personas_conveniadas ?? null)}</p>
+                <p><span className={`font-semibold ${textClass}`}>Cantidad módulos:</span> {displayNumber(spaceDetail.datos_convenio_mobile.cantidad_modulos ?? null)}</p>
+              </div>
+            ) : spaceDetail?.datos_convenio_mobile?.tipo === 'alimentar_comunidad' ? (
+              <div className={`mt-3 space-y-1.5 text-sm ${detailTextClass}`}>
+                <p>
+                  <span className={`font-semibold ${textClass}`}>Vigencia de Convenio:</span>{' '}
+                  {spaceDetail.datos_convenio_mobile.vigencia_convenio_meses || 6} meses
+                </p>
+                <p>
+                  <span className={`font-semibold ${textClass}`}>Prestaciones GESCOM:</span>{' '}
+                  {displayNumber(spaceDetail.datos_convenio_mobile.prestaciones_gescom_total_mensual ?? null)}
+                </p>
+                <p>
+                  <span className={`font-semibold ${textClass}`}>Monto total del convenio:</span>{' '}
+                  {displayNumber(spaceDetail.datos_convenio_mobile.monto_total_convenio ?? null)}
+                </p>
+              </div>
+            ) : (
+              <div className={`mt-3 space-y-1.5 text-sm ${detailTextClass}`}>
+                <p>Sin datos de convenio para este programa.</p>
+              </div>
+            )}
           </article>
 
           <article
@@ -615,7 +655,7 @@ export function SpaceDetailPage() {
 
             {imageItems.length === 0 ? (
               <p className={`mt-4 text-sm ${detailTextClass}`}>
-                Todavía no hay fotos cargadas para este espacio.
+                Todavía no hay fotos cargadas desde mobile para este espacio.
               </p>
             ) : (
               <div className="mt-4 -mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2">
@@ -661,3 +701,6 @@ export function SpaceDetailPage() {
     </section>
   )
 }
+
+
+

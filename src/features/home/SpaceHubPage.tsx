@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
+  faCalculator,
   faCalendarDays,
   faChevronLeft,
   faCircleInfo,
@@ -11,7 +12,11 @@ import {
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { getSpaceDetail, listMySpaces, type SpaceDetail } from '../../api/spacesApi'
+import { listSpaceNomina, type NominaTab } from '../../api/nominaApi'
+import { listActivityCatalog, listActivityDays, listSpaceActivities } from '../../api/activitiesApi'
+import { listSpaceMessages } from '../../api/messagesApi'
 import { useAuth } from '../../auth/useAuth'
+import { MOBILE_RENDICION_PERMISSION } from '../../auth/permissionCodes'
 import { parseApiError } from '../../api/errorUtils'
 import {
   getOrganizationSpacesCache,
@@ -60,6 +65,9 @@ export function SpaceHubPage() {
   )
   const [associatedProgramName, setAssociatedProgramName] = useState(routeState?.programName || '')
   const unreadMessagesCount = useSpaceUnreadMessages(spaceId, userProfile?.username)
+  const canManageRendicion = Boolean(
+    userProfile?.permissions?.includes(MOBILE_RENDICION_PERMISSION),
+  )
 
   useEffect(() => {
     let isMounted = true
@@ -178,6 +186,7 @@ export function SpaceHubPage() {
   const programName =
     spaceDetail?.programa?.nombre || associatedProgramName || routeState?.programName || ''
   const normalizedProgramName = normalizeProgramName(programName)
+  const isPnudProgram = normalizedProgramName.includes('pnud')
   const hasProgramDefined = Boolean(normalizedProgramName)
   const modules = useMemo<HubModule[]>(() => {
     if (!spaceId) {
@@ -200,7 +209,7 @@ export function SpaceHubPage() {
     ]
 
     if (normalizedProgramName.includes('abordaje comunitario')) {
-      return [
+      const modulesForProgram: HubModule[] = [
         ...baseModules,
         {
           id: 'actividades',
@@ -209,35 +218,121 @@ export function SpaceHubPage() {
           icon: faCalendarDays,
         },
         {
+          id: 'capacitaciones-obligatorias',
+          title: 'Capacitaciones Obligatorias',
+          route: `/app-org/espacios/${spaceId}/informacion/capacitaciones`,
+          icon: faCircleInfo,
+        },
+        {
           id: 'nomina',
-          title: 'Nómina',
+          title: 'Beneficiarios',
           route: `/app-org/espacios/${spaceId}/nomina`,
           icon: faUsers,
         },
       ]
+      if (canManageRendicion && isPnudProgram) {
+        modulesForProgram.push({
+          id: 'rendiciones',
+          title: 'Rendiciones',
+          route: `/app-org/rendicion`,
+          icon: faCalculator,
+        })
+      }
+      if (normalizedProgramName.includes('alimentar comunidad')) {
+        modulesForProgram.push({
+          id: 'cursos',
+          title: 'Cursos',
+          route: `/app-org/espacios/${spaceId}/cursos`,
+          icon: faCircleInfo,
+        })
+      }
+      return modulesForProgram
     }
 
     if (normalizedProgramName.includes('alimentar comunidad')) {
-      return [
+      const modulesForProgram: HubModule[] = [
         ...baseModules,
         {
-          id: 'capacitaciones',
-          title: 'Capacitaciones',
+          id: 'actividades',
+          title: 'Actividades',
+          route: `/app-org/espacios/${spaceId}/actividades`,
+          icon: faCalendarDays,
+        },
+        {
+          id: 'capacitaciones-obligatorias',
+          title: 'Capacitaciones Obligatorias',
           route: `/app-org/espacios/${spaceId}/informacion/capacitaciones`,
           icon: faCircleInfo,
         },
         {
           id: 'nomina-alimentaria',
-          title: 'Nómina alimentaria',
+          title: 'Beneficiarios',
           route: `/app-org/espacios/${spaceId}/nomina-alimentaria`,
           icon: faUtensils,
+        },
+      ]
+      if (canManageRendicion && isPnudProgram) {
+        modulesForProgram.push({
+          id: 'rendiciones',
+          title: 'Rendiciones',
+          route: `/app-org/rendicion`,
+          icon: faCalculator,
+        })
+      }
+      if (normalizedProgramName.includes('alimentar comunidad')) {
+        modulesForProgram.push({
+          id: 'cursos',
+          title: 'Cursos',
+          route: `/app-org/espacios/${spaceId}/cursos`,
+          icon: faCircleInfo,
+        })
+      }
+      return modulesForProgram
+    }
+
+    if (canManageRendicion && isPnudProgram) {
+      return [
+        ...baseModules,
+        {
+          id: 'rendiciones',
+          title: 'Rendiciones',
+          route: `/app-org/rendicion`,
+          icon: faCalculator,
         },
       ]
     }
 
     return baseModules
-  }, [normalizedProgramName, spaceId])
+  }, [canManageRendicion, isPnudProgram, normalizedProgramName, spaceId])
   const userDisplayName = (userProfile?.fullName || '').trim() || 'Usuario'
+
+  useEffect(() => {
+    if (!spaceId) {
+      return
+    }
+
+    const preloadTasks: Array<Promise<unknown>> = [getSpaceDetail(spaceId), listSpaceMessages(spaceId)]
+
+    let nominaTab: NominaTab = 'consolidada'
+    if (normalizedProgramName.includes('alimentar comunidad')) {
+      nominaTab = 'alimentaria'
+    } else if (normalizedProgramName.includes('abordaje comunitario')) {
+      nominaTab = 'formacion'
+    }
+
+    preloadTasks.push(listSpaceNomina(spaceId, { tab: nominaTab }))
+
+    if (
+      normalizedProgramName.includes('alimentar comunidad')
+      || normalizedProgramName.includes('abordaje comunitario')
+    ) {
+      preloadTasks.push(listActivityCatalog(spaceId))
+      preloadTasks.push(listActivityDays(spaceId))
+      preloadTasks.push(listSpaceActivities(spaceId))
+    }
+
+    void Promise.allSettled(preloadTasks)
+  }, [normalizedProgramName, spaceId])
 
   const cardStyle = isDark
     ? {
@@ -260,7 +355,7 @@ export function SpaceHubPage() {
   if (errorMessage) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       </section>
@@ -301,11 +396,12 @@ export function SpaceHubPage() {
           <button
             key={module.id}
             type="button"
-            onClick={() =>
+            onClick={() => {
+              setPageLoading(true)
               navigate(module.route, {
                 state: { spaceName, programName },
               })
-            }
+            }}
             className="progressive-card relative rounded-[15px] border p-4 pr-12 text-left"
             style={{
               ...cardStyle,
@@ -352,3 +448,7 @@ export function SpaceHubPage() {
     </section>
   )
 }
+
+
+
+

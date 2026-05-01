@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faCirclePlus,
@@ -127,6 +127,7 @@ export function SpaceNominaPersonDetailPage() {
   const [savingAttendance, setSavingAttendance] = useState(false)
   const [deletingPerson, setDeletingPerson] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showAllAsistencias, setShowAllAsistencias] = useState(false)
   const currentPeriodLabel = getCurrentPeriodLabel()
 
   useEffect(() => {
@@ -151,6 +152,7 @@ export function SpaceNominaPersonDetailPage() {
           return
         }
         setPerson(detail)
+        setShowAllAsistencias(false)
         setHistory(attendanceHistory)
       } catch (error) {
         if (!isMounted) {
@@ -242,7 +244,7 @@ export function SpaceNominaPersonDetailPage() {
   if (errorMessage) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       </section>
@@ -443,8 +445,8 @@ export function SpaceNominaPersonDetailPage() {
         {history.length === 0 ? (
           <p className={`mt-2 text-[12px] ${detailTextClass}`}>Sin asistencias registradas.</p>
         ) : (
-          <div className="mt-2 grid gap-2">
-            {history.map((registro) => (
+          <div className={`mt-2 grid gap-2 ${showAllAsistencias ? 'max-h-52 overflow-y-auto pr-1' : ''}`}>
+            {(showAllAsistencias ? history : history.slice(0, 2)).map((registro) => (
               <div
                 key={registro.id}
                 className={`rounded-md border px-3 py-2 ${
@@ -464,6 +466,17 @@ export function SpaceNominaPersonDetailPage() {
             ))}
           </div>
         )}
+        {history.length > 2 ? (
+          <div className="mt-3 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setShowAllAsistencias((current) => !current)}
+              className={appButtonClass({ variant: 'outline-secondary', size: 'sm' })}
+            >
+              {showAllAsistencias ? 'Ver menos' : 'Ver más'}
+            </button>
+          </div>
+        ) : null}
       </article>
 
       <button
@@ -476,13 +489,13 @@ export function SpaceNominaPersonDetailPage() {
         )}
       >
         <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
-        {deletingPerson ? 'Dando de baja...' : 'Dar de baja de la nómina'}
+        {deletingPerson ? 'Dando de baja...' : 'Dar de baja de beneficiarios'}
       </button>
       <ConfirmActionModal
         open={showDeleteConfirm}
-        title="Confirmar baja de nomina"
+        title="Confirmar baja de beneficiarios"
         message={
-          person ? `Se va a dar de baja a ${person.apellido}, ${person.nombre} de la nomina.` : ''
+          person ? `Se va a dar de baja a ${person.apellido}, ${person.nombre} de beneficiarios.` : ''
         }
         confirmLabel="Dar de baja"
         loading={deletingPerson}
@@ -492,3 +505,6 @@ export function SpaceNominaPersonDetailPage() {
     </section>
   )
 }
+
+
+

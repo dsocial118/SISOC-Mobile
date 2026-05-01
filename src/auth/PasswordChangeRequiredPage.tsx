@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faLock } from '@fortawesome/free-solid-svg-icons'
@@ -32,7 +32,7 @@ export function PasswordChangeRequiredPage() {
     setError('')
 
     if (newPassword !== confirmPassword) {
-      setError('Las contraseñas no coinciden.')
+      setError('Las contrase?as no coinciden.')
       return
     }
 
@@ -46,7 +46,7 @@ export function PasswordChangeRequiredPage() {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : 'No se pudo actualizar la contraseña.',
+          : 'No se pudo actualizar la contrase?a.',
       )
     } finally {
       setLoading(false)
@@ -72,15 +72,15 @@ export function PasswordChangeRequiredPage() {
                 : 'border-[#D9E0EC] bg-white text-[#232D4F]'
             }`}
           >
-            <p className="font-semibold">Cambio obligatorio de contraseña</p>
+            <p className="font-semibold">Cambio obligatorio de contrase?a</p>
             <p className={`mt-2 ${isDark ? 'text-white/80' : 'text-[#5E6782]'}`}>
               {userProfile?.fullName || userProfile?.username || 'Tu usuario'} debe definir una
-              nueva contraseña para continuar.
+              nueva contrase?a para continuar.
             </p>
           </div>
 
           {error ? (
-            <div className="mb-4 rounded-lg border border-[#C62828]/20 bg-[#C62828]/10 p-3 text-sm text-[#C62828]">
+            <div className="mb-4 rounded-lg border border-[#F2B8B5] bg-[#7A1C1C]/50 p-3 text-sm text-white">
               {error}
             </div>
           ) : null}
@@ -91,7 +91,7 @@ export function PasswordChangeRequiredPage() {
               type="password"
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
-              placeholder="Nueva contraseña"
+              placeholder="Nueva contrase?a"
               disabled={loading}
               required
               icon={<FontAwesomeIcon icon={faLock} aria-hidden="true" style={{ fontSize: 17 }} />}
@@ -104,7 +104,7 @@ export function PasswordChangeRequiredPage() {
               type="password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
-              placeholder="Repetir nueva contraseña"
+              placeholder="Repetir nueva contrase?a"
               disabled={loading}
               required
               icon={<FontAwesomeIcon icon={faLock} aria-hidden="true" style={{ fontSize: 17 }} />}
@@ -113,7 +113,7 @@ export function PasswordChangeRequiredPage() {
 
           <div className="mb-6 flex justify-center">
             <LargeBlueButton type="submit" disabled={loading} className="w-full max-w-[292px]">
-              {loading ? 'Guardando...' : 'Guardar contraseña'}
+              {loading ? 'Guardando...' : 'Guardar contrase?a'}
             </LargeBlueButton>
           </div>
 
@@ -141,3 +141,6 @@ export function PasswordChangeRequiredPage() {
     </SafeScreen>
   )
 }
+
+
+

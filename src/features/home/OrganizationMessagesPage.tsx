@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faChevronLeft } from '@fortawesome/free-solid-svg-icons'
 import { useNavigate } from 'react-router-dom'
@@ -156,7 +156,7 @@ export function OrganizationMessagesPage() {
       setErrorMessage('')
 
       try {
-        const spaces = cachedSpaces ?? (await listMySpaces())
+        const spaces = cachedSpaces || (await listMySpaces())
         if (!cachedSpaces) {
           setOrganizationSpacesCache(cacheKey, spaces)
         }
@@ -287,7 +287,7 @@ export function OrganizationMessagesPage() {
   if (errorMessage) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       </section>
@@ -304,7 +304,7 @@ export function OrganizationMessagesPage() {
               : 'border-slate-200 bg-white text-slate-700'
           }`}
         >
-          <p className="text-sm">Todavía no hay mensajes en los espacios asignados.</p>
+          <p className="text-sm">Todav?a no hay mensajes en los espacios asignados.</p>
         </div>
       </section>
     )
@@ -359,7 +359,14 @@ function OrganizationMessageSection({
     <section>
       <div className="flex items-center gap-2">
         <h2 className={`text-[16px] font-semibold ${textClass}`}>{title}</h2>
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#C62828] px-1.5 text-[10px] font-bold text-white">
+        <span
+          className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
+            isDark
+              ? 'bg-white/15 text-white'
+              : 'bg-slate-200 text-slate-700'
+          }`}
+          title="Cantidad de mensajes"
+        >
           {messages.length}
         </span>
       </div>
@@ -416,3 +423,6 @@ function OrganizationMessageSection({
     </section>
   )
 }
+
+
+

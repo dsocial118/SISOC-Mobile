@@ -8,10 +8,9 @@ import {
   faChevronRight,
   faChevronUp,
   faClock,
-  faPlus,
   faUsers,
 } from '@fortawesome/free-solid-svg-icons'
-import { useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { parseApiError } from '../../api/errorUtils'
 import {
   createSpaceActivity,
@@ -141,8 +140,11 @@ function hasScheduleOverlap(rows: ScheduleRow[], catalogoActividad: string): boo
 
 export function SpaceActivitiesPage() {
   const { spaceId } = useParams<{ spaceId: string }>()
+  const location = useLocation()
+  const navigate = useNavigate()
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
+  const isCreateRoute = /^\/app-org\/espacios\/\d+\/actividades\/nueva\/?$/.test(location.pathname)
 
   const [activities, setActivities] = useState<SpaceActivityItem[]>([])
   const [catalog, setCatalog] = useState<ActivityCatalogItem[]>([])
@@ -161,11 +163,13 @@ export function SpaceActivitiesPage() {
   const [selectedCategory, setSelectedCategory] = useState('')
   const [listCategoryFilter, setListCategoryFilter] = useState('TODAS')
   const [selectedAgendaDayId, setSelectedAgendaDayId] = useState<number | null>(null)
-  const [expandedAgendaActivities, setExpandedAgendaActivities] = useState<Record<string, boolean>>({})
   const [enrolleesByActivity, setEnrolleesByActivity] = useState<Record<number, SpaceActivityEnrollee[]>>({})
   const [loadingEnrolleesIds, setLoadingEnrolleesIds] = useState<Record<number, boolean>>({})
   const [activityPendingDelete, setActivityPendingDelete] = useState<SpaceActivityItem | null>(null)
   const [deletingActivityId, setDeletingActivityId] = useState<number | null>(null)
+  const [existingSlotsLoading, setExistingSlotsLoading] = useState(false)
+  const [existingSlotsError, setExistingSlotsError] = useState('')
+  const [existingSlots, setExistingSlots] = useState<SpaceActivityItem[]>([])
 
   const cardStyle = isDark
     ? {
@@ -199,17 +203,22 @@ export function SpaceActivitiesPage() {
       }
 
       try {
-        const [catalogRes, daysRes, activitiesRes] = await Promise.all([
-          listActivityCatalog(spaceId),
-          listActivityDays(spaceId),
-          listSpaceActivities(spaceId),
-        ])
+        const baseRequests = [listActivityCatalog(spaceId), listActivityDays(spaceId)] as const
+        const [catalogRes, daysRes] = await Promise.all(baseRequests)
         if (!isMounted) {
           return
         }
         setCatalog(catalogRes)
         setDays(daysRes)
-        setActivities(activitiesRes)
+        if (isCreateRoute) {
+          setActivities([])
+        } else {
+          const activitiesRes = await listSpaceActivities(spaceId)
+          if (!isMounted) {
+            return
+          }
+          setActivities(activitiesRes)
+        }
       } catch (error) {
         if (!isMounted) {
           return
@@ -363,6 +372,33 @@ export function SpaceActivitiesPage() {
   const selectedAgendaIndex = selectedAgendaDay
     ? weeklyAgendaGrouped.findIndex((day) => day.id === selectedAgendaDay.id)
     : -1
+  const selectedAgendaItems = useMemo(
+    () =>
+      [...(selectedAgendaDay?.items || [])].sort((a, b) => {
+        const hourCompare = (a.hora_inicio || '').localeCompare(b.hora_inicio || '')
+        if (hourCompare !== 0) {
+          return hourCompare
+        }
+        return a.actividad.localeCompare(b.actividad)
+      }),
+    [selectedAgendaDay],
+  )
+  const existingSlotsForSelectedCatalog = useMemo(() => {
+    if (!formData.catalogo_actividad) {
+      return []
+    }
+    const selectedCatalogId = Number(formData.catalogo_actividad)
+    return existingSlots
+      .filter((item) => item.catalogo_actividad === selectedCatalogId)
+      .sort((a, b) => {
+        const dayCompare =
+          (dayOrderMap.get(a.dia_actividad_nombre) ?? 999) - (dayOrderMap.get(b.dia_actividad_nombre) ?? 999)
+        if (dayCompare !== 0) {
+          return dayCompare
+        }
+        return (a.hora_inicio || '').localeCompare(b.hora_inicio || '')
+      })
+  }, [dayOrderMap, existingSlots, formData.catalogo_actividad])
 
   useEffect(() => {
     if (!selectedAgendaDay && selectedAgendaDayId !== null) {
@@ -374,13 +410,50 @@ export function SpaceActivitiesPage() {
     }
   }, [selectedAgendaDay, selectedAgendaDayId])
 
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadExistingSlotsForCreate() {
+      if (!isCreateRoute || !spaceId || !formData.catalogo_actividad) {
+        setExistingSlots([])
+        setExistingSlotsError('')
+        setExistingSlotsLoading(false)
+        return
+      }
+      setExistingSlotsLoading(true)
+      setExistingSlotsError('')
+      try {
+        const rows = await listSpaceActivities(spaceId)
+        if (!isMounted) {
+          return
+        }
+        setExistingSlots(rows)
+      } catch {
+        if (!isMounted) {
+          return
+        }
+        setExistingSlots([])
+        setExistingSlotsError('No se pudieron cargar horarios existentes.')
+      } finally {
+        if (isMounted) {
+          setExistingSlotsLoading(false)
+        }
+      }
+    }
+
+    void loadExistingSlotsForCreate()
+    return () => {
+      isMounted = false
+    }
+  }, [formData.catalogo_actividad, isCreateRoute, spaceId])
+
   function openCreateForm() {
     setEditingId(null)
     setFormData(EMPTY_FORM)
     setScheduleRows([EMPTY_SCHEDULE_ROW])
     setSelectedCategory('')
     setFormError('')
-    setFormOpen(true)
+    navigate(`/app-org/espacios/${spaceId}/actividades/nueva`)
   }
 
   function openEditForm(item: SpaceActivityItem) {
@@ -403,7 +476,11 @@ export function SpaceActivitiesPage() {
   }
 
   function closeForm() {
-    setFormOpen(false)
+    if (isCreateRoute) {
+      navigate(`/app-org/espacios/${spaceId}/actividades`)
+    } else {
+      setFormOpen(false)
+    }
     setEditingId(null)
     setFormData(EMPTY_FORM)
     setScheduleRows([EMPTY_SCHEDULE_ROW])
@@ -513,8 +590,12 @@ export function SpaceActivitiesPage() {
             })),
         )
       }
-      await refreshActivities()
-      closeForm()
+      if (isCreateRoute) {
+        closeForm()
+      } else {
+        await refreshActivities()
+        closeForm()
+      }
     } catch (error) {
       setFormError(parseApiError(error, 'No se pudo guardar la actividad.'))
     } finally {
@@ -549,13 +630,6 @@ export function SpaceActivitiesPage() {
     setExpandedDayGroups((current) => ({
       ...current,
       [dayKey]: !current[dayKey],
-    }))
-  }
-
-  function toggleAgendaActivity(activityKey: string) {
-    setExpandedAgendaActivities((current) => ({
-      ...current,
-      [activityKey]: !current[activityKey],
     }))
   }
 
@@ -599,7 +673,7 @@ export function SpaceActivitiesPage() {
   if (errorMessage) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       </section>
@@ -608,11 +682,21 @@ export function SpaceActivitiesPage() {
 
   return (
     <section className="pb-24">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className={`text-[16px] font-semibold ${textClass}`}>Actividades del Espacio</h2>
-      </div>
+      {!isCreateRoute ? (
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={openCreateForm}
+            className={appButtonClass({ variant: 'success', size: 'md', fullWidth: true })}
+            aria-label="Cargar actividad"
+          >
+            <FontAwesomeIcon icon={faCalendarDays} aria-hidden="true" style={{ fontSize: 14 }} />
+            <span>Cargar actividad</span>
+          </button>
+        </div>
+      ) : null}
 
-      {formOpen ? (
+      {formOpen || isCreateRoute ? (
         <form
           onSubmit={(event) => void handleSubmit(event)}
           className={`mt-3 grid gap-2 rounded-xl border p-3 ${subCardClass}`}
@@ -689,6 +773,27 @@ export function SpaceActivitiesPage() {
             )}
           </div>
 
+          {isCreateRoute && formData.catalogo_actividad ? (
+            <div className={`rounded-lg border p-2 ${isDark ? 'border-white/20 bg-white/5' : 'border-slate-200 bg-white'}`}>
+              <p className={`mb-2 text-xs font-semibold ${textClass}`}>Horarios ya creados</p>
+              {existingSlotsLoading ? (
+                <p className={`text-xs ${detailTextClass}`}>Cargando horarios...</p>
+              ) : existingSlotsError ? (
+                <p className={`text-xs ${detailTextClass}`}>{existingSlotsError}</p>
+              ) : existingSlotsForSelectedCatalog.length === 0 ? (
+                <p className={`text-xs ${detailTextClass}`}>Todavía no hay horarios para esta actividad.</p>
+              ) : (
+                <div className="grid gap-1">
+                  {existingSlotsForSelectedCatalog.map((slot) => (
+                    <p key={slot.id} className={`text-xs ${detailTextClass}`}>
+                      {slot.dia_actividad_nombre} · {slot.horario_actividad}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
+
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
               <p className={`text-xs font-semibold ${textClass}`}>Dias y horarios</p>
@@ -708,23 +813,23 @@ export function SpaceActivitiesPage() {
                       </option>
                     ))}
                   </select>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="grid gap-1">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    <label className="grid min-w-0 gap-1">
                       <span className={`text-[11px] font-semibold ${textClass}`}>Hora de inicio</span>
                       <input
                         type="time"
                         value={row.hora_inicio}
                         onChange={(event) => updateScheduleRow(index, { hora_inicio: event.target.value })}
-                        className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ${isDark ? 'border-white/30 bg-white/10 text-white' : 'border-slate-300 bg-white text-slate-700'}`}
+                        className={`min-h-[42px] min-w-0 w-full rounded-lg border px-3 py-2 text-sm outline-none ${isDark ? 'border-white/30 bg-white/10 text-white' : 'border-slate-300 bg-white text-slate-700'}`}
                       />
                     </label>
-                    <label className="grid gap-1">
+                    <label className="grid min-w-0 gap-1">
                       <span className={`text-[11px] font-semibold ${textClass}`}>Hora de fin</span>
                       <input
                         type="time"
                         value={row.hora_fin}
                         onChange={(event) => updateScheduleRow(index, { hora_fin: event.target.value })}
-                        className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ${isDark ? 'border-white/30 bg-white/10 text-white' : 'border-slate-300 bg-white text-slate-700'}`}
+                        className={`min-h-[42px] min-w-0 w-full rounded-lg border px-3 py-2 text-sm outline-none ${isDark ? 'border-white/30 bg-white/10 text-white' : 'border-slate-300 bg-white text-slate-700'}`}
                       />
                     </label>
                   </div>
@@ -751,29 +856,36 @@ export function SpaceActivitiesPage() {
               onClick={addScheduleRow}
               className={joinClasses(
                 appButtonClass({ variant: 'outline-secondary', size: 'md', fullWidth: true }),
-                isDark ? 'border-white/40 text-white hover:bg-white/10' : 'border-[#232D4F] text-[#232D4F]',
+                isDark
+                  ? 'border-white/40 bg-white/10 text-white hover:bg-white/20'
+                  : 'border-[#232D4F] text-[#232D4F]',
               )}
             >
               + Agregar rango horario
             </button>
           </div>
 
-          {formError ? <p className="text-xs text-[#C62828]">{formError}</p> : null}
+          {formError ? (
+            <div className="rounded-lg border border-[#F2B8B5] bg-[#7A1C1C]/50 p-3 text-sm text-white">
+              {formError}
+            </div>
+          ) : null}
           <div className="mt-1 flex justify-end gap-2">
             <button
               type="button"
               onClick={closeForm}
-              className={joinClasses(
-                appButtonClass({ variant: 'outline-secondary', size: 'sm' }),
-                isDark ? 'border-white/40 text-white hover:bg-white/10' : undefined,
-              )}
+              className={appButtonClass({ variant: 'danger', size: 'sm' })}
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={saving}
-              className={appButtonClass({ variant: 'primary', size: 'sm' })}
+              className={joinClasses(
+                appButtonClass({ variant: 'primary', size: 'md' }),
+                isDark ? 'border-[#E7BA61] bg-[#E7BA61] text-[#232D4F] hover:bg-[#D9A93D]' : undefined,
+                'min-w-[150px] shadow-[0_6px_14px_rgba(35,45,79,0.35)]',
+              )}
             >
               {saving ? 'Guardando...' : submitLabel}
             </button>
@@ -781,6 +893,7 @@ export function SpaceActivitiesPage() {
         </form>
       ) : null}
 
+      {!isCreateRoute ? (
       <div className="mt-4 flex flex-wrap gap-2">
         {listFilterCategories.map((category) => (
           <button
@@ -799,7 +912,9 @@ export function SpaceActivitiesPage() {
           </button>
         ))}
       </div>
+      ) : null}
 
+      {!isCreateRoute ? (
       <section className="mt-4">
         <div className="mb-2 flex items-center gap-2">
           <FontAwesomeIcon icon={faCalendarDays} aria-hidden="true" className={textClass} style={{ fontSize: 14 }} />
@@ -822,9 +937,9 @@ export function SpaceActivitiesPage() {
               <div className="min-w-0 text-center">
                 <p className={`text-[14px] font-semibold ${textClass}`}>{selectedAgendaDay.nombre}</p>
                 <p className={`mt-1 text-[11px] ${detailTextClass}`}>
-                  {selectedAgendaDay.grupos.length === 0
+                  {selectedAgendaItems.length === 0
                     ? 'Sin actividades cargadas.'
-                    : `${selectedAgendaDay.grupos.length} actividades programadas`}
+                    : `${selectedAgendaItems.length} actividades programadas`}
                 </p>
               </div>
               <button
@@ -840,80 +955,39 @@ export function SpaceActivitiesPage() {
               </button>
             </div>
 
-            {selectedAgendaDay.grupos.length === 0 ? (
+            {selectedAgendaItems.length === 0 ? (
               <div className="mt-3 flex min-h-[72px] items-center rounded-xl border border-dashed border-slate-300/70 px-3 py-2">
                 <p className={`text-[12px] ${detailTextClass}`}>Sin actividades cargadas.</p>
               </div>
             ) : (
               <div className="mt-3 grid gap-2">
-                {selectedAgendaDay.grupos.map((group) => {
-                  const activityKey = `${selectedAgendaDay.id}-${group.categoria}-${group.actividad}`
+                {selectedAgendaItems.map((activity) => {
+                  const activityKey = `${selectedAgendaDay.id}-${activity.id}`
                   return (
-                    <div
+                    <button
                       key={`agenda-${activityKey}`}
+                      type="button"
+                      onClick={() =>
+                        navigate(`/app-org/espacios/${spaceId}/actividades/${activity.id}`)
+                      }
                       className={`rounded-xl border ${isDark ? 'border-white/15 bg-[#1B2542]' : 'border-slate-200 bg-white'}`}
                     >
-                      <button
-                        type="button"
-                        onClick={() => toggleAgendaActivity(activityKey)}
-                        className="flex w-full items-start justify-between gap-3 p-3 text-left"
-                        aria-label={
-                          expandedAgendaActivities[activityKey]
-                            ? `Ocultar ${group.actividad}`
-                            : `Ver ${group.actividad}`
-                        }
-                      >
+                      <div className="flex w-full items-start justify-between gap-3 p-3 text-left">
                         <div className="min-w-0">
-                          <p className={`truncate text-[13px] font-semibold ${textClass}`}>{group.actividad}</p>
-                          <p className={`mt-1 text-[11px] ${detailTextClass}`}>{group.categoria}</p>
+                          <p className={`truncate text-[13px] font-semibold ${textClass}`}>{activity.actividad}</p>
+                          <p className={`mt-1 text-[11px] ${detailTextClass}`}>
+                            {activity.categoria} · {activity.horario_actividad} · Inscriptos: {activity.cantidad_inscriptos}
+                          </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-full bg-[#E7BA61] px-2.5 py-1 text-[11px] font-semibold text-[#232D4F]">
-                            {group.slots.length}
-                          </span>
-                          <span
-                            className={`flex h-8 w-8 items-center justify-center rounded-full border ${
-                              isDark ? 'border-white/20 text-white' : 'border-slate-300 text-slate-700'
-                            }`}
-                          >
-                            <FontAwesomeIcon
-                              icon={expandedAgendaActivities[activityKey] ? faChevronUp : faChevronDown}
-                              aria-hidden="true"
-                              style={{ fontSize: 12 }}
-                            />
-                          </span>
-                        </div>
-                      </button>
-                      <div
-                        className={`grid overflow-hidden transition-all duration-300 ease-out ${
-                          expandedAgendaActivities[activityKey] ? 'max-h-[900px] opacity-100' : 'max-h-0 opacity-0'
-                        }`}
-                      >
-                        <div className="grid gap-2 px-3 pb-3">
-                          <div className={`flex items-center gap-3 text-[11px] ${detailTextClass}`}>
-                            <span>{group.totalInscriptos} inscriptos</span>
-                          </div>
-                          {group.slots.map((slot) => (
-                            <div
-                              key={`agenda-slot-${slot.id}`}
-                              className={`rounded-lg border px-3 py-2 ${
-                                isDark ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-slate-50'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <span className={`text-[11px] font-semibold ${textClass}`}>{slot.horario_actividad}</span>
-                                <span className={`text-[11px] ${detailTextClass}`}>
-                                  {formatDurationLabel(slot.hora_inicio, slot.hora_fin)}
-                                </span>
-                              </div>
-                              <p className={`mt-1 text-[11px] ${detailTextClass}`}>
-                                {slot.cantidad_inscriptos} inscriptos
-                              </p>
-                            </div>
-                          ))}
-                        </div>
+                        <span
+                          className={`flex shrink-0 items-center self-center ${
+                            isDark ? 'text-white' : 'text-slate-700'
+                          }`}
+                        >
+                          <FontAwesomeIcon icon={faChevronRight} aria-hidden="true" style={{ fontSize: 12 }} />
+                        </span>
                       </div>
-                    </div>
+                    </button>
                   )
                 })}
               </div>
@@ -921,10 +995,9 @@ export function SpaceActivitiesPage() {
           </article>
         ) : null}
       </section>
+      ) : null}
 
-      {filteredActivities.length === 0 ? (
-        <p className={`mt-3 text-sm ${detailTextClass}`}>No hay actividades para el filtro seleccionado.</p>
-      ) : (
+      {!isCreateRoute && false ? (
         <div className="mt-3 grid gap-4">
           {groupedActivities.map((categoryGroup, categoryIndex) => (
             <section
@@ -1132,19 +1205,8 @@ export function SpaceActivitiesPage() {
             </section>
           ))}
         </div>
-      )}
+      ) : null}
 
-      <button
-        type="button"
-        onClick={openCreateForm}
-        className={joinClasses(
-          appButtonClass({ variant: 'success', size: 'md' }),
-          'fixed bottom-20 right-4 z-20 h-14 w-14 rounded-full p-0 shadow-[0_10px_24px_rgba(46,125,51,0.35)]',
-        )}
-        aria-label="Agregar actividad"
-      >
-        <FontAwesomeIcon icon={faPlus} aria-hidden="true" style={{ fontSize: 22 }} />
-      </button>
       <ConfirmActionModal
         open={Boolean(activityPendingDelete)}
         title="Confirmar baja de actividad"

@@ -6,7 +6,7 @@ import axios, {
 import { clearSession, getSession } from '../auth/session'
 import { db } from '../db/database'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 export class OfflineError extends Error {
   constructor(message = 'Sin conexion a internet.') {
@@ -45,7 +45,7 @@ async function attachToken(
     return config
   }
 
-  const headers = (config.headers ?? {}) as AxiosRequestHeaders
+  const headers = (config.headers || {}) as AxiosRequestHeaders
   headers.Authorization = `Token ${session.access_token}`
   config.headers = headers
   return config

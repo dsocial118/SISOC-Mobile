@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import type { AxiosError } from 'axios'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons'
@@ -45,10 +45,10 @@ const EMPTY_FORM: FormState = {
   actividad_ids: [],
 }
 
-function parseApiError(error: unknown, fallback: string): string {
+function parseApiError(error: unknown, fallback: string, timeoutMessage?: string): string {
   const axiosError = error as AxiosError<Record<string, unknown>>
   if (axiosError?.code === 'ECONNABORTED' || axiosError?.code === 'ETIMEDOUT') {
-    return 'La consulta a RENAPER está demorando. Intentá nuevamente en unos segundos.'
+    return timeoutMessage || fallback
   }
   const data = axiosError?.response?.data
   if (!data) {
@@ -156,10 +156,18 @@ export function CollaboratorsCard({
         }
         const statusCode = (error as AxiosError)?.response?.status
         if (statusCode === 403 || statusCode === 404) {
+          setCollaborators([])
           setRefreshError('')
           return
         }
-        setRefreshError(parseApiError(error, 'No se pudieron actualizar colaboradores desde la web.'))
+        setCollaborators([])
+        setRefreshError(
+          parseApiError(
+            error,
+            'No se pudieron actualizar colaboradores desde la web.',
+            'La carga de colaboradores está demorando. Intentá nuevamente en unos segundos.',
+          ),
+        )
       }
     }
 
@@ -320,7 +328,13 @@ export function CollaboratorsCard({
       resetForm()
       void syncNow()
     } catch (error) {
-      setFormError(parseApiError(error, 'No se pudo guardar el colaborador.'))
+      setFormError(
+        parseApiError(
+          error,
+          'No se pudo guardar el colaborador.',
+          'La operación está demorando. Intentá nuevamente en unos segundos.',
+        ),
+      )
     } finally {
       setSaving(false)
     }
@@ -341,7 +355,13 @@ export function CollaboratorsCard({
       setCollaboratorPendingDelete(null)
       void syncNow()
     } catch (error) {
-      setFormError(parseApiError(error, 'No se pudo dar de baja el colaborador.'))
+      setFormError(
+        parseApiError(
+          error,
+          'No se pudo dar de baja el colaborador.',
+          'La operación está demorando. Intentá nuevamente en unos segundos.',
+        ),
+      )
     } finally {
       setDeletingCollaboratorId(null)
     }
@@ -423,7 +443,7 @@ export function CollaboratorsCard({
                 </div>
                 <div>
                   <p className={infoLabelClass}>Edad</p>
-                  <p className={infoValueClass}>{preview.edad ?? '-'}</p>
+                  <p className={infoValueClass}>{preview.edad ? String(preview.edad) : '-'}</p>
                 </div>
               </div>
             </div>
@@ -502,7 +522,11 @@ export function CollaboratorsCard({
             )}
           </div>
 
-          {formError ? <p className="text-xs text-[#C62828]">{formError}</p> : null}
+          {formError ? (
+            <div className="rounded-lg border border-[#F2B8B5] bg-[#7A1C1C]/50 p-3 text-sm text-white">
+              {formError}
+            </div>
+          ) : null}
           <div className="mt-1 flex justify-end gap-2">
             <button
               type="button"
@@ -533,9 +557,7 @@ export function CollaboratorsCard({
 
       {refreshError ? (
         <p className={`mt-3 text-sm ${detailTextClass}`}>{refreshError}</p>
-      ) : null}
-
-      {collaborators === undefined ? (
+      ) : collaborators === undefined ? (
         <p className={`mt-3 text-sm ${detailTextClass}`}>Cargando colaboradores...</p>
       ) : currentRows.length === 0 ? (
         <p className={`mt-3 text-sm ${detailTextClass}`}>No hay colaboradores asociados.</p>
@@ -591,7 +613,9 @@ export function CollaboratorsCard({
                       : '-'}
                   </p>
                   {collaborator.last_error ? (
-                    <p className="text-xs text-[#C62828]">{collaborator.last_error}</p>
+                    <div className="rounded-lg border border-[#F2B8B5] bg-[#7A1C1C]/50 px-3 py-2 text-xs text-white">
+                      {collaborator.last_error}
+                    </div>
                   ) : null}
                 </div>
 
@@ -645,3 +669,4 @@ export function CollaboratorsCard({
     </article>
   )
 }
+

@@ -4,23 +4,11 @@ import { clientsClaim } from 'workbox-core'
 import { ExpirationPlugin } from 'workbox-expiration'
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching'
 import { registerRoute } from 'workbox-routing'
-import { StaleWhileRevalidate } from 'workbox-strategies'
+import { NetworkFirst } from 'workbox-strategies'
 
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<unknown>
 }
-
-function normalizeBasePath(value: string | undefined): string {
-  if (!value || value === '/') {
-    return '/'
-  }
-
-  const trimmed = value.trim()
-  const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
-  return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`
-}
-
-const APP_BASE_URL = normalizeBasePath(import.meta.env.BASE_URL)
 
 self.skipWaiting()
 clientsClaim()
@@ -29,8 +17,9 @@ precacheAndRoute(self.__WB_MANIFEST)
 
 registerRoute(
   ({ request, url }) => request.method === 'GET' && url.pathname.startsWith('/api/'),
-  new StaleWhileRevalidate({
+  new NetworkFirst({
     cacheName: 'api-get-cache',
+    networkTimeoutSeconds: 6,
     plugins: [
       new ExpirationPlugin({
         maxEntries: 100,
@@ -58,8 +47,8 @@ self.addEventListener('push', (event) => {
   const title = String(payload.title || 'SiSOC Mobil')
   const options: NotificationOptions = {
     body: String(payload.body || ''),
-    icon: String(payload.icon || `${APP_BASE_URL}sisoc_ico_512.png`),
-    badge: String(payload.badge || `${APP_BASE_URL}sisoc_ico_192.png`),
+    icon: String(payload.icon || '/sisoc_ico_512.png'),
+    badge: String(payload.badge || '/sisoc_ico_192.png'),
     tag: String(payload.tag || ''),
     data: payload.data || {},
   }
@@ -73,7 +62,7 @@ self.addEventListener('notificationclick', (event) => {
   const targetUrl =
     typeof event.notification.data?.url === 'string'
       ? event.notification.data.url
-      : APP_BASE_URL
+      : '/'
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {

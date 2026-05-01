@@ -38,9 +38,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setRole(session.role)
-      setUserProfile(session.user_profile ?? null)
-      setSessionStatus('local')
+      setRole(null)
+      setUserProfile(null)
+      setSessionStatus('reauth')
       return
     }
 
@@ -70,9 +70,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSessionStatus('validated')
     } catch (error) {
       if (isTransientNetworkError(error)) {
-        setRole(session.role)
-        setUserProfile(session.user_profile ?? null)
-        setSessionStatus('local')
+        setRole(null)
+        setUserProfile(null)
+        setSessionStatus('reauth')
         return
       }
 
@@ -101,9 +101,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void validateStoredSession()
     }
 
+    function handleOffline() {
+      setRole(null)
+      setUserProfile(null)
+      setSessionStatus('reauth')
+    }
+
     window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
     return () => {
       window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
     }
   }, [validateStoredSession])
 

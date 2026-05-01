@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faChevronLeft } from '@fortawesome/free-solid-svg-icons'
 import { useNavigate } from 'react-router-dom'
@@ -32,6 +32,7 @@ interface GroupedNotificationItem {
   message: SpaceMessageItem
   groupedItems: AggregatedNotificationItem[]
   unreadCount: number
+  isRendicionDetail: boolean
 }
 
 interface RejectedCertificateNotification {
@@ -66,11 +67,11 @@ function parseRendicionNotificationTitle(title: string): {
 } {
   const normalizedTitle = String(title || '')
     .trim()
-    .replace(/Rendici.n/g, 'Rendición')
+    .replace(/Rendici.n/g, 'Rendici?n')
   const match = normalizedTitle.match(/^(Proyecto .+?)\s\|\s(Convenio .+?)\s\|\s(.+)$/i)
   if (!match) {
     return {
-      projectAndConvenio: normalizedTitle || 'Rendición',
+      projectAndConvenio: normalizedTitle || 'Rendici?n',
       rendicionSummary: '',
     }
   }
@@ -100,6 +101,7 @@ function groupNotifications(
         message: item.message,
         groupedItems: [item],
         unreadCount: item.message.visto ? 0 : 1,
+        isRendicionDetail: item.message.accion?.tipo === 'rendicion_detalle',
       })
       return
     }
@@ -164,12 +166,19 @@ export function OrganizationNotificationsPage() {
       })
     }
 
-    navigate(
-      `/app-org/espacios/${item.spaceId}/rendicion/${item.message.accion?.rendicion_id}`,
-      {
-        state: { spaceName: item.spaceName },
-      },
-    )
+    if (item.isRendicionDetail && item.message.accion?.rendicion_id) {
+      navigate(
+        `/app-org/espacios/${item.spaceId}/rendicion/${item.message.accion?.rendicion_id}`,
+        {
+          state: { spaceName: item.spaceName },
+        },
+      )
+      return
+    }
+
+    navigate(`/app-org/espacios/${item.spaceId}/mensajes/${item.message.id}`, {
+      state: { spaceName: item.spaceName },
+    })
   }
 
   useEffect(() => {
@@ -181,7 +190,7 @@ export function OrganizationNotificationsPage() {
       setErrorMessage('')
 
       try {
-        const spaces = cachedSpaces ?? (await listMySpaces())
+        const spaces = cachedSpaces || (await listMySpaces())
         if (!cachedSpaces) {
           setOrganizationSpacesCache(cacheKey, spaces)
         }
@@ -225,7 +234,7 @@ export function OrganizationNotificationsPage() {
 
         const rows = responses.flatMap(({ space, response }) =>
           response.results
-            .filter((message) => message.accion?.tipo === 'rendicion_detalle')
+            .filter((message) => !message.visto)
             .map((message) => ({
               spaceId: space.id,
               spaceName: space.nombre,
@@ -325,7 +334,7 @@ export function OrganizationNotificationsPage() {
   if (errorMessage) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       </section>
@@ -380,7 +389,7 @@ export function OrganizationNotificationsPage() {
               </div>
               <p className={`mt-2 text-[13px] ${detailTextClass}`}>{item.capacitacionLabel}</p>
               <p className={`mt-1 text-[12px] ${detailTextClass}`}>
-                {item.observacion || 'Certificado rechazado. Revisar observación.'}
+                {item.observacion || 'Certificado rechazado. Revisar observaci?n.'}
               </p>
               <p className={`mt-2 text-[12px] ${detailTextClass}`}>
                 {formatDate(item.fechaRevision)}
@@ -452,3 +461,6 @@ export function OrganizationNotificationsPage() {
     </section>
   )
 }
+
+
+

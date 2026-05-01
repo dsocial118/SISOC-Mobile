@@ -135,6 +135,8 @@ export interface LocalRendicionFileRecord {
   url?: string | null
   estado: string
   estado_label: string
+  estado_visual_override?: string | null
+  estado_label_visual_override?: string | null
   observaciones: string | null
   sync_status: LocalSyncStatus
   pending_action?: LocalRendicionFilePendingAction

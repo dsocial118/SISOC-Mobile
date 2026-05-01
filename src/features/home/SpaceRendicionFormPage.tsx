@@ -1,10 +1,20 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { parseApiError } from '../../api/errorUtils'
 import { syncNow } from '../../sync/engine'
 import { appButtonClass } from '../../ui/buttons'
 import { useAppTheme } from '../../ui/ThemeContext'
-import { createRendicionOffline } from './rendicionOffline'
+import { createRendicionOffline, listOfflineRendiciones } from './rendicionOffline'
+
+function toComparableDate(value: string | null | undefined): number | null {
+  const raw = String(value || '').trim()
+  if (!raw) {
+    return null
+  }
+  const parsed = new Date(`${raw}T00:00:00`)
+  const time = parsed.getTime()
+  return Number.isNaN(time) ? null : time
+}
 
 export function SpaceRendicionFormPage() {
   const navigate = useNavigate()
@@ -49,12 +59,41 @@ export function SpaceRendicionFormPage() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!spaceId) {
-      setErrorMessage('No se encontró el espacio seleccionado.')
+      setErrorMessage('No se encontr? el espacio seleccionado.')
       return
     }
     setSaving(true)
     setErrorMessage('')
     try {
+      const inicioTs = toComparableDate(periodoInicio)
+      const finTs = toComparableDate(periodoFin)
+      if (!inicioTs || !finTs) {
+        setErrorMessage('Completá un período válido.')
+        setSaving(false)
+        return
+      }
+      if (finTs < inicioTs) {
+        setErrorMessage('La fecha fin no puede ser anterior a la fecha inicio.')
+        setSaving(false)
+        return
+      }
+
+      const existingRows = await listOfflineRendiciones(spaceId)
+      const hasOverlappingPeriod = existingRows.some((row) => {
+        const rowInicioTs = toComparableDate(row.periodo_inicio)
+        const rowFinTs = toComparableDate(row.periodo_fin)
+        if (!rowInicioTs || !rowFinTs) {
+          return false
+        }
+        return inicioTs <= rowFinTs && finTs >= rowInicioTs
+      })
+
+      if (hasOverlappingPeriod) {
+        setErrorMessage('Ya existe una rendición cargada para ese período.')
+        setSaving(false)
+        return
+      }
+
       const created = await createRendicionOffline(spaceId, {
         convenio,
         numero_rendicion: Number(numeroRendicion),
@@ -68,7 +107,7 @@ export function SpaceRendicionFormPage() {
         state: routeState,
       })
     } catch (error) {
-      setErrorMessage(parseApiError(error, 'No se pudo crear la rendición.'))
+      setErrorMessage(parseApiError(error, 'No se pudo crear la rendici?n.'))
       setSaving(false)
     }
   }
@@ -76,20 +115,20 @@ export function SpaceRendicionFormPage() {
   return (
     <section className="grid gap-3">
       <div>
-        <h2 className={`text-[16px] font-semibold ${titleClass}`}>Nueva rendición</h2>
+        <h2 className={`text-[16px] font-semibold ${titleClass}`}>Nueva rendici?n</h2>
         <p className={`mt-1 text-sm ${subtitleClass}`}>
-          Cargá los datos generales para iniciar la presentación.
+          Carg? los datos generales para iniciar la presentaci?n.
         </p>
       </div>
 
       {routeState?.organizationName && (routeState?.projectName || routeState?.programName) ? (
         <div className={`rounded-xl border px-4 py-3 text-sm ${subtitleClass}`} style={cardStyle}>
-          {routeState.organizationName} · {routeState.projectName || routeState.programName}
+          {routeState.organizationName} ? {routeState.projectName || routeState.programName}
         </div>
       ) : null}
 
       {errorMessage ? (
-        <div className="rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       ) : null}
@@ -110,7 +149,7 @@ export function SpaceRendicionFormPage() {
 
             <label className="grid gap-1">
               <span className={`text-[12px] font-semibold ${titleClass}`}>
-                Número de rendición
+                N?mero de rendici?n
               </span>
               <input
                 value={numeroRendicion}
@@ -162,11 +201,14 @@ export function SpaceRendicionFormPage() {
         <button
           type="submit"
           disabled={saving}
-          className={appButtonClass({ variant: 'primary', size: 'lg', fullWidth: true })}
+          className={appButtonClass({ variant: 'success', size: 'lg', fullWidth: true })}
         >
-          {saving ? 'Guardando...' : 'Continuar con documentación'}
+          {saving ? 'Guardando...' : 'Continuar con documentaci?n'}
         </button>
       </form>
     </section>
   )
 }
+
+
+

@@ -1,22 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faCalendarDay,
   faSquareCheck,
   faChevronRight,
-  faChild,
   faIdCard,
   faMagnifyingGlass,
-  faPerson,
-  faPersonCane,
-  faPersonDress,
-  faPlus,
-  faUser,
+  faUserPlus,
   faUserCheck,
   faUserGraduate,
-  faUsers,
   faUserXmark,
-  faUserTie,
 } from '@fortawesome/free-solid-svg-icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { listSpaceNomina, type NominaPerson, type NominaStats } from '../../api/nominaApi'
@@ -24,13 +17,26 @@ import { parseApiError } from '../../api/errorUtils'
 import { AppToast } from '../../ui/AppToast'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
-import { appButtonClass, joinClasses } from '../../ui/buttons'
+import { appButtonClass } from '../../ui/buttons'
 
 const EMPTY_STATS: NominaStats = {
   total_nomina: 0,
   genero: { M: 0, F: 0, X: 0 },
   menores_edad: 0,
   mayores_edad: 0,
+}
+
+function formatLatinDate(rawDate: string | null | undefined): string {
+  const value = (rawDate || '').trim()
+  if (!value) {
+    return '-'
+  }
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) {
+    return value
+  }
+  const [, year, month, day] = match
+  return `${day}-${month}-${year}`
 }
 
 function calculateAgeYears(rawDate: string | null | undefined): number | null {
@@ -52,19 +58,6 @@ function calculateAgeYears(rawDate: string | null | undefined): number | null {
     age -= 1
   }
   return age >= 0 ? age : null
-}
-
-function formatLatinDate(rawDate: string | null | undefined): string {
-  const value = (rawDate || '').trim()
-  if (!value) {
-    return '-'
-  }
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (!match) {
-    return value
-  }
-  const [, year, month, day] = match
-  return `${day}-${month}-${year}`
 }
 
 export function SpaceNominaAlimentariaPage() {
@@ -94,6 +87,7 @@ export function SpaceNominaAlimentariaPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [stats, setStats] = useState<NominaStats>(EMPTY_STATS)
   const [rows, setRows] = useState<NominaPerson[]>([])
+  const [showCachedDataNotice, setShowCachedDataNotice] = useState(false)
 
   const textClass = isDark ? 'text-white' : 'text-[#232D4F]'
   const detailTextClass = isDark ? 'text-white/85' : 'text-slate-700'
@@ -110,8 +104,6 @@ export function SpaceNominaAlimentariaPage() {
         borderColor: '#E0E0E0',
         boxShadow: '4px 4px 4px rgba(0, 0, 0, 0.25)',
       }
-  const currentTitle = 'Nómina alimentaria'
-
   useEffect(() => {
     const incomingToast = routeState?.attendanceToast ?? routeState?.successToast
     if (!incomingToast) {
@@ -130,6 +122,7 @@ export function SpaceNominaAlimentariaPage() {
     })
   }, [location.pathname, navigate, routeState])
 
+  const filteredRows = useMemo(() => rows, [rows])
   const ageGroups = useMemo(
     () => ({
       ninos: rows.filter((row) => {
@@ -178,11 +171,13 @@ export function SpaceNominaAlimentariaPage() {
         }
         setStats(nominaResponse.stats)
         setRows(nominaResponse.results)
+        setShowCachedDataNotice(nominaResponse._source === 'cache')
       } catch (error) {
         if (!isMounted) {
           return
         }
-        setErrorMessage(parseApiError(error, 'No se pudo cargar la nómina.'))
+        setShowCachedDataNotice(false)
+        setErrorMessage(parseApiError(error, 'No se pudo cargar beneficiarios.'))
       } finally {
         if (isMounted) {
           setLoading(false)
@@ -214,7 +209,7 @@ export function SpaceNominaAlimentariaPage() {
   if (errorMessage) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       </section>
@@ -230,8 +225,21 @@ export function SpaceNominaAlimentariaPage() {
         onClose={() => setToast(null)}
       />
 
-      <div className="flex items-center justify-between gap-3">
-        <h2 className={`text-[16px] font-semibold ${textClass}`}>{currentTitle}</h2>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            navigate(`/app-org/espacios/${spaceId}/nomina-alimentaria/nueva`, {
+              state: {
+                spaceName: routeState?.spaceName,
+              },
+            })
+          }
+          className={appButtonClass({ variant: 'success', size: 'md' })}
+        >
+          <FontAwesomeIcon icon={faUserPlus} aria-hidden="true" />
+          Agregar persona
+        </button>
         <button
           type="button"
           onClick={() =>
@@ -241,136 +249,57 @@ export function SpaceNominaAlimentariaPage() {
               },
             })
           }
-          className={appButtonClass({ variant: 'success', size: 'sm' })}
+          className={appButtonClass({ variant: 'outline-secondary', size: 'md' })}
         >
           <FontAwesomeIcon icon={faSquareCheck} aria-hidden="true" />
           Asistencia
         </button>
       </div>
+      {showCachedDataNotice ? (
+        <div className="rounded-xl border border-[#E7BA61]/40 bg-[#E7BA61]/15 px-3 py-2 text-[12px] font-semibold text-[#8C6A1D]">
+          Mostrando datos guardados por conexión lenta.
+        </div>
+      ) : null}
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-3">
         <div
           className={`rounded-2xl border p-3 text-center ${summaryCardClass}`}
           style={{ ...cardStyle, borderColor: '#E7BA61' }}
         >
-          <p className={`text-[16px] font-bold ${textClass}`}>Asistentes</p>
-          <div className="mt-2 py-2">
+          <div className="mt-1 py-1">
             <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
-              {stats.total_nomina}
+              Asistentes: {stats.total_nomina}
             </p>
-            <div className="mt-1 flex justify-center">
-              <FontAwesomeIcon
-                icon={faUsers}
-                aria-hidden="true"
-                className={textClass}
-                style={{ fontSize: 24 }}
-              />
+            <div className={`mt-2 flex items-center justify-center gap-8 ${textClass}`}>
+              <p className="text-[14px] font-medium">M: <span className="text-[16px] font-bold">{stats.genero.M}</span></p>
+              <p className="text-[14px] font-medium">F: <span className="text-[16px] font-bold">{stats.genero.F}</span></p>
+              <p className="text-[14px] font-medium">X: <span className="text-[16px] font-bold">{stats.genero.X}</span></p>
             </div>
           </div>
         </div>
         <div
-          className={`rounded-2xl border p-3 text-center ${summaryCardClass}`}
+          className={`rounded-2xl border p-3 ${summaryCardClass}`}
           style={{ ...cardStyle, borderColor: '#E7BA61' }}
         >
-          <p className={`text-[16px] font-bold ${textClass}`}>Género</p>
-          <div className="mt-2 grid grid-cols-3 gap-2">
-            <div className="px-2 py-2 text-center">
-              <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
-                {stats.genero.M}
-              </p>
-              <FontAwesomeIcon
-                icon={faPerson}
-                aria-hidden="true"
-                className={`mt-1 ${textClass}`}
-                style={{ fontSize: 24 }}
-              />
-            </div>
-            <div className="px-2 py-2 text-center">
-              <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
-                {stats.genero.F}
-              </p>
-              <FontAwesomeIcon
-                icon={faPersonDress}
-                aria-hidden="true"
-                className={`mt-1 ${textClass}`}
-                style={{ fontSize: 24 }}
-              />
-            </div>
-            <div className="px-2 py-2 text-center">
-              <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
-                {stats.genero.X}
-              </p>
-              <p className={`mt-1 text-[24px] font-black leading-none ${textClass}`}>X</p>
-            </div>
-          </div>
-        </div>
-        <div
-          className={`col-span-2 rounded-2xl border p-3 text-center ${summaryCardClass}`}
-          style={{ ...cardStyle, borderColor: '#E7BA61' }}
-        >
-          <p className={`text-[16px] font-bold ${textClass}`}>Edades</p>
-          <div className="mt-2 grid grid-cols-5 gap-1">
-            <div className="px-1 py-2 text-center">
-              <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
-                {ageGroups.ninos}
-              </p>
-              <FontAwesomeIcon
-                icon={faChild}
-                aria-hidden="true"
-                className={`mt-1 ${textClass}`}
-                style={{ fontSize: 24 }}
-              />
-              <p className={`mt-1 text-[10px] font-medium ${detailTextClass}`}>0-13</p>
-            </div>
-            <div className="px-1 py-2 text-center">
-              <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
-                {ageGroups.adolescentes}
-              </p>
-              <FontAwesomeIcon
-                icon={faUserGraduate}
-                aria-hidden="true"
-                className={`mt-1 ${textClass}`}
-                style={{ fontSize: 24 }}
-              />
-              <p className={`mt-1 text-[10px] font-medium ${detailTextClass}`}>14-17</p>
-            </div>
-            <div className="px-1 py-2 text-center">
-              <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
-                {ageGroups.adultos}
-              </p>
-              <FontAwesomeIcon
-                icon={faUser}
-                aria-hidden="true"
-                className={`mt-1 ${textClass}`}
-                style={{ fontSize: 24 }}
-              />
-              <p className={`mt-1 text-[10px] font-medium ${detailTextClass}`}>18-49</p>
-            </div>
-            <div className="px-1 py-2 text-center">
-              <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
-                {ageGroups.adultosMayores}
-              </p>
-              <FontAwesomeIcon
-                icon={faUserTie}
-                aria-hidden="true"
-                className={`mt-1 ${textClass}`}
-                style={{ fontSize: 24 }}
-              />
-              <p className={`mt-1 text-[10px] font-medium ${detailTextClass}`}>50-65</p>
-            </div>
-            <div className="px-1 py-2 text-center">
-              <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
-                {ageGroups.mayoresAvanzados}
-              </p>
-              <FontAwesomeIcon
-                icon={faPersonCane}
-                aria-hidden="true"
-                className={`mt-1 ${textClass}`}
-                style={{ fontSize: 24 }}
-              />
-              <p className={`mt-1 text-[10px] font-medium ${detailTextClass}`}>66+</p>
-            </div>
-          </div>
+          <p className={`text-center text-[16px] font-bold ${textClass}`}>Edades</p>
+          <ul className="mt-2 grid grid-cols-2 gap-x-10 gap-y-1">
+            {[
+              { label: '0-13', value: ageGroups.ninos },
+              { label: '14-17', value: ageGroups.adolescentes },
+              { label: '18-49', value: ageGroups.adultos },
+              { label: '50-65', value: ageGroups.adultosMayores },
+              { label: '66+', value: ageGroups.mayoresAvanzados },
+            ].map((item) => (
+              <li
+                key={item.label}
+                className="py-0.5 text-center"
+              >
+                <span className={`text-[14px] font-medium ${detailTextClass}`}>
+                  {item.label}: <span className={`text-[16px] font-bold ${textClass}`}>{item.value}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
@@ -411,15 +340,17 @@ export function SpaceNominaAlimentariaPage() {
         </div>
       </div>
 
-      {rows.length === 0 ? (
+      {filteredRows.length === 0 ? (
         <div className="grid gap-2">
           <p className={`text-sm ${detailTextClass}`}>
-            No hay personas vinculadas a prestaciones alimentarias en este espacio.
+            {rows.length === 0
+              ? 'No hay personas vinculadas a prestaciones alimentarias en este espacio.'
+              : 'No hay personas que coincidan con la búsqueda seleccionada.'}
           </p>
         </div>
       ) : (
         <div className="grid gap-2">
-          {rows.map((row) => (
+          {filteredRows.map((row) => (
             <button
               key={row.id}
               type="button"
@@ -454,13 +385,11 @@ export function SpaceNominaAlimentariaPage() {
                       />
                       {formatLatinDate(row.fecha_nacimiento)}
                     </span>
-                    <span
-                      className={`inline-flex items-center gap-1 ${
-                        row.asistencia_mes_actual ? 'text-[#2E7D33]' : 'text-[#C62828]'
-                      }`}
-                    >
+                    <span className={`inline-flex items-center gap-1 ${detailTextClass}`}>
+                      <span>Asitencia:</span>
                       <FontAwesomeIcon
                         icon={row.asistencia_mes_actual ? faUserCheck : faUserXmark}
+                        className={row.asistencia_mes_actual ? 'text-[#2E7D33]' : 'text-[#C62828]'}
                         aria-hidden="true"
                         style={{ fontSize: 14 }}
                       />
@@ -488,24 +417,10 @@ export function SpaceNominaAlimentariaPage() {
           ))}
         </div>
       )}
-
-      <button
-        type="button"
-        onClick={() =>
-          navigate(`/app-org/espacios/${spaceId}/nomina-alimentaria/nueva`, {
-            state: {
-              spaceName: routeState?.spaceName,
-            },
-          })
-        }
-        className={joinClasses(
-          'fixed bottom-20 right-4 z-20 inline-flex h-14 w-14 items-center justify-center rounded-full shadow-[0_10px_24px_rgba(46,125,51,0.35)]',
-          appButtonClass({ variant: 'success', size: 'md' }),
-        )}
-        aria-label="Agregar persona"
-      >
-        <FontAwesomeIcon icon={faPlus} aria-hidden="true" style={{ fontSize: 22 }} />
-      </button>
     </section>
   )
 }
+
+
+
+

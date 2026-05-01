@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faBell, faChevronLeft } from '@fortawesome/free-solid-svg-icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { listSpaceMessages, type SpaceMessageItem } from '../../api/messagesApi'
 import { parseApiError } from '../../api/errorUtils'
+import { useAuth } from '../../auth/useAuth'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
+import { isGeneralMessageReadInSpace } from './generalMessageLocalRead'
 import { notifySpaceUnreadMessagesUpdated } from './useUnreadMessages'
 
 function formatDate(value: string | null | undefined): string {
@@ -64,6 +66,7 @@ export function SpaceMessagesPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { spaceId } = useParams<{ spaceId: string }>()
+  const { userProfile } = useAuth()
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
   const routeState = (location.state as { spaceName?: string } | null) ?? null
@@ -83,7 +86,7 @@ export function SpaceMessagesPage() {
       setErrorMessage('')
 
       if (!spaceId) {
-        setErrorMessage('No se encontró el espacio seleccionado.')
+        setErrorMessage('No se encontr? el espacio seleccionado.')
         setLoading(false)
         setPageLoading(false)
         return
@@ -94,11 +97,33 @@ export function SpaceMessagesPage() {
         if (!isMounted) {
           return
         }
-        setMessages(response.results)
-        setUnreadCount(response.unread_count)
-        setUnreadGeneralCount(response.unread_general_count)
-        setUnreadSpaceCount(response.unread_espacio_count)
-        notifySpaceUnreadMessagesUpdated(spaceId, response.unread_count)
+        const normalizedMessages = response.results.map((message) => {
+          if (message.seccion !== 'general') {
+            return message
+          }
+          const isReadInCurrentSpace = isGeneralMessageReadInSpace(
+            userProfile?.username,
+            spaceId,
+            message.id,
+          )
+          return {
+            ...message,
+            visto: isReadInCurrentSpace,
+          }
+        })
+        const nextUnreadCount = normalizedMessages.filter((message) => !message.visto).length
+        const nextUnreadGeneralCount = normalizedMessages.filter(
+          (message) => message.seccion === 'general' && !message.visto,
+        ).length
+        const nextUnreadSpaceCount = normalizedMessages.filter(
+          (message) => message.seccion === 'espacio' && !message.visto,
+        ).length
+
+        setMessages(normalizedMessages)
+        setUnreadCount(nextUnreadCount)
+        setUnreadGeneralCount(nextUnreadGeneralCount)
+        setUnreadSpaceCount(nextUnreadSpaceCount)
+        notifySpaceUnreadMessagesUpdated(spaceId, nextUnreadCount)
       } catch (error) {
         if (!isMounted) {
           return
@@ -117,7 +142,7 @@ export function SpaceMessagesPage() {
       isMounted = false
       setPageLoading(false)
     }
-  }, [setPageLoading, spaceId])
+  }, [setPageLoading, spaceId, userProfile?.username])
 
   const cardStyle = isDark
     ? {
@@ -157,7 +182,7 @@ export function SpaceMessagesPage() {
   if (errorMessage) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       </section>
@@ -173,8 +198,8 @@ export function SpaceMessagesPage() {
             {unreadCount === 0
               ? 'No hay mensajes sin leer.'
               : unreadCount === 1
-                ? 'Tenés 1 mensaje sin leer.'
-                : `Tenés ${unreadCount} mensajes sin leer.`}
+                ? 'Ten?s 1 mensaje sin leer.'
+                : `Ten?s ${unreadCount} mensajes sin leer.`}
           </p>
         </div>
         <div
@@ -197,7 +222,7 @@ export function SpaceMessagesPage() {
             isDark ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-white text-slate-700'
           }`}
         >
-          <p className="text-sm">Todavía no hay mensajes para este espacio.</p>
+          <p className="text-sm">Todav?a no hay mensajes para este espacio.</p>
         </div>
       ) : (
         <div className="mt-4 grid gap-5">
@@ -205,7 +230,7 @@ export function SpaceMessagesPage() {
             title="Notificaciones Generales"
             unreadCount={unreadGeneralCount}
             messages={generalMessages}
-            emptyMessage="Todavía no hay notificaciones generales."
+            emptyMessage="Todav?a no hay notificaciones generales."
             spaceId={spaceId}
             spaceName={routeState?.spaceName}
             navigate={navigate}
@@ -218,7 +243,7 @@ export function SpaceMessagesPage() {
             title="Comunicaciones a Espacios"
             unreadCount={unreadSpaceCount}
             messages={spaceMessages}
-            emptyMessage="Todavía no hay comunicaciones para este espacio."
+            emptyMessage="Todav?a no hay comunicaciones para este espacio."
             spaceId={spaceId}
             spaceName={routeState?.spaceName}
             navigate={navigate}
@@ -342,3 +367,6 @@ function MessageSection({
     </section>
   )
 }
+
+
+

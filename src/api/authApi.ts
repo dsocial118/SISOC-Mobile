@@ -3,7 +3,7 @@ import type { AuthUserProfile } from '../auth/context-store'
 import type { UserRole } from '../db/database'
 import { parseApiError } from './errorUtils'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 interface LoginResponse {
   token: string

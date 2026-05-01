@@ -28,7 +28,7 @@ export function InstallNoticeCard({
     >
       <div className="flex h-full flex-col">
         <div className="flex items-start gap-5">
-          <div className="shrink-0">{icon ?? <DefaultDeviceIcon />}</div>
+          <div className="shrink-0">{icon || <DefaultDeviceIcon />}</div>
           <div className="min-w-0 pt-1">
             <h2 className="text-[20px] font-semibold leading-tight">{title}</h2>
           </div>

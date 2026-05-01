@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faPaperclip } from '@fortawesome/free-solid-svg-icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -12,6 +12,7 @@ import { parseApiError } from '../../api/errorUtils'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
 import { useAuth } from '../../auth/useAuth'
+import { markGeneralMessageReadInSpace } from './generalMessageLocalRead'
 import {
   notifySpaceUnreadMessagesUpdated,
   useSpaceUnreadMessages,
@@ -95,6 +96,17 @@ export function SpaceMessageDetailPage() {
         }
 
         let nextMessage = detail
+        if (detail.seccion === 'general') {
+          markGeneralMessageReadInSpace(userProfile?.username, spaceId, detail.id)
+          if (!detail.visto) {
+            notifySpaceUnreadMessagesUpdated(spaceId, Math.max(0, unreadCountRef.current - 1))
+          }
+          setMessage({
+            ...detail,
+            visto: true,
+          })
+          return
+        }
         if (!detail.visto) {
           nextMessage = await markSpaceMessageAsSeen(spaceId, messageId)
           if (!isMounted) {
@@ -122,7 +134,7 @@ export function SpaceMessageDetailPage() {
       isMounted = false
       setPageLoading(false)
     }
-  }, [messageId, setPageLoading, spaceId])
+  }, [messageId, setPageLoading, spaceId, userProfile?.username])
 
   const cardClass = isDark
     ? 'border-white/20 bg-[#232D4F] text-white'
@@ -161,7 +173,7 @@ export function SpaceMessageDetailPage() {
   if (errorMessage) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       </section>
@@ -220,7 +232,7 @@ export function SpaceMessageDetailPage() {
               }
               className="inline-flex items-center justify-center rounded-xl bg-[#2E7D33] px-4 py-3 text-sm font-semibold text-white"
             >
-              Abrir rendición
+              Abrir rendici?n
             </button>
           </div>
         ) : null}
@@ -332,3 +344,6 @@ export function SpaceMessageDetailPage() {
     </section>
   )
 }
+
+
+

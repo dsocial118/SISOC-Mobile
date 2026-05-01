@@ -22,6 +22,7 @@ export function SpaceNominaAlimentariaAttendancePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [showCachedDataNotice, setShowCachedDataNotice] = useState(false)
   const [periodLabel, setPeriodLabel] = useState('')
   const [rows, setRows] = useState<NominaPerson[]>([])
   const [selectedIds, setSelectedIds] = useState<number[]>([])
@@ -59,6 +60,7 @@ export function SpaceNominaAlimentariaAttendancePage() {
         if (!isMounted) {
           return
         }
+        setShowCachedDataNotice(response._source === 'cache')
         setRows(response.results)
         setSelectedIds(response.results.map((row) => row.id))
         const currentPeriod = response.results.find(
@@ -82,6 +84,7 @@ export function SpaceNominaAlimentariaAttendancePage() {
         if (!isMounted) {
           return
         }
+        setShowCachedDataNotice(false)
         setErrorMessage(parseApiError(error, 'No se pudo cargar la asistencia alimentaria.'))
       } finally {
         if (isMounted) {
@@ -133,7 +136,7 @@ export function SpaceNominaAlimentariaAttendancePage() {
           spaceName: routeState?.spaceName,
           attendanceToast: {
             tone: 'success',
-            message: `Se guardó la asistencia de la nómina del período ${result.periodo_label}.`,
+            message: `Se guardó la asistencia de beneficiarios del período ${result.periodo_label}.`,
           },
         },
       })
@@ -156,6 +159,11 @@ export function SpaceNominaAlimentariaAttendancePage() {
         tone="error"
         onClose={() => setErrorMessage('')}
       />
+      {showCachedDataNotice ? (
+        <div className="rounded-xl border border-[#E7BA61]/40 bg-[#E7BA61]/15 px-3 py-2 text-[12px] font-semibold text-[#8C6A1D]">
+          Mostrando datos guardados por conexión lenta.
+        </div>
+      ) : null}
 
       <div>
         <h2 className={`text-[16px] font-semibold ${textClass}`}>Asistencia alimentaria</h2>

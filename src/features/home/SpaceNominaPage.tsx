@@ -1,19 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faCalendarDay,
+  faSquareCheck,
   faChevronRight,
-  faChild,
   faIdCard,
   faMagnifyingGlass,
-  faPerson,
-  faPersonCane,
-  faPersonDress,
-  faPlus,
-  faUser,
-  faUserGraduate,
   faUsers,
-  faUserTie,
+  faUserPlus,
+  faUserGraduate,
   faUtensils,
 } from '@fortawesome/free-solid-svg-icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -24,7 +19,7 @@ import {
   type NominaTab,
 } from '../../api/nominaApi'
 import { parseApiError } from '../../api/errorUtils'
-import { appButtonClass, joinClasses } from '../../ui/buttons'
+import { appButtonClass } from '../../ui/buttons'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
 
@@ -85,6 +80,7 @@ export function SpaceNominaPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [stats, setStats] = useState<NominaStats>(EMPTY_STATS)
   const [rows, setRows] = useState<NominaPerson[]>([])
+  const [showCachedDataNotice, setShowCachedDataNotice] = useState(false)
 
   const textClass = isDark ? 'text-white' : 'text-[#232D4F]'
   const detailTextClass = isDark ? 'text-white/85' : 'text-slate-700'
@@ -100,12 +96,6 @@ export function SpaceNominaPage() {
         boxShadow: '4px 4px 4px rgba(0, 0, 0, 0.25)',
       }
   const subCardClass = isDark ? 'border-white/20 bg-white/5' : 'border-[#E0E0E0] bg-white'
-  const currentTitle =
-    tab === 'alimentaria'
-      ? 'Nómina alimentaria'
-      : tab === 'formacion'
-        ? 'Nómina de actividades'
-        : 'Nómina consolidada'
   const ageGroups = useMemo(
     () => ({
       ninos: rows.filter((row) => {
@@ -131,6 +121,7 @@ export function SpaceNominaPage() {
     }),
     [rows],
   )
+  const filteredRows = useMemo(() => rows, [rows])
 
   useEffect(() => {
     let isMounted = true
@@ -154,11 +145,13 @@ export function SpaceNominaPage() {
         }
         setStats(nominaResponse.stats)
         setRows(nominaResponse.results)
+        setShowCachedDataNotice(nominaResponse._source === 'cache')
       } catch (error) {
         if (!isMounted) {
           return
         }
-        setErrorMessage(parseApiError(error, 'No se pudo cargar la nómina.'))
+        setShowCachedDataNotice(false)
+        setErrorMessage(parseApiError(error, 'No se pudo cargar beneficiarios.'))
       } finally {
         if (isMounted) {
           setLoading(false)
@@ -185,7 +178,7 @@ export function SpaceNominaPage() {
   if (errorMessage) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {errorMessage}
         </div>
       </section>
@@ -194,9 +187,43 @@ export function SpaceNominaPage() {
 
   return (
     <section className="grid gap-3 pb-24">
-      <div>
-        <h2 className={`text-[16px] font-semibold ${textClass}`}>{currentTitle}</h2>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            navigate(`/app-org/espacios/${spaceId}/nomina/nueva`, {
+              state: {
+                spaceName: routeState?.spaceName,
+                defaultMode: tab === 'formacion' ? 'formacion' : 'alimentaria',
+              },
+            })
+          }
+          className={appButtonClass({ variant: 'success', size: 'md' })}
+        >
+          <FontAwesomeIcon icon={faUserPlus} aria-hidden="true" />
+          Agregar persona
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            navigate(`/app-org/espacios/${spaceId}/nomina-alimentaria/asistencia`, {
+              state: {
+                spaceName: routeState?.spaceName,
+              },
+            })
+          }
+          className={appButtonClass({ variant: 'outline-secondary', size: 'md' })}
+        >
+          <FontAwesomeIcon icon={faSquareCheck} aria-hidden="true" />
+          Asistencia
+        </button>
       </div>
+
+      {showCachedDataNotice ? (
+        <div className="rounded-xl border border-[#E7BA61]/40 bg-[#E7BA61]/15 px-3 py-2 text-[12px] font-semibold text-[#8C6A1D]">
+          Mostrando datos guardados por conexión lenta.
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         {([
@@ -256,145 +283,61 @@ export function SpaceNominaPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-3">
         <div
-          className="rounded-2xl border border-[#E7BA61] p-3 text-center shadow-[0_8px_18px_rgba(35,45,79,0.28)]"
-          style={{ backgroundImage: 'linear-gradient(45deg, #232D4F 0%, #585697 100%)' }}
+          className={`rounded-2xl border p-3 text-center ${isDark ? 'bg-[#232D4F]' : 'bg-[#F5F5F5]'}`}
+          style={{ ...cardStyle, borderColor: '#E7BA61' }}
         >
-          <p className="text-[16px] font-bold text-white">Asistentes</p>
-          <div className="mt-2 py-2">
-            <p className="text-[20px] font-extrabold leading-none text-white">
-              {stats.total_nomina}
+          <div className="mt-1 py-1">
+            <p className={`text-[20px] font-extrabold leading-none ${textClass}`}>
+              Asistentes: {stats.total_nomina}
             </p>
-            <div className="mt-1 flex justify-center">
-              <FontAwesomeIcon
-                icon={faUsers}
-                aria-hidden="true"
-                className="text-white"
-                style={{ fontSize: 24 }}
-              />
+            <div className={`mt-2 flex items-center justify-center gap-8 ${textClass}`}>
+              <p className="text-[14px] font-medium">M: <span className="text-[16px] font-bold">{stats.genero.M}</span></p>
+              <p className="text-[14px] font-medium">F: <span className="text-[16px] font-bold">{stats.genero.F}</span></p>
+              <p className="text-[14px] font-medium">X: <span className="text-[16px] font-bold">{stats.genero.X}</span></p>
             </div>
           </div>
         </div>
         <div
-          className="rounded-2xl border border-[#E7BA61] p-3 text-center shadow-[0_8px_18px_rgba(35,45,79,0.28)]"
-          style={{ backgroundImage: 'linear-gradient(45deg, #232D4F 0%, #585697 100%)' }}
+          className={`rounded-2xl border p-3 ${isDark ? 'bg-[#232D4F]' : 'bg-[#F5F5F5]'}`}
+          style={{ ...cardStyle, borderColor: '#E7BA61' }}
         >
-          <p className="text-[16px] font-bold text-white">Género</p>
-          <div className="mt-2 grid grid-cols-3 gap-2">
-            <div className="px-2 py-2 text-center">
-              <p className="text-[20px] font-extrabold leading-none text-white">
-                {stats.genero.M}
-              </p>
-              <FontAwesomeIcon
-                icon={faPerson}
-                aria-hidden="true"
-                className="mt-1 text-white"
-                style={{ fontSize: 24 }}
-              />
-            </div>
-            <div className="px-2 py-2 text-center">
-              <p className="text-[20px] font-extrabold leading-none text-white">
-                {stats.genero.F}
-              </p>
-              <FontAwesomeIcon
-                icon={faPersonDress}
-                aria-hidden="true"
-                className="mt-1 text-white"
-                style={{ fontSize: 24 }}
-              />
-            </div>
-            <div className="px-2 py-2 text-center">
-              <p className="text-[20px] font-extrabold leading-none text-white">
-                {stats.genero.X}
-              </p>
-              <p className="mt-1 text-[24px] font-black leading-none text-white">X</p>
-            </div>
-          </div>
-        </div>
-        <div
-          className="col-span-2 rounded-2xl border border-[#E7BA61] p-3 text-center shadow-[0_8px_18px_rgba(35,45,79,0.28)]"
-          style={{ backgroundImage: 'linear-gradient(45deg, #232D4F 0%, #585697 100%)' }}
-        >
-          <p className="text-[16px] font-bold text-white">Edades</p>
-          <div className="mt-2 grid grid-cols-5 gap-1">
-            <div className="px-1 py-2 text-center">
-              <p className="text-[20px] font-extrabold leading-none text-white">
-                {ageGroups.ninos}
-              </p>
-              <FontAwesomeIcon
-                icon={faChild}
-                aria-hidden="true"
-                className="mt-1 text-white"
-                style={{ fontSize: 24 }}
-              />
-              <p className="mt-1 text-[10px] font-medium text-white/90">0-13</p>
-            </div>
-            <div className="px-1 py-2 text-center">
-              <p className="text-[20px] font-extrabold leading-none text-white">
-                {ageGroups.adolescentes}
-              </p>
-              <FontAwesomeIcon
-                icon={faUserGraduate}
-                aria-hidden="true"
-                className="mt-1 text-white"
-                style={{ fontSize: 24 }}
-              />
-              <p className="mt-1 text-[10px] font-medium text-white/90">14-17</p>
-            </div>
-            <div className="px-1 py-2 text-center">
-              <p className="text-[20px] font-extrabold leading-none text-white">
-                {ageGroups.adultos}
-              </p>
-              <FontAwesomeIcon
-                icon={faUser}
-                aria-hidden="true"
-                className="mt-1 text-white"
-                style={{ fontSize: 24 }}
-              />
-              <p className="mt-1 text-[10px] font-medium text-white/90">18-49</p>
-            </div>
-            <div className="px-1 py-2 text-center">
-              <p className="text-[20px] font-extrabold leading-none text-white">
-                {ageGroups.adultosMayores}
-              </p>
-              <FontAwesomeIcon
-                icon={faUserTie}
-                aria-hidden="true"
-                className="mt-1 text-white"
-                style={{ fontSize: 24 }}
-              />
-              <p className="mt-1 text-[10px] font-medium text-white/90">50-65</p>
-            </div>
-            <div className="px-1 py-2 text-center">
-              <p className="text-[20px] font-extrabold leading-none text-white">
-                {ageGroups.mayoresAvanzados}
-              </p>
-              <FontAwesomeIcon
-                icon={faPersonCane}
-                aria-hidden="true"
-                className="mt-1 text-white"
-                style={{ fontSize: 24 }}
-              />
-              <p className="mt-1 text-[10px] font-medium text-white/90">66+</p>
-            </div>
-          </div>
+          <p className={`text-center text-[16px] font-bold ${textClass}`}>Edades</p>
+          <ul className="mt-2 grid grid-cols-2 gap-x-10 gap-y-1">
+            {[
+              { label: '0-13', value: ageGroups.ninos },
+              { label: '14-17', value: ageGroups.adolescentes },
+              { label: '18-49', value: ageGroups.adultos },
+              { label: '50-65', value: ageGroups.adultosMayores },
+              { label: '66+', value: ageGroups.mayoresAvanzados },
+            ].map((item) => (
+              <li
+                key={item.label}
+                className="py-0.5 text-center"
+              >
+                <span className={`text-[14px] font-medium ${detailTextClass}`}>
+                  {item.label}: <span className={`text-[16px] font-bold ${textClass}`}>{item.value}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
-      {rows.length === 0 ? (
+      {filteredRows.length === 0 ? (
         <div className="grid gap-2">
           <p className={`text-sm ${detailTextClass}`}>
             {tab === 'formacion'
               ? 'No hay personas vinculadas a Actividades en este espacio.'
               : tab === 'alimentaria'
                 ? 'No hay personas vinculadas a prestaciones alimentarias en este espacio.'
-                : 'No hay personas para el filtro seleccionado.'}
+                : 'No hay personas para la búsqueda seleccionada.'}
           </p>
         </div>
       ) : (
         <div className="grid gap-2">
-          {rows.map((row) => (
+          {filteredRows.map((row) => (
             <button
               key={row.id}
               type="button"
@@ -465,24 +408,10 @@ export function SpaceNominaPage() {
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() =>
-          navigate(`/app-org/espacios/${spaceId}/nomina/nueva`, {
-            state: {
-              spaceName: routeState?.spaceName,
-              defaultMode: tab === 'formacion' ? 'formacion' : 'alimentaria',
-            },
-          })
-        }
-        className={joinClasses(
-          appButtonClass({ variant: 'success', size: 'md' }),
-          'fixed bottom-20 right-4 z-20 h-14 w-14 rounded-full p-0 shadow-[0_10px_24px_rgba(46,125,51,0.35)]',
-        )}
-        aria-label="Agregar persona"
-      >
-        <FontAwesomeIcon icon={faPlus} aria-hidden="true" style={{ fontSize: 22 }} />
-      </button>
     </section>
   )
 }
+
+
+
+

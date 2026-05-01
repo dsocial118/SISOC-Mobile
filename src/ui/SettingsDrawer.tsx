@@ -6,6 +6,7 @@ import {
   faSun,
   faUser,
 } from '@fortawesome/free-solid-svg-icons'
+import sisocDarkMode from '../assets/images/sisoc_dark_mode.png'
 import type { AuthUserProfile } from '../auth/context-store'
 import type { AppTheme } from './ThemeContext'
 
@@ -32,6 +33,7 @@ export function SettingsDrawer({
 }: SettingsDrawerProps) {
   const userName = userProfile?.fullName || userProfile?.username || 'Usuario'
   const userEmail = userProfile?.email || 'Sin email'
+  const appBuildDate = __APP_BUILD_DATE__
 
   return (
     <div
@@ -54,6 +56,15 @@ export function SettingsDrawer({
           paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
         }}
       >
+        <div className="mb-7 mt-2 flex justify-center">
+          <img
+            src={sisocDarkMode}
+            alt="SiSOC"
+            className="h-auto w-[108px] object-contain"
+            draggable={false}
+          />
+        </div>
+
         <div className="rounded-xl border border-white/20 bg-white/5 p-4">
           <p className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[#E7BA61]">
             Usuario
@@ -116,6 +127,7 @@ export function SettingsDrawer({
             />
             Salir
           </button>
+          <p className="mt-2 text-center text-[11px] text-white/70">Actualizado: {appBuildDate}</p>
         </div>
       </aside>
     </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faArrowUpRightFromSquare,
@@ -120,6 +120,7 @@ export function SpaceRendicionDetailPage() {
   const [redirectToListOnNoticeClose, setRedirectToListOnNoticeClose] = useState(false)
   const [rendicion, setRendicion] = useState<RendicionDetail | null>(null)
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({})
+  const [selectedMultipleFiles, setSelectedMultipleFiles] = useState<Record<string, File[]>>({})
   const [fileLabels, setFileLabels] = useState<Record<string, string>>({})
   const [uploadingTargetKey, setUploadingTargetKey] = useState<string | null>(null)
   const [deletingDocumentId, setDeletingDocumentId] = useState<number | string | null>(null)
@@ -247,11 +248,13 @@ export function SpaceRendicionDetailPage() {
     categoria: string
     slotKey: string
     documentoSubsanadoId?: number | string
+    file?: File
+    keepSelection?: boolean
   }) {
     if (!spaceId || !rendicionId) {
       return
     }
-    const selectedFile = selectedFiles[params.slotKey]
+    const selectedFile = params.file || selectedFiles[params.slotKey]
     if (!selectedFile) {
       openNotice('Selecciona un archivo para adjuntar.')
       return
@@ -268,8 +271,11 @@ export function SpaceRendicionDetailPage() {
         documentoSubsanadoId: params.documentoSubsanadoId,
       })
       setRendicion(detail)
-      setSelectedFiles((current) => ({ ...current, [params.slotKey]: null }))
-      setFileLabels((current) => ({ ...current, [params.slotKey]: '' }))
+      if (!params.keepSelection) {
+        setSelectedFiles((current) => ({ ...current, [params.slotKey]: null }))
+        setSelectedMultipleFiles((current) => ({ ...current, [params.slotKey]: [] }))
+        setFileLabels((current) => ({ ...current, [params.slotKey]: '' }))
+      }
       void syncNow()
     } catch (error) {
       openNotice(parseApiError(error, 'No se pudo adjuntar el archivo.'))
@@ -312,9 +318,9 @@ export function SpaceRendicionDetailPage() {
       }
       openNotice(
         rendicion?.estado === 'subsanar'
-          ? 'Los cambios se enviaron nuevamente a revisión.'
-          : 'La rendición se envió a revisión.',
-        'Envío realizado',
+          ? 'Los cambios se enviaron nuevamente a revisi?n.'
+          : 'La rendici?n se envi? a revisi?n.',
+        'Env?o realizado',
       )
     } catch (error) {
       openNotice(
@@ -338,7 +344,7 @@ export function SpaceRendicionDetailPage() {
       if (typeof navigator !== 'undefined' && navigator.onLine) {
         const localRendicionId = await resolveLocalRendicionId(rendicionId as string)
         if (!localRendicionId) {
-          throw new Error('No se pudo resolver la rendición local para sincronizar.')
+          throw new Error('No se pudo resolver la rendici?n local para sincronizar.')
         }
         await syncRendicionNow(localRendicionId, {
           onStageChange: (stage) => setPresentingStage(stage),
@@ -346,14 +352,14 @@ export function SpaceRendicionDetailPage() {
         await reloadDetail()
         openSuccessAndReturnToList(
           rendicion?.estado === 'subsanar'
-            ? 'Los cambios se enviaron nuevamente a revisión.'
-            : 'La rendición se envió a revisión.',
-          'Envío realizado',
+            ? 'Los cambios se enviaron nuevamente a revisi?n.'
+            : 'La rendici?n se envi? a revisi?n.',
+          'Env?o realizado',
         )
       } else {
         openNotice(
-          'Sin conexión. Los cambios quedaron guardados para sincronizar.',
-          'Pendiente de sincronización',
+          'Sin conexi?n. Los cambios quedaron guardados para sincronizar.',
+          'Pendiente de sincronizaci?n',
         )
       }
     } catch (error) {
@@ -362,7 +368,7 @@ export function SpaceRendicionDetailPage() {
           error,
           rendicion?.estado === 'subsanar'
             ? 'No se pudieron enviar los cambios.'
-            : 'No se pudo enviar la rendición a revisión.',
+            : 'No se pudo enviar la rendici?n a revisi?n.',
         ),
       )
     } finally {
@@ -373,22 +379,22 @@ export function SpaceRendicionDetailPage() {
 
   function getPresentButtonLabel(): string {
     if (!presenting && isSubmissionInFlight) {
-      return 'Sincronizando envío...'
+      return 'Sincronizando env?o...'
     }
     if (!presenting) {
-      return rendicion?.estado === 'subsanar' ? 'Enviar cambios' : 'Enviar a revisión'
+      return rendicion?.estado === 'subsanar' ? 'Enviar cambios' : 'Enviar a revisi?n'
     }
     if (presentingStage === 'creating' || presentingStage === 'preparing') {
-      return 'Preparando envío...'
+      return 'Preparando env?o...'
     }
     if (presentingStage === 'uploading_files') {
       return 'Subiendo archivos...'
     }
     if (presentingStage === 'presenting') {
-      return 'Enviando rendición...'
+      return 'Enviando rendici?n...'
     }
     if (presentingStage === 'refreshing') {
-      return 'Confirmando envío...'
+      return 'Confirmando env?o...'
     }
     return 'Procesando...'
   }
@@ -438,7 +444,7 @@ export function SpaceRendicionDetailPage() {
   if (loadErrorMessage && !rendicion) {
     return (
       <section>
-        <div className="mt-4 rounded-xl border border-[#C62828]/20 bg-[#C62828]/10 p-4 text-sm text-[#C62828]">
+        <div className="mt-4 rounded-xl border border-[#F2B8B5] bg-[#7A1C1C]/50 p-4 text-sm text-white">
           {loadErrorMessage}
         </div>
       </section>
@@ -453,7 +459,7 @@ export function SpaceRendicionDetailPage() {
     <section className="grid gap-3">
       <div>
         <h2 className={`text-[16px] font-semibold ${titleClass}`}>
-          Rendicion {rendicion.numero_rendicion ?? rendicion.id}
+          Rendición {rendicion.numero_rendicion ?? rendicion.id}
         </h2>
         <p className={`mt-1 text-sm ${subtitleClass}`}>
           Seguimiento de documentacion y estado de revision.
@@ -483,10 +489,10 @@ export function SpaceRendicionDetailPage() {
       {isSubmissionInFlight ? (
         <article className="rounded-xl border p-4" style={cardStyle}>
           <p className={`text-[13px] font-semibold ${titleClass}`}>
-            La rendición se está sincronizando.
+            La rendici?n se est? sincronizando.
           </p>
           <p className={`mt-1 text-[12px] ${subtitleClass}`}>
-            Mientras se envían los cambios no se pueden cargar ni borrar archivos.
+            Mientras se env?an los cambios no se pueden cargar ni borrar archivos.
           </p>
         </article>
       ) : null}
@@ -505,6 +511,7 @@ export function SpaceRendicionDetailPage() {
           const isExtraCategory = categoria.codigo === 'otros'
           const showUploader = canReplaceObservedFile || canUploadInCategory
           const selectedFile = selectedFiles[categorySlotKey]
+          const selectedFilesBatch = selectedMultipleFiles[categorySlotKey] || []
           const currentLabel = fileLabels[categorySlotKey] || ''
 
           return (
@@ -513,7 +520,7 @@ export function SpaceRendicionDetailPage() {
                 <div>
                   <p className={`text-[14px] font-semibold ${titleClass}`}>{categoria.label}</p>
                   <p className={`mt-1 text-[12px] ${subtitleClass}`}>
-                    {categoria.required ? 'Obligatorio' : 'Opcional'} ·{' '}
+                    {categoria.required ? 'Obligatorio' : 'Opcional'} ?{' '}
                     {categoria.multiple ? 'Multiples archivos' : 'Un unico archivo'}
                   </p>
                 </div>
@@ -846,13 +853,30 @@ export function SpaceRendicionDetailPage() {
                                 type="file"
                                 accept={inputProps.accept}
                                 capture={inputProps.capture}
+                                multiple={option.mode === 'file' && categoria.multiple}
                                 className="hidden"
-                                onChange={(event) =>
+                                onChange={(event) => {
+                                  if (option.mode === 'file' && categoria.multiple) {
+                                    const files = Array.from(event.target.files || [])
+                                    setSelectedMultipleFiles((current) => ({
+                                      ...current,
+                                      [categorySlotKey]: files,
+                                    }))
+                                    setSelectedFiles((current) => ({
+                                      ...current,
+                                      [categorySlotKey]: null,
+                                    }))
+                                    return
+                                  }
                                   setSelectedFiles((current) => ({
                                     ...current,
                                     [categorySlotKey]: event.target.files?.[0] || null,
                                   }))
-                                }
+                                  setSelectedMultipleFiles((current) => ({
+                                    ...current,
+                                    [categorySlotKey]: [],
+                                  }))
+                                }}
                               />
                             <span className="flex flex-col items-center justify-center gap-1 text-[11px] font-semibold leading-tight sm:text-xs">
                               <FontAwesomeIcon icon={option.icon} aria-hidden="true" />
@@ -863,6 +887,18 @@ export function SpaceRendicionDetailPage() {
                       })}
                     </div>
                   </div>
+
+                  {selectedFilesBatch.length > 0 ? (
+                    <div
+                      className={`rounded-xl border px-3 py-3 text-sm ${
+                        isDark
+                          ? 'border-white/20 bg-white/10 text-white'
+                          : 'border-slate-300 bg-white text-slate-700'
+                      }`}
+                    >
+                      {selectedFilesBatch.length} archivos seleccionados
+                    </div>
+                  ) : null}
 
                   {selectedFile ? (
                     <div
@@ -878,8 +914,31 @@ export function SpaceRendicionDetailPage() {
 
                   <button
                     type="button"
-                    disabled={uploadingTargetKey === categorySlotKey || !selectedFile}
-                    onClick={() =>
+                    disabled={
+                      uploadingTargetKey === categorySlotKey
+                      || (
+                        !selectedFile
+                        && selectedFilesBatch.length === 0
+                      )
+                    }
+                    onClick={() => {
+                      if (selectedFilesBatch.length > 0) {
+                        void (async () => {
+                          for (let index = 0; index < selectedFilesBatch.length; index += 1) {
+                            const file = selectedFilesBatch[index]
+                            await handleUpload({
+                              categoria: categoria.codigo,
+                              slotKey: categorySlotKey,
+                              file,
+                              keepSelection: index < selectedFilesBatch.length - 1,
+                              documentoSubsanadoId: canReplaceObservedFile
+                                ? observedFiles[0]?.id
+                                : undefined,
+                            })
+                          }
+                        })()
+                        return
+                      }
                       void handleUpload({
                         categoria: categoria.codigo,
                         slotKey: categorySlotKey,
@@ -887,7 +946,7 @@ export function SpaceRendicionDetailPage() {
                           ? observedFiles[0]?.id
                           : undefined,
                       })
-                    }
+                    }}
                     className={appButtonClass({
                       variant: canReplaceObservedFile ? 'success' : 'primary',
                       size: 'lg',
@@ -960,8 +1019,8 @@ export function SpaceRendicionDetailPage() {
 
       <ConfirmActionModal
         open={showDeleteConfirm}
-        title="¿Borrar rendicion?"
-        message={`Se va a borrar la rendicion ${rendicion.numero_rendicion ?? rendicion.id}. Esta accion no se puede deshacer.`}
+        title="?Borrar rendicion?"
+        message={`Se va a borrar la rendición ${rendicion.numero_rendicion ?? rendicion.id}. Esta acción no se puede deshacer.`}
         confirmLabel="Confirmar"
         loading={deletingRendicion}
         onCancel={() => setShowDeleteConfirm(false)}
@@ -976,3 +1035,6 @@ export function SpaceRendicionDetailPage() {
     </section>
   )
 }
+
+
+
