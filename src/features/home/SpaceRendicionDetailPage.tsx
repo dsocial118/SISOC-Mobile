@@ -319,7 +319,7 @@ export function SpaceRendicionDetailPage() {
       openNotice(
         rendicion?.estado === 'subsanar'
           ? 'Los cambios se enviaron nuevamente a revisi?n.'
-          : 'La rendici?n se envi? a revisi?n.',
+          : 'La rendicion se envi? a revisi?n.',
         'Env?o realizado',
       )
     } catch (error) {
@@ -344,7 +344,7 @@ export function SpaceRendicionDetailPage() {
       if (typeof navigator !== 'undefined' && navigator.onLine) {
         const localRendicionId = await resolveLocalRendicionId(rendicionId as string)
         if (!localRendicionId) {
-          throw new Error('No se pudo resolver la rendici?n local para sincronizar.')
+          throw new Error('No se pudo resolver la rendicion local para sincronizar.')
         }
         await syncRendicionNow(localRendicionId, {
           onStageChange: (stage) => setPresentingStage(stage),
@@ -353,7 +353,7 @@ export function SpaceRendicionDetailPage() {
         openSuccessAndReturnToList(
           rendicion?.estado === 'subsanar'
             ? 'Los cambios se enviaron nuevamente a revisi?n.'
-            : 'La rendici?n se envi? a revisi?n.',
+            : 'La rendicion se envi? a revisi?n.',
           'Env?o realizado',
         )
       } else {
@@ -368,7 +368,7 @@ export function SpaceRendicionDetailPage() {
           error,
           rendicion?.estado === 'subsanar'
             ? 'No se pudieron enviar los cambios.'
-            : 'No se pudo enviar la rendici?n a revisi?n.',
+            : 'No se pudo enviar la rendicion a revisi?n.',
         ),
       )
     } finally {
@@ -391,7 +391,7 @@ export function SpaceRendicionDetailPage() {
       return 'Subiendo archivos...'
     }
     if (presentingStage === 'presenting') {
-      return 'Enviando rendici?n...'
+      return 'Enviando rendicion...'
     }
     if (presentingStage === 'refreshing') {
       return 'Confirmando env?o...'
@@ -489,7 +489,7 @@ export function SpaceRendicionDetailPage() {
       {isSubmissionInFlight ? (
         <article className="rounded-xl border p-4" style={cardStyle}>
           <p className={`text-[13px] font-semibold ${titleClass}`}>
-            La rendici?n se est? sincronizando.
+            La rendicion se est? sincronizando.
           </p>
           <p className={`mt-1 text-[12px] ${subtitleClass}`}>
             Mientras se env?an los cambios no se pueden cargar ni borrar archivos.
@@ -521,7 +521,7 @@ export function SpaceRendicionDetailPage() {
                   <p className={`text-[14px] font-semibold ${titleClass}`}>{categoria.label}</p>
                   <p className={`mt-1 text-[12px] ${subtitleClass}`}>
                     {categoria.required ? 'Obligatorio' : 'Opcional'} ?{' '}
-                    {categoria.multiple ? 'Multiples archivos' : 'Un unico archivo'}
+                    {categoria.multiple ? 'M?ltiples archivos' : 'Un ?nico archivo'}
                   </p>
                 </div>
                 <span className={`text-[12px] font-semibold ${subtitleClass}`}>

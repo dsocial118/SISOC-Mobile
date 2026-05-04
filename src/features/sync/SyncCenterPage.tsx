@@ -36,7 +36,7 @@ function buildRendicionLabel(
 
   const suffixParts = []
   if (numeroRendicionLabel) {
-    suffixParts.push(`Rendici?n ${numeroRendicionLabel}`)
+    suffixParts.push(`Rendicion ${numeroRendicionLabel}`)
   }
   if (categoria) {
     suffixParts.push(categoria)
@@ -44,7 +44,7 @@ function buildRendicionLabel(
   if (archivo) {
     suffixParts.push(archivo)
   }
-  const suffix = suffixParts.length > 0 ? `: ${suffixParts.join(' ? ')}` : ''
+  const suffix = suffixParts.length > 0 ? `: ${suffixParts.join(' - ')}` : ''
   return `${action}${suffix}`
 }
 
@@ -67,15 +67,15 @@ function getOutboxLabel(
     case 'DELETE_COLLABORATOR':
       return 'Colaborador (eliminaci?n)'
     case 'CREATE_RENDICION':
-      return buildRendicionLabel('Creaci?n de rendici?n', payload, numeroRendicion)
+      return buildRendicionLabel('Creaci?n de rendicion', payload, numeroRendicion)
     case 'UPLOAD_RENDICION_FILE':
-      return buildRendicionLabel('Carga de archivo de rendici?n', payload, numeroRendicion)
+      return buildRendicionLabel('Carga de archivo de rendicion', payload, numeroRendicion)
     case 'DELETE_RENDICION_FILE':
-      return buildRendicionLabel('Eliminaci?n de archivo de rendici?n', payload, numeroRendicion)
+      return buildRendicionLabel('Eliminaci?n de archivo de rendicion', payload, numeroRendicion)
     case 'PRESENT_RENDICION':
-      return buildRendicionLabel('Env?o de rendici?n a revisi?n', payload, numeroRendicion)
+      return buildRendicionLabel('Env?o de rendicion a revisi?n', payload, numeroRendicion)
     case 'DELETE_RENDICION':
-      return buildRendicionLabel('Eliminaci?n de rendici?n', payload, numeroRendicion)
+      return buildRendicionLabel('Eliminaci?n de rendicion', payload, numeroRendicion)
     default:
       return `Pendiente: ${item.type}`
   }

@@ -16,12 +16,12 @@ import { listSpaceNomina, type NominaTab } from '../../api/nominaApi'
 import { listActivityCatalog, listActivityDays, listSpaceActivities } from '../../api/activitiesApi'
 import { listSpaceMessages } from '../../api/messagesApi'
 import { useAuth } from '../../auth/useAuth'
-import { MOBILE_RENDICION_PERMISSION } from '../../auth/permissionCodes'
 import { parseApiError } from '../../api/errorUtils'
 import {
   getOrganizationSpacesCache,
   setOrganizationSpacesCache,
 } from './organizationSpacesCache'
+import { AppLoadingSpinner } from '../../ui/AppLoadingSpinner'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
 import { useSpaceUnreadMessages } from './useUnreadMessages'
@@ -33,12 +33,56 @@ interface HubModule {
   icon: IconDefinition
 }
 
+function HubModulesSkeleton({ isDark }: { isDark: boolean }) {
+  const cardClass = isDark
+    ? 'border-white/15 bg-white/10'
+    : 'border-slate-200 bg-white'
+  const lineClass = isDark ? 'bg-white/20' : 'bg-slate-200'
+  const textClass = isDark ? 'text-white' : 'text-[#232D4F]'
+
+  return (
+    <section className="space-y-4">
+      <div className="grid gap-4">
+        {[0, 1, 2, 3].map((index) => (
+          <div
+            key={index}
+            className={`rounded-[15px] border p-4 pr-12 ${cardClass} animate-pulse`}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`h-8 w-8 rounded-full ${lineClass}`} />
+              <div className={`h-4 w-48 rounded ${lineClass}`} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className={`pt-0.5 text-center ${textClass}`}>
+        <div className="flex justify-center">
+          <AppLoadingSpinner size={42} />
+        </div>
+        <p className="mt-1 text-[13px] font-semibold">Cargando tu información</p>
+      </div>
+    </section>
+  )
+}
+
 function normalizeProgramName(value: string | null | undefined): string {
   return String(value || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim()
+}
+
+function hasRendicionPermission(permissions: string[] | undefined): boolean {
+  if (!permissions || permissions.length === 0) {
+    return false
+  }
+  return permissions.some((permission) =>
+    String(permission || '')
+      .trim()
+      .toLowerCase()
+      .includes('manage_mobile_rendicion'),
+  )
 }
 
 export function SpaceHubPage() {
@@ -65,9 +109,7 @@ export function SpaceHubPage() {
   )
   const [associatedProgramName, setAssociatedProgramName] = useState(routeState?.programName || '')
   const unreadMessagesCount = useSpaceUnreadMessages(spaceId, userProfile?.username)
-  const canManageRendicion = Boolean(
-    userProfile?.permissions?.includes(MOBILE_RENDICION_PERMISSION),
-  )
+  const canManageRendicion = hasRendicionPermission(userProfile?.permissions)
 
   useEffect(() => {
     let isMounted = true
@@ -186,8 +228,12 @@ export function SpaceHubPage() {
   const programName =
     spaceDetail?.programa?.nombre || associatedProgramName || routeState?.programName || ''
   const normalizedProgramName = normalizeProgramName(programName)
-  const isPnudProgram = normalizedProgramName.includes('pnud')
+  const convenioTipo = String(spaceDetail?.datos_convenio_mobile?.tipo || '')
+    .trim()
+    .toLowerCase()
+  const isPnudProgram = normalizedProgramName.includes('pnud') || convenioTipo === 'pnud'
   const hasProgramDefined = Boolean(normalizedProgramName)
+  const isResolvingHub = loading || hasOperationalAssociation === null || !spaceDetail
   const modules = useMemo<HubModule[]>(() => {
     if (!spaceId) {
       return []
@@ -209,27 +255,23 @@ export function SpaceHubPage() {
     ]
 
     if (normalizedProgramName.includes('abordaje comunitario')) {
-      const modulesForProgram: HubModule[] = [
-        ...baseModules,
-        {
+      const modulesForProgram: HubModule[] = [...baseModules]
+      if (isPnudProgram) {
+        modulesForProgram.push({
           id: 'actividades',
           title: 'Actividades',
           route: `/app-org/espacios/${spaceId}/actividades`,
           icon: faCalendarDays,
-        },
-        {
-          id: 'capacitaciones-obligatorias',
-          title: 'Capacitaciones Obligatorias',
-          route: `/app-org/espacios/${spaceId}/informacion/capacitaciones`,
-          icon: faCircleInfo,
-        },
+        })
+      }
+      modulesForProgram.push(
         {
           id: 'nomina',
           title: 'Beneficiarios',
           route: `/app-org/espacios/${spaceId}/nomina`,
           icon: faUsers,
         },
-      ]
+      )
       if (canManageRendicion && isPnudProgram) {
         modulesForProgram.push({
           id: 'rendiciones',
@@ -238,7 +280,7 @@ export function SpaceHubPage() {
           icon: faCalculator,
         })
       }
-      if (normalizedProgramName.includes('alimentar comunidad')) {
+      if (isPnudProgram && normalizedProgramName.includes('alimentar comunidad')) {
         modulesForProgram.push({
           id: 'cursos',
           title: 'Cursos',
@@ -250,14 +292,16 @@ export function SpaceHubPage() {
     }
 
     if (normalizedProgramName.includes('alimentar comunidad')) {
-      const modulesForProgram: HubModule[] = [
-        ...baseModules,
-        {
+      const modulesForProgram: HubModule[] = [...baseModules]
+      if (isPnudProgram) {
+        modulesForProgram.push({
           id: 'actividades',
           title: 'Actividades',
           route: `/app-org/espacios/${spaceId}/actividades`,
           icon: faCalendarDays,
-        },
+        })
+      }
+      modulesForProgram.push(
         {
           id: 'capacitaciones-obligatorias',
           title: 'Capacitaciones Obligatorias',
@@ -270,7 +314,7 @@ export function SpaceHubPage() {
           route: `/app-org/espacios/${spaceId}/nomina-alimentaria`,
           icon: faUtensils,
         },
-      ]
+      )
       if (canManageRendicion && isPnudProgram) {
         modulesForProgram.push({
           id: 'rendiciones',
@@ -279,7 +323,7 @@ export function SpaceHubPage() {
           icon: faCalculator,
         })
       }
-      if (normalizedProgramName.includes('alimentar comunidad')) {
+      if (isPnudProgram && normalizedProgramName.includes('alimentar comunidad')) {
         modulesForProgram.push({
           id: 'cursos',
           title: 'Cursos',
@@ -348,8 +392,19 @@ export function SpaceHubPage() {
   const titleClass = isDark ? 'text-white' : 'text-[#232D4F]'
   const subtitleClass = isDark ? 'text-white/80' : 'text-slate-600'
 
-  if (loading) {
-    return null
+  if (isResolvingHub) {
+    return (
+      <section>
+        {isSingleSpaceUser ? (
+          <div className={`mb-3 mt-1 ${isDark ? 'text-white' : 'text-[#232D4F]'}`}>
+            <p className="text-[16px]">
+              ¡Hola <strong>{userDisplayName}</strong>!
+            </p>
+          </div>
+        ) : null}
+        <HubModulesSkeleton isDark={isDark} />
+      </section>
+    )
   }
 
   if (errorMessage) {

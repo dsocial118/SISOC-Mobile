@@ -106,6 +106,8 @@ export interface SpaceDetail {
   datos_convenio_mobile?: {
     tipo?: 'pnud' | 'alimentar_comunidad' | 'otro' | string
     vigencia_convenio_meses?: number | null
+    prestaciones_mensuales?: number | null
+    monto_prestacion_mensual?: number | null
     prestaciones_gescom_total_mensual?: number | null
     monto_total_convenio?: number | null
     organizacion_solicitante?: string | null

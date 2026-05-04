@@ -974,7 +974,9 @@ export function SpaceActivitiesPage() {
                     >
                       <div className="flex w-full items-start justify-between gap-3 p-3 text-left">
                         <div className="min-w-0">
-                          <p className={`truncate text-[13px] font-semibold ${textClass}`}>{activity.actividad}</p>
+                          <p className={`text-[13px] font-semibold leading-tight break-words ${textClass}`}>
+                            {activity.actividad}
+                          </p>
                           <p className={`mt-1 text-[11px] ${detailTextClass}`}>
                             {activity.categoria} · {activity.horario_actividad} · Inscriptos: {activity.cantidad_inscriptos}
                           </p>
@@ -1028,7 +1030,9 @@ export function SpaceActivitiesPage() {
                       }
                     >
                       <div className={`min-w-0 text-[13px] ${detailTextClass}`}>
-                        <p className={`truncate text-[14px] font-semibold ${textClass}`}>{activityGroup.actividad}</p>
+                        <p className={`text-[14px] font-semibold leading-tight break-words ${textClass}`}>
+                          {activityGroup.actividad}
+                        </p>
                         <div className="mt-1 flex items-center gap-2">
                           <p className="text-[12px]">Turnos: {activityGroup.items.length}</p>
                           <p className="text-[12px]">

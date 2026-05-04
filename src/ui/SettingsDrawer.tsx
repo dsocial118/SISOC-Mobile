@@ -34,6 +34,7 @@ export function SettingsDrawer({
   const userName = userProfile?.fullName || userProfile?.username || 'Usuario'
   const userEmail = userProfile?.email || 'Sin email'
   const appBuildDate = __APP_BUILD_DATE__
+  const appVersion = __APP_VERSION__
 
   return (
     <div
@@ -127,7 +128,9 @@ export function SettingsDrawer({
             />
             Salir
           </button>
-          <p className="mt-2 text-center text-[11px] text-white/70">Actualizado: {appBuildDate}</p>
+          <p className="mt-2 text-center text-[11px] text-white/70">
+            v {appVersion} ({appBuildDate})
+          </p>
         </div>
       </aside>
     </div>

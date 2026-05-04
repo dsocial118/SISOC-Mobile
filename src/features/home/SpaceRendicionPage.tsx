@@ -103,9 +103,9 @@ export function SpaceRendicionPage() {
           return
         }
         setErrorMessage(
-          parseApiError(error, 'No se pudo cargar la rendici?n de cuentas.', {
+          parseApiError(error, 'No se pudo cargar la rendicion de cuentas.', {
             timeoutMessage:
-              'La rendici?n est? demorando m?s de lo esperado. Prob? nuevamente en unos segundos.',
+              'La rendicion est? demorando m?s de lo esperado. Prob? nuevamente en unos segundos.',
           }),
         )
       } finally {
@@ -141,10 +141,10 @@ export function SpaceRendicionPage() {
   return (
     <section className="grid gap-3 pb-24">
       <div>
-        <h2 className={`text-[16px] font-semibold ${titleClass}`}>Rendici?n de cuentas</h2>
+        <h2 className={`text-[16px] font-semibold ${titleClass}`}>Rendicion de cuentas</h2>
         <p className={`mt-1 text-sm ${subtitleClass}`}>
           {routeState?.organizationName && (routeState?.projectName || routeState?.programName)
-            ? `${routeState.organizationName} ? ${routeState.projectName || routeState.programName}`
+            ? `${routeState.organizationName} - ${routeState.projectName || routeState.programName}`
             : 'Historial del contexto operativo activo.'}
         </p>
       </div>
@@ -224,7 +224,7 @@ export function SpaceRendicionPage() {
           appButtonClass({ variant: 'success', size: 'md' }),
           'fixed bottom-20 right-4 z-20 h-14 w-14 rounded-full p-0 shadow-[0_10px_24px_rgba(46,125,51,0.35)]',
         )}
-        aria-label="Nueva rendici?n"
+        aria-label="Nueva rendicion"
       >
         <FontAwesomeIcon icon={faPlus} aria-hidden="true" style={{ fontSize: 22 }} />
       </button>

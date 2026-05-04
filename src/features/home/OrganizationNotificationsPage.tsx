@@ -67,11 +67,11 @@ function parseRendicionNotificationTitle(title: string): {
 } {
   const normalizedTitle = String(title || '')
     .trim()
-    .replace(/Rendici.n/g, 'Rendici?n')
+    .replace(/Rendici.n/g, 'Rendicion')
   const match = normalizedTitle.match(/^(Proyecto .+?)\s\|\s(Convenio .+?)\s\|\s(.+)$/i)
   if (!match) {
     return {
-      projectAndConvenio: normalizedTitle || 'Rendici?n',
+      projectAndConvenio: normalizedTitle || 'Rendicion',
       rendicionSummary: '',
     }
   }

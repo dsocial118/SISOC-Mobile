@@ -351,13 +351,11 @@ export function AppLayout({
   const isUserRootRoute = /^\/app-user\/?$/.test(location.pathname)
   const isOrgMessagesRootRoute = /^\/app-org\/mensajes\/?$/.test(location.pathname)
   const isUserMessagesRootRoute = /^\/app-user\/mensajes\/?$/.test(location.pathname)
-  const isOrgNotificationsRootRoute = /^\/app-org\/notificaciones\/?$/.test(location.pathname)
   const isRootNavigationRoute =
     isOrgRootRoute
     || isUserRootRoute
     || isOrgMessagesRootRoute
     || isUserMessagesRootRoute
-    || isOrgNotificationsRootRoute
     || hideBackOnSingleSpaceHub
   const shouldShowBack = !isRootNavigationRoute
   const organizationUnreadState = useOrganizationUnreadMessages(userProfile?.username)

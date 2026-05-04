@@ -232,7 +232,7 @@ export function SpaceMessageDetailPage() {
               }
               className="inline-flex items-center justify-center rounded-xl bg-[#2E7D33] px-4 py-3 text-sm font-semibold text-white"
             >
-              Abrir rendici?n
+              Abrir rendicion
             </button>
           </div>
         ) : null}

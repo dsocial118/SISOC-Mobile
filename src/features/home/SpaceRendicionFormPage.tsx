@@ -107,7 +107,7 @@ export function SpaceRendicionFormPage() {
         state: routeState,
       })
     } catch (error) {
-      setErrorMessage(parseApiError(error, 'No se pudo crear la rendici?n.'))
+      setErrorMessage(parseApiError(error, 'No se pudo crear la rendicion.'))
       setSaving(false)
     }
   }
@@ -115,7 +115,7 @@ export function SpaceRendicionFormPage() {
   return (
     <section className="grid gap-3">
       <div>
-        <h2 className={`text-[16px] font-semibold ${titleClass}`}>Nueva rendici?n</h2>
+        <h2 className={`text-[16px] font-semibold ${titleClass}`}>Nueva rendicion</h2>
         <p className={`mt-1 text-sm ${subtitleClass}`}>
           Carg? los datos generales para iniciar la presentaci?n.
         </p>
@@ -123,7 +123,7 @@ export function SpaceRendicionFormPage() {
 
       {routeState?.organizationName && (routeState?.projectName || routeState?.programName) ? (
         <div className={`rounded-xl border px-4 py-3 text-sm ${subtitleClass}`} style={cardStyle}>
-          {routeState.organizationName} ? {routeState.projectName || routeState.programName}
+          {routeState.organizationName} - {routeState.projectName || routeState.programName}
         </div>
       ) : null}
 
@@ -149,7 +149,7 @@ export function SpaceRendicionFormPage() {
 
             <label className="grid gap-1">
               <span className={`text-[12px] font-semibold ${titleClass}`}>
-                N?mero de rendici?n
+                N?mero de rendicion
               </span>
               <input
                 value={numeroRendicion}

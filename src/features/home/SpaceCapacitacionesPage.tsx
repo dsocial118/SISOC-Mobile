@@ -25,6 +25,12 @@ import { appButtonClass, joinClasses } from '../../ui/buttons'
 
 const CERTIFICATE_ACCEPT = 'image/*,.pdf,application/pdf'
 
+interface SelectedCertificateDraft {
+  file: File
+  previewUrl: string | null
+  isImage: boolean
+}
+
 function isImageFile(item: CapacitacionCertificadoItem): boolean {
   const name = (item.archivo_nombre || item.archivo_url || '').toLowerCase()
   return /\.(jpg|jpeg|png|webp|gif)$/i.test(name)
@@ -57,7 +63,7 @@ export function SpaceCapacitacionesPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [enabled, setEnabled] = useState(true)
   const [items, setItems] = useState<CapacitacionCertificadoItem[]>([])
-  const [selectedFiles, setSelectedFiles] = useState<Record<number, File | null>>({})
+  const [selectedFiles, setSelectedFiles] = useState<Record<number, SelectedCertificateDraft | null>>({})
   const [uploadingId, setUploadingId] = useState<number | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [toast, setToast] = useState<{ tone: 'success' | 'error'; message: string } | null>(
@@ -145,6 +151,31 @@ export function SpaceCapacitacionesPage() {
     })
   }
 
+  function isImageMimeType(file: File): boolean {
+    return String(file.type || '').toLowerCase().startsWith('image/')
+  }
+
+  function readAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result || ''))
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function buildDraftFromFile(file: File): Promise<SelectedCertificateDraft> {
+    const isImage = isImageMimeType(file)
+    if (!isImage) {
+      return { file, isImage: false, previewUrl: null }
+    }
+    return {
+      file,
+      isImage: true,
+      previewUrl: await readAsDataUrl(file),
+    }
+  }
+
   async function handlePhotoSelection(itemId: number, picker: typeof takePhoto) {
     if (uploadingId !== null || deletingId !== null) {
       return
@@ -154,9 +185,14 @@ export function SpaceCapacitacionesPage() {
       if (!selectedPhoto) {
         return
       }
+      const draft: SelectedCertificateDraft = {
+        file: selectedPhoto.file,
+        isImage: true,
+        previewUrl: selectedPhoto.data_url,
+      }
       setSelectedFiles((current) => ({
         ...current,
-        [itemId]: selectedPhoto.file,
+        [itemId]: draft,
       }))
     } catch (error) {
       setToast({
@@ -174,9 +210,10 @@ export function SpaceCapacitacionesPage() {
     if (!file) {
       return
     }
+    const draft = await buildDraftFromFile(file)
     setSelectedFiles((current) => ({
       ...current,
-      [itemId]: file,
+      [itemId]: draft,
     }))
   }
 
@@ -184,14 +221,14 @@ export function SpaceCapacitacionesPage() {
     if (!spaceId || uploadingId !== null || deletingId !== null) {
       return
     }
-    const file = selectedFiles[item.id]
-    if (!file) {
+    const draft = selectedFiles[item.id]
+    if (!draft?.file) {
       setToast({ tone: 'error', message: 'Selecciona un archivo antes de subir.' })
       return
     }
     setUploadingId(item.id)
     try {
-      const updated = await uploadSpaceCapacitacionCertificado(spaceId, item.capacitacion, file)
+      const updated = await uploadSpaceCapacitacionCertificado(spaceId, item.capacitacion, draft.file)
       setItems((current) => current.map((row) => (row.id === updated.id ? updated : row)))
       setSelectedFiles((current) => ({ ...current, [item.id]: null }))
       setToast({ tone: 'success', message: 'Certificado cargado correctamente.' })
@@ -269,7 +306,7 @@ export function SpaceCapacitacionesPage() {
             const isUploading = uploadingId === item.id
             const isDeleting = deletingId === item.id
             const hasCertificate = Boolean(item.archivo_url || item.archivo_nombre)
-            const canDelete = hasCertificate && item.estado !== 'aceptado'
+            const canDelete = hasCertificate && item.estado === 'rechazado'
             const canUpload = !hasCertificate
 
             return (
@@ -366,9 +403,49 @@ export function SpaceCapacitacionesPage() {
 
                       <p className={`text-[12px] ${detailTextClass}`}>
                         Archivo seleccionado:{' '}
-                        <span className="font-semibold">{selectedFile ? selectedFile.name : 'Ninguno'}</span>
+                        <span className="font-semibold">{selectedFile ? selectedFile.file.name : 'Ninguno'}</span>
                       </p>
                     </div>
+
+                    {selectedFile ? (
+                      <div
+                        className={`mt-3 overflow-hidden rounded-xl border ${
+                          isDark ? 'border-white/20 bg-white/5' : 'border-slate-200 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 border-b px-3 py-2 text-[12px]">
+                          <span className={`font-semibold ${textClass}`}>Vista previa</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedFiles((current) => ({ ...current, [item.id]: null }))
+                            }
+                            className={joinClasses(
+                              appButtonClass({ variant: 'ghost', size: 'sm' }),
+                              'px-2 py-1 text-[11px]',
+                            )}
+                          >
+                            Quitar
+                          </button>
+                        </div>
+                        <div className="flex h-36 w-full items-center justify-center">
+                          {selectedFile.isImage && selectedFile.previewUrl ? (
+                            <img
+                              src={selectedFile.previewUrl}
+                              alt="Vista previa del certificado"
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <FontAwesomeIcon
+                              icon={faFilePdf}
+                              aria-hidden="true"
+                              className="text-[#C62828]"
+                              style={{ fontSize: 40 }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
 
                     <div className="mt-3">
                       <button

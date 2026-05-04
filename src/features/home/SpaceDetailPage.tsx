@@ -482,11 +482,19 @@ export function SpaceDetailPage() {
                 </p>
                 <p>
                   <span className={`font-semibold ${textClass}`}>Prestaciones GESCOM:</span>{' '}
-                  {displayNumber(spaceDetail.datos_convenio_mobile.prestaciones_gescom_total_mensual ?? null)}
+                  {displayNumber(
+                    spaceDetail.datos_convenio_mobile.prestaciones_mensuales
+                    ?? spaceDetail.datos_convenio_mobile.prestaciones_gescom_total_mensual
+                    ?? null,
+                  )}
                 </p>
                 <p>
                   <span className={`font-semibold ${textClass}`}>Monto total del convenio:</span>{' '}
-                  {displayNumber(spaceDetail.datos_convenio_mobile.monto_total_convenio ?? null)}
+                  {displayNumber(
+                    spaceDetail.datos_convenio_mobile.monto_prestacion_mensual
+                    ?? spaceDetail.datos_convenio_mobile.monto_total_convenio
+                    ?? null,
+                  )}
                 </p>
               </div>
             ) : (

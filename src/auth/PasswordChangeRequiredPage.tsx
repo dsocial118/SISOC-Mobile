@@ -32,7 +32,7 @@ export function PasswordChangeRequiredPage() {
     setError('')
 
     if (newPassword !== confirmPassword) {
-      setError('Las contrase?as no coinciden.')
+      setError('Las contraseñas no coinciden.')
       return
     }
 
@@ -46,7 +46,7 @@ export function PasswordChangeRequiredPage() {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : 'No se pudo actualizar la contrase?a.',
+          : 'No se pudo actualizar la contraseña.',
       )
     } finally {
       setLoading(false)
@@ -72,10 +72,10 @@ export function PasswordChangeRequiredPage() {
                 : 'border-[#D9E0EC] bg-white text-[#232D4F]'
             }`}
           >
-            <p className="font-semibold">Cambio obligatorio de contrase?a</p>
+            <p className="font-semibold">Cambio obligatorio de contraseña</p>
             <p className={`mt-2 ${isDark ? 'text-white/80' : 'text-[#5E6782]'}`}>
               {userProfile?.fullName || userProfile?.username || 'Tu usuario'} debe definir una
-              nueva contrase?a para continuar.
+              nueva contraseña para continuar.
             </p>
           </div>
 
@@ -91,7 +91,7 @@ export function PasswordChangeRequiredPage() {
               type="password"
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
-              placeholder="Nueva contrase?a"
+              placeholder="Nueva contraseña"
               disabled={loading}
               required
               icon={<FontAwesomeIcon icon={faLock} aria-hidden="true" style={{ fontSize: 17 }} />}
@@ -104,7 +104,7 @@ export function PasswordChangeRequiredPage() {
               type="password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
-              placeholder="Repetir nueva contrase?a"
+              placeholder="Repetir nueva contraseña"
               disabled={loading}
               required
               icon={<FontAwesomeIcon icon={faLock} aria-hidden="true" style={{ fontSize: 17 }} />}
@@ -113,7 +113,7 @@ export function PasswordChangeRequiredPage() {
 
           <div className="mb-6 flex justify-center">
             <LargeBlueButton type="submit" disabled={loading} className="w-full max-w-[292px]">
-              {loading ? 'Guardando...' : 'Guardar contrase?a'}
+              {loading ? 'Guardando...' : 'Guardar contraseña'}
             </LargeBlueButton>
           </div>
 

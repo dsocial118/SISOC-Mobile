@@ -1,5 +1,18 @@
 import axios, { type AxiosError } from 'axios'
 
+function fixMojibake(value: string): string {
+  if (!/[\u00C3\u00C2][\u0080-\u00FF]/.test(value)) {
+    return value
+  }
+  try {
+    const bytes = Uint8Array.from(value, (char) => char.charCodeAt(0) & 0xff)
+    const decoded = new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+    return decoded || value
+  } catch {
+    return value
+  }
+}
+
 function looksLikeHtmlDocument(value: string): boolean {
   const normalized = value.trim().toLowerCase()
   return (
@@ -15,7 +28,7 @@ function extractFirstMessage(data: unknown): string | null {
   }
 
   if (typeof data === 'string') {
-    const message = data.trim()
+    const message = fixMojibake(data).trim()
     if (!message || looksLikeHtmlDocument(message)) {
       return null
     }
@@ -29,7 +42,7 @@ function extractFirstMessage(data: unknown): string | null {
   const record = data as Record<string, unknown>
   const detail = record.detail
   if (typeof detail === 'string') {
-    const message = detail.trim()
+    const message = fixMojibake(detail).trim()
     return message && !looksLikeHtmlDocument(message) ? message : null
   }
 
@@ -79,7 +92,7 @@ export function parseApiError(
   }
 
   if (error instanceof Error && error.message.trim()) {
-    return error.message.trim()
+    return fixMojibake(error.message).trim()
   }
 
   return fallback

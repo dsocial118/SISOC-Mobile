@@ -1,6 +1,7 @@
 import axios, {
   type AxiosError,
   type InternalAxiosRequestConfig,
+  type AxiosResponse,
   type AxiosRequestHeaders,
 } from 'axios'
 import { clearSession, getSession } from '../auth/session'
@@ -56,13 +57,51 @@ export const http = axios.create({
   timeout: 15000,
 })
 
+function looksLikeMojibake(value: string): boolean {
+  return /[ÃÂ][\u0080-\u00FF]/.test(value)
+}
+
+function tryFixMojibake(value: string): string {
+  if (!looksLikeMojibake(value)) {
+    return value
+  }
+  try {
+    const bytes = Uint8Array.from(value, (char) => char.charCodeAt(0) & 0xff)
+    const decoded = new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+    return decoded || value
+  } catch {
+    return value
+  }
+}
+
+function sanitizeMojibake<T>(value: T): T {
+  if (typeof value === 'string') {
+    return tryFixMojibake(value) as T
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeMojibake(item)) as T
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    const sanitized: Record<string, unknown> = {}
+    Object.keys(record).forEach((key) => {
+      sanitized[key] = sanitizeMojibake(record[key])
+    })
+    return sanitized as T
+  }
+  return value
+}
+
 http.interceptors.request.use(async (config) => {
   ensureOnline()
   return attachToken(config)
 })
 
 http.interceptors.response.use(
-  (response) => response,
+  (response: AxiosResponse) => {
+    response.data = sanitizeMojibake(response.data)
+    return response
+  },
   async (error: AxiosError) => {
     if (error.response?.status === 401) {
       await clearSession()

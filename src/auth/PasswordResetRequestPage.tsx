@@ -28,7 +28,7 @@ export function PasswordResetRequestPage() {
     try {
       await requestPasswordResetByUsername({ username })
       setSuccess(
-        'Si el usuario existe, el pedido qued? registrado para que un administrador genere una nueva contrase?a temporal.',
+        'Si el usuario existe, el pedido quedó registrado para que un administrador genere una nueva contraseña temporal.',
       )
     } catch (submitError) {
       setError(
@@ -73,9 +73,9 @@ export function PasswordResetRequestPage() {
                 : 'border-[#D9E0EC] bg-white text-[#232D4F]'
             }`}
           >
-            <p className="font-semibold">Recuperaci?n de contrase?a</p>
+            <p className="font-semibold">Recuperación de contraseña</p>
             <p className={`mt-2 ${isDark ? 'text-white/80' : 'text-[#5E6782]'}`}>
-              Ingres? tu nombre de usuario para solicitar una nueva contrase?a temporal.
+              Ingresá tu nombre de usuario para solicitar una nueva contraseña temporal.
             </p>
           </div>
 
@@ -97,7 +97,7 @@ export function PasswordResetRequestPage() {
               type="text"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
-              placeholder="Ingres? tu usuario"
+              placeholder="Ingresá tu usuario"
               disabled={loading}
               required
               icon={<FontAwesomeIcon icon={faUser} aria-hidden="true" style={{ fontSize: 17 }} />}
