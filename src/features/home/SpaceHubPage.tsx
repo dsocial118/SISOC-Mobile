@@ -280,7 +280,7 @@ export function SpaceHubPage() {
           icon: faCalculator,
         })
       }
-      if (isPnudProgram && normalizedProgramName.includes('alimentar comunidad')) {
+      if (isPnudProgram) {
         modulesForProgram.push({
           id: 'cursos',
           title: 'Cursos',
@@ -323,7 +323,7 @@ export function SpaceHubPage() {
           icon: faCalculator,
         })
       }
-      if (isPnudProgram && normalizedProgramName.includes('alimentar comunidad')) {
+      if (isPnudProgram) {
         modulesForProgram.push({
           id: 'cursos',
           title: 'Cursos',
@@ -334,16 +334,31 @@ export function SpaceHubPage() {
       return modulesForProgram
     }
 
-    if (canManageRendicion && isPnudProgram) {
-      return [
+    if (isPnudProgram) {
+      const modulesForProgram: HubModule[] = [
         ...baseModules,
         {
+          id: 'actividades',
+          title: 'Actividades',
+          route: `/app-org/espacios/${spaceId}/actividades`,
+          icon: faCalendarDays,
+        },
+        {
+          id: 'cursos',
+          title: 'Cursos',
+          route: `/app-org/espacios/${spaceId}/cursos`,
+          icon: faCircleInfo,
+        },
+      ]
+      if (canManageRendicion) {
+        modulesForProgram.push({
           id: 'rendiciones',
           title: 'Rendiciones',
           route: `/app-org/rendicion`,
           icon: faCalculator,
-        },
-      ]
+        })
+      }
+      return modulesForProgram
     }
 
     return baseModules

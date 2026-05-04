@@ -1,7 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-  faArrowRight,
   faBuilding,
   faCalendarDay,
   faChevronRight,
@@ -386,10 +385,10 @@ export function RendicionContextPage() {
         type="button"
         disabled={!selectedContext}
         onClick={handleContinue}
-        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#232D4F] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2E7D33] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
       >
         Continuá
-        <FontAwesomeIcon icon={faArrowRight} aria-hidden="true" />
+        <FontAwesomeIcon icon={faChevronRight} aria-hidden="true" />
       </button>
 
 
