@@ -34,7 +34,7 @@ export function SettingsDrawer({
   const userName = userProfile?.fullName || userProfile?.username || 'Usuario'
   const userEmail = userProfile?.email || 'Sin email'
   const appBuildDate = __APP_BUILD_DATE__
-  const appVersion = __APP_VERSION__
+  const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.1.0'
 
   return (
     <div
