@@ -137,9 +137,12 @@ const SyncCenterPage = lazy(() =>
   })),
 )
 
+const routerBasename =
+  import.meta.env.BASE_URL === '/' ? undefined : import.meta.env.BASE_URL.replace(/\/$/, '')
+
 export function AppRouter() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename}>
       <Suspense fallback={<FullScreenPageLoader />}>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />

@@ -22,6 +22,7 @@ Crea un `.env` opcional:
 ```bash
 VITE_API_BASE_URL=/api
 VITE_DEV_API_TARGET=http://localhost:8001
+VITE_PUBLIC_BASE_PATH=/mobile/
 ```
 
 ## Scripts

@@ -39,7 +39,7 @@ export function registerPwa(): void {
   bindUpdateChecks()
 
   window.addEventListener('load', () => {
-    const wb = new Workbox('/sw.js')
+    const wb = new Workbox(`${import.meta.env.BASE_URL}sw.js`)
     registrationPromise = wb.register().then((registration) => registration ?? null)
   })
 }
