@@ -421,7 +421,7 @@ export function SpaceCapacitacionesPage() {
                               setSelectedFiles((current) => ({ ...current, [item.id]: null }))
                             }
                             className={joinClasses(
-                              appButtonClass({ variant: 'ghost', size: 'sm' }),
+                              appButtonClass({ variant: 'outline-secondary', size: 'sm' }),
                               'px-2 py-1 text-[11px]',
                             )}
                           >
