@@ -101,7 +101,7 @@ export function AppLayout({
         : isActivitiesRoute
           ? 'Actividades del Espacio'
         : isCursosRoute
-          ? 'Cursos'
+          ? 'Formación'
         : isNominaAlimentariaPersonDetailRoute
           ? headerState?.spaceName || 'Espacio'
         : isOrgSpaceScopedRoute

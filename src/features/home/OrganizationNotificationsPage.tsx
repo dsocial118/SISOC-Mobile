@@ -128,21 +128,27 @@ export function OrganizationNotificationsPage() {
   async function handleOpenNotification(item: GroupedNotificationItem) {
     const pendingUnreadItems = item.groupedItems.filter((row) => !row.message.visto)
     if (pendingUnreadItems.length > 0) {
-      await Promise.allSettled(
-        pendingUnreadItems.map((row) => markSpaceMessageAsSeen(row.spaceId, row.message.id)),
+      const settledResults = await Promise.allSettled(
+        pendingUnreadItems.map(async (row) => {
+          await markSpaceMessageAsSeen(row.spaceId, row.message.id)
+          return row
+        }),
       )
+      const successfullySeenItems = settledResults
+        .filter((result): result is PromiseFulfilledResult<AggregatedNotificationItem> => result.status === 'fulfilled')
+        .map((result) => result.value)
 
-      const unreadBySpaceId = pendingUnreadItems.reduce<Record<number, number>>((acc, row) => {
+      const seenKeySet = new Set(
+        successfullySeenItems.map((row) => `${row.spaceId}:${row.message.id}`),
+      )
+      const unreadBySpaceId = successfullySeenItems.reduce<Record<number, number>>((acc, row) => {
         acc[row.spaceId] = (acc[row.spaceId] || 0) + 1
         return acc
       }, {})
 
       setNotifications((current) =>
         current.map((row) =>
-          item.groupedItems.some(
-            (groupedRow) =>
-              groupedRow.spaceId === row.spaceId && groupedRow.message.id === row.message.id,
-          )
+          seenKeySet.has(`${row.spaceId}:${row.message.id}`)
             ? {
                 ...row,
                 message: {

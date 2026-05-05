@@ -618,22 +618,24 @@ export function SpaceNominaPersonFormPage() {
                         const allSelected = selectedCount > 0 && selectedCount === slotIds.length
                         return (
                           <div key={activityKey} className={`rounded-lg border p-2 ${subCardClass}`}>
-                            <div className="flex items-center justify-between gap-2">
-                              <label className={`flex min-w-0 items-center gap-2 text-[12px] ${textClass}`}>
+                            <div className="flex min-w-0 items-start justify-between gap-2">
+                              <label className={`flex min-w-0 flex-1 items-start gap-2 text-[12px] ${textClass}`}>
                                 <input
                                   type="checkbox"
                                   checked={allSelected}
                                   onChange={() => toggleActivityGroup(slotIds)}
                                 />
-                                <span className="truncate font-semibold">{activityGroup.nombre}</span>
-                                <span className={`text-[11px] ${detailTextClass}`}>
+                                <span className="min-w-0 break-words font-semibold leading-tight">
+                                  {activityGroup.nombre}
+                                </span>
+                                <span className={`shrink-0 text-[11px] ${detailTextClass}`}>
                                   ({selectedCount}/{slotIds.length})
                                 </span>
                               </label>
                               <button
                                 type="button"
                                 onClick={() => toggleActivity(activityKey)}
-                                className={`h-6 w-6 rounded-full border ${
+                                className={`h-6 w-6 shrink-0 rounded-full border ${
                                   isDark ? 'border-white/30 text-white' : 'border-slate-300 text-slate-700'
                                 }`}
                                 aria-label={expandedActivityKeys[activityKey] ? 'Ocultar horarios' : 'Ver horarios'}

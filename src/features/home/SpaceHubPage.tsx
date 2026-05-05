@@ -6,6 +6,7 @@ import {
   faChevronLeft,
   faCircleInfo,
   faComments,
+  faGraduationCap,
   faUtensils,
   faUsers,
 } from '@fortawesome/free-solid-svg-icons'
@@ -283,9 +284,9 @@ export function SpaceHubPage() {
       if (isPnudProgram) {
         modulesForProgram.push({
           id: 'cursos',
-          title: 'Cursos',
+          title: 'Formación',
           route: `/app-org/espacios/${spaceId}/cursos`,
-          icon: faCircleInfo,
+          icon: faGraduationCap,
         })
       }
       return modulesForProgram
@@ -326,9 +327,9 @@ export function SpaceHubPage() {
       if (isPnudProgram) {
         modulesForProgram.push({
           id: 'cursos',
-          title: 'Cursos',
+          title: 'Formación',
           route: `/app-org/espacios/${spaceId}/cursos`,
-          icon: faCircleInfo,
+          icon: faGraduationCap,
         })
       }
       return modulesForProgram
@@ -345,9 +346,9 @@ export function SpaceHubPage() {
         },
         {
           id: 'cursos',
-          title: 'Cursos',
+          title: 'Formación',
           route: `/app-org/espacios/${spaceId}/cursos`,
-          icon: faCircleInfo,
+          icon: faGraduationCap,
         },
       ]
       if (canManageRendicion) {
