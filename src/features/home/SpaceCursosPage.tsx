@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-  faArrowUpRightFromSquare,
+  faChevronRight,
   faGraduationCap,
 } from '@fortawesome/free-solid-svg-icons'
 import { useParams } from 'react-router-dom'
@@ -97,6 +97,7 @@ export function SpaceCursosPage() {
   const subtitleClass = isDark ? 'text-white/80' : 'text-slate-600'
   const detailTextClass = isDark ? 'text-white/85' : 'text-slate-700'
   const dividerClass = isDark ? 'border-white/20' : 'border-slate-300'
+  const introTextClass = isDark ? 'text-white/90' : 'text-slate-700'
 
   if (loading) {
     return <FormacionSkeleton isDark={isDark} />
@@ -129,6 +130,10 @@ export function SpaceCursosPage() {
 
   return (
     <section className="grid gap-3">
+      <p className={`mb-2 text-[15px] leading-[1.35] ${introTextClass}`}>
+        En esta sección encontrarás accesos directos a cursos y recursos de la plataforma Formando
+        Capital Humano.
+      </p>
       {cursosComunes.map((section, index) => (
         <a
           key={section.id}
@@ -143,11 +148,11 @@ export function SpaceCursosPage() {
         >
           <div className="flex items-center gap-3">
             {section.imagen_url ? (
-              <span className="h-10 w-10 shrink-0 overflow-hidden rounded-lg">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg">
                 <img
                   src={section.imagen_url}
                   alt={section.nombre}
-                  className="block h-full w-full object-cover"
+                  className="block h-full w-full object-contain"
                 />
               </span>
             ) : (
@@ -157,16 +162,13 @@ export function SpaceCursosPage() {
             )}
             <div className="min-w-0">
               <p className={`text-[16px] font-medium ${titleClass}`}>{section.nombre}</p>
-              {section.descripcion ? (
-                <p className={`mt-1 text-[12px] ${detailTextClass}`}>{section.descripcion}</p>
-              ) : null}
             </div>
           </div>
           <span
             className={`absolute right-4 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center ${subtitleClass}`}
           >
             <FontAwesomeIcon
-              icon={faArrowUpRightFromSquare}
+              icon={faChevronRight}
               aria-hidden="true"
               style={{ fontSize: 18 }}
             />
@@ -175,8 +177,8 @@ export function SpaceCursosPage() {
       ))}
       {cursosRecomendados.length > 0 ? (
         <>
-          <hr className={`my-1 border-t ${dividerClass}`} />
-          <h2 className={`text-[18px] font-semibold ${titleClass}`}>Cursos recomendados</h2>
+          <hr className={`my-3 border-t ${dividerClass}`} />
+          <h2 className={`mb-1 text-[18px] font-semibold ${titleClass}`}>Cursos recomendados</h2>
           {cursosRecomendados.map((section, index) => (
             <a
               key={section.id}
@@ -191,11 +193,11 @@ export function SpaceCursosPage() {
             >
               <div className="flex items-center gap-3">
                 {section.imagen_url ? (
-                  <span className="h-10 w-10 shrink-0 overflow-hidden rounded-lg">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg">
                     <img
                       src={section.imagen_url}
                       alt={section.nombre}
-                      className="block h-full w-full object-cover"
+                      className="block h-full w-full object-contain"
                     />
                   </span>
                 ) : (
@@ -209,16 +211,13 @@ export function SpaceCursosPage() {
                 )}
                 <div className="min-w-0">
                   <p className={`text-[16px] font-medium ${titleClass}`}>{section.nombre}</p>
-                  {section.descripcion ? (
-                    <p className={`mt-1 text-[12px] ${detailTextClass}`}>{section.descripcion}</p>
-                  ) : null}
                 </div>
               </div>
               <span
                 className={`absolute right-4 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center ${subtitleClass}`}
               >
                 <FontAwesomeIcon
-                  icon={faArrowUpRightFromSquare}
+                  icon={faChevronRight}
                   aria-hidden="true"
                   style={{ fontSize: 18 }}
                 />
