@@ -42,27 +42,6 @@ function formatLatinDate(rawDate: string | null | undefined): string {
   return `${day}-${month}-${year}`
 }
 
-function calculateAgeYears(rawDate: string | null | undefined): number | null {
-  const value = (rawDate || '').trim()
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (!match) {
-    return null
-  }
-  const [, year, month, day] = match
-  const birth = new Date(Number(year), Number(month) - 1, Number(day))
-  if (Number.isNaN(birth.getTime())) {
-    return null
-  }
-  const today = new Date()
-  let age = today.getFullYear() - birth.getFullYear()
-  const monthDiff = today.getMonth() - birth.getMonth()
-  const dayDiff = today.getDate() - birth.getDate()
-  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
-    age -= 1
-  }
-  return age >= 0 ? age : null
-}
-
 export function SpaceNominaAlimentariaPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -94,7 +73,6 @@ export function SpaceNominaAlimentariaPage() {
 
   const textClass = isDark ? 'text-white' : 'text-[#232D4F]'
   const detailTextClass = isDark ? 'text-white/85' : 'text-slate-700'
-  const summaryCardClass = isDark ? 'bg-[#232D4F]' : 'bg-[#F5F5F5]'
   const subCardClass = isDark ? 'border-white/20 bg-white/5' : 'border-[#E0E0E0] bg-white'
   const cardStyle = isDark
     ? {
@@ -126,31 +104,6 @@ export function SpaceNominaAlimentariaPage() {
   }, [location.pathname, navigate, routeState])
 
   const filteredRows = useMemo(() => rows, [rows])
-  const ageGroups = useMemo(
-    () => ({
-      ninos: rows.filter((row) => {
-        const age = calculateAgeYears(row.fecha_nacimiento)
-        return age !== null && age <= 13
-      }).length,
-      adolescentes: rows.filter((row) => {
-        const age = calculateAgeYears(row.fecha_nacimiento)
-        return age !== null && age >= 14 && age <= 17
-      }).length,
-      adultos: rows.filter((row) => {
-        const age = calculateAgeYears(row.fecha_nacimiento)
-        return age !== null && age >= 18 && age <= 49
-      }).length,
-      adultosMayores: rows.filter((row) => {
-        const age = calculateAgeYears(row.fecha_nacimiento)
-        return age !== null && age >= 50 && age <= 65
-      }).length,
-      mayoresAvanzados: rows.filter((row) => {
-        const age = calculateAgeYears(row.fecha_nacimiento)
-        return age !== null && age >= 66
-      }).length,
-    }),
-    [rows],
-  )
 
   useEffect(() => {
     let isMounted = true

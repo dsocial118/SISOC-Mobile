@@ -34,27 +34,6 @@ function formatPeopleLabel(value: number): string {
   return String(value)
 }
 
-function calculateAgeYears(rawDate: string | null | undefined): number | null {
-  const value = (rawDate || '').trim()
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (!match) {
-    return null
-  }
-  const [, year, month, day] = match
-  const birth = new Date(Number(year), Number(month) - 1, Number(day))
-  if (Number.isNaN(birth.getTime())) {
-    return null
-  }
-  const today = new Date()
-  let age = today.getFullYear() - birth.getFullYear()
-  const monthDiff = today.getMonth() - birth.getMonth()
-  const dayDiff = today.getDate() - birth.getDate()
-  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
-    age -= 1
-  }
-  return age >= 0 ? age : null
-}
-
 function formatLatinDate(rawDate: string | null | undefined): string {
   const value = (rawDate || '').trim()
   if (!value) {
@@ -100,31 +79,6 @@ export function SpaceNominaPage() {
         boxShadow: '4px 4px 4px rgba(0, 0, 0, 0.25)',
       }
   const subCardClass = isDark ? 'border-white/20 bg-white/5' : 'border-[#E0E0E0] bg-white'
-  const ageGroups = useMemo(
-    () => ({
-      ninos: rows.filter((row) => {
-        const age = calculateAgeYears(row.fecha_nacimiento)
-        return age !== null && age <= 13
-      }).length,
-      adolescentes: rows.filter((row) => {
-        const age = calculateAgeYears(row.fecha_nacimiento)
-        return age !== null && age >= 14 && age <= 17
-      }).length,
-      adultos: rows.filter((row) => {
-        const age = calculateAgeYears(row.fecha_nacimiento)
-        return age !== null && age >= 18 && age <= 49
-      }).length,
-      adultosMayores: rows.filter((row) => {
-        const age = calculateAgeYears(row.fecha_nacimiento)
-        return age !== null && age >= 50 && age <= 65
-      }).length,
-      mayoresAvanzados: rows.filter((row) => {
-        const age = calculateAgeYears(row.fecha_nacimiento)
-        return age !== null && age >= 66
-      }).length,
-    }),
-    [rows],
-  )
   const filteredRows = useMemo(() => rows, [rows])
 
   useEffect(() => {
