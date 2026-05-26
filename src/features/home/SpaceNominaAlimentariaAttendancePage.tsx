@@ -10,6 +10,7 @@ import { AppToast } from '../../ui/AppToast'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
 import { appButtonClass, joinClasses } from '../../ui/buttons'
+import { getNominaAttendancePeriod } from './attendancePeriod'
 
 export function SpaceNominaAlimentariaAttendancePage() {
   const navigate = useNavigate()
@@ -27,6 +28,8 @@ export function SpaceNominaAlimentariaAttendancePage() {
   const [rows, setRows] = useState<NominaPerson[]>([])
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [lockedIds, setLockedIds] = useState<Set<number>>(new Set())
+  const attendancePeriod = getNominaAttendancePeriod()
+  const [showAttendanceNotice, setShowAttendanceNotice] = useState(attendancePeriod.isOpeningDay)
 
   const textClass = isDark ? 'text-white' : 'text-[#232D4F]'
   const detailTextClass = isDark ? 'text-white/85' : 'text-slate-700'
@@ -67,11 +70,7 @@ export function SpaceNominaAlimentariaAttendancePage() {
           (row) => row.asistencia_mes_actual,
         )?.asistencia_mes_actual?.periodo_label
         setPeriodLabel(
-          currentPeriod
-            || new Intl.DateTimeFormat('es-AR', {
-              month: '2-digit',
-              year: 'numeric',
-            }).format(new Date()),
+          currentPeriod || attendancePeriod.periodLabel,
         )
         setLockedIds(
           new Set(
@@ -99,7 +98,7 @@ export function SpaceNominaAlimentariaAttendancePage() {
       isMounted = false
       setPageLoading(false)
     }
-  }, [setPageLoading, spaceId])
+  }, [attendancePeriod.periodLabel, setPageLoading, spaceId])
 
   const freeIds = useMemo(
     () => rows.map((row) => row.id).filter((id) => !lockedIds.has(id)),
@@ -112,7 +111,7 @@ export function SpaceNominaAlimentariaAttendancePage() {
   const lockedPercentage = totalCount > 0 ? Math.round((lockedCount / totalCount) * 100) : 0
 
   function toggleRow(rowId: number) {
-    if (lockedIds.has(rowId)) {
+    if (lockedIds.has(rowId) || !attendancePeriod.isEnabled) {
       return
     }
     setSelectedIds((current) =>
@@ -123,7 +122,7 @@ export function SpaceNominaAlimentariaAttendancePage() {
   }
 
   async function handleSave() {
-    if (!spaceId || saving) {
+    if (!spaceId || saving || !attendancePeriod.isEnabled) {
       return
     }
     setSaving(true)
@@ -159,6 +158,12 @@ export function SpaceNominaAlimentariaAttendancePage() {
         tone="error"
         onClose={() => setErrorMessage('')}
       />
+      <AppToast
+        open={showAttendanceNotice}
+        message={attendancePeriod.enabledMessage}
+        tone="success"
+        onClose={() => setShowAttendanceNotice(false)}
+      />
       {showCachedDataNotice ? (
         <div className="rounded-xl border border-[#E7BA61]/40 bg-[#E7BA61]/15 px-3 py-2 text-[12px] font-semibold text-[#8C6A1D]">
           Mostrando datos guardados por conexión lenta.
@@ -170,6 +175,11 @@ export function SpaceNominaAlimentariaAttendancePage() {
         <p className={`mt-1 text-sm ${detailTextClass}`}>
           {routeState?.spaceName ? `${routeState.spaceName} · ` : ''}
           Período {periodLabel}
+        </p>
+        <p className={`mt-1 text-[12px] ${detailTextClass}`}>
+          {attendancePeriod.isEnabled
+            ? `Se tomara asistencia para el periodo ${periodLabel}.`
+            : attendancePeriod.disabledMessage}
         </p>
       </div>
 
@@ -207,7 +217,7 @@ export function SpaceNominaAlimentariaAttendancePage() {
                   : Array.from(lockedIds),
               )
             }
-            disabled={freeIds.length === 0}
+            disabled={freeIds.length === 0 || !attendancePeriod.isEnabled}
             className="h-4 w-4 accent-[#2E7D33] disabled:opacity-50"
           />
           <span className={`text-[14px] font-semibold ${textClass}`}>Seleccionar todo</span>
@@ -226,16 +236,17 @@ export function SpaceNominaAlimentariaAttendancePage() {
           {rows.map((row) => {
             const checked = selectedIds.includes(row.id)
             const locked = lockedIds.has(row.id)
+            const rowDisabled = locked || !attendancePeriod.isEnabled
             return (
               <div key={row.id}>
                 <label
-                  className={`flex items-center gap-3 py-3 ${locked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                  className={`flex items-center gap-3 py-3 ${rowDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                   <input
                     type="checkbox"
                     checked={checked}
                     onChange={() => toggleRow(row.id)}
-                    disabled={locked}
+                    disabled={rowDisabled}
                     className="h-4 w-4 accent-[#2E7D33] disabled:opacity-50"
                   />
                   <div className="min-w-0 flex-1">
@@ -266,13 +277,17 @@ export function SpaceNominaAlimentariaAttendancePage() {
       <button
         type="button"
         onClick={() => void handleSave()}
-        disabled={saving}
+        disabled={saving || !attendancePeriod.isEnabled}
         className={joinClasses(
           'mt-2',
           appButtonClass({ variant: 'success', size: 'lg', fullWidth: true }),
         )}
       >
-        {saving ? 'Guardando asistencia...' : 'Guardar asistencia'}
+        {saving
+          ? 'Guardando asistencia...'
+          : attendancePeriod.isEnabled
+            ? 'Guardar asistencia'
+            : 'Asistencia no habilitada'}
       </button>
     </section>
   )

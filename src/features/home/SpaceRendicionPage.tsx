@@ -5,13 +5,12 @@ import {
   faChevronRight,
   faFileLines,
   faFolderOpen,
-  faPlus,
 } from '@fortawesome/free-solid-svg-icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { parseApiError } from '../../api/errorUtils'
 import type { RendicionItem } from '../../api/rendicionApi'
 import { syncNow } from '../../sync/engine'
-import { appButtonClass, joinClasses } from '../../ui/buttons'
+import { appButtonClass } from '../../ui/buttons'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
 import { formatDateTime, loadRendicionesOfflineFirst } from './rendicionOffline'
@@ -149,6 +148,18 @@ export function SpaceRendicionPage() {
         </p>
       </div>
 
+      <button
+        type="button"
+        onClick={() =>
+          navigate(`/app-org/espacios/${spaceId}/rendicion/nueva`, {
+            state: routeState,
+          })
+        }
+        className={appButtonClass({ variant: 'success', size: 'lg', fullWidth: true })}
+      >
+        Crear nueva rendición
+      </button>
+
       {rows.length === 0 ? (
         <article className="rounded-xl border p-5 text-center" style={cardStyle}>
           <FontAwesomeIcon
@@ -213,21 +224,6 @@ export function SpaceRendicionPage() {
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() =>
-          navigate(`/app-org/espacios/${spaceId}/rendicion/nueva`, {
-            state: routeState,
-          })
-        }
-        className={joinClasses(
-          appButtonClass({ variant: 'success', size: 'md' }),
-          'fixed bottom-20 right-4 z-20 h-14 w-14 rounded-full p-0 shadow-[0_10px_24px_rgba(46,125,51,0.35)]',
-        )}
-        aria-label="Nueva rendicion"
-      >
-        <FontAwesomeIcon icon={faPlus} aria-hidden="true" style={{ fontSize: 22 }} />
-      </button>
     </section>
   )
 }

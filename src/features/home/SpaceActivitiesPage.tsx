@@ -4,7 +4,6 @@ import {
   faCalendarDays,
   faCheck,
   faChevronDown,
-  faChevronLeft,
   faChevronRight,
   faChevronUp,
   faClock,
@@ -40,6 +39,11 @@ type ScheduleRow = {
   hora_fin: string
 }
 
+type PickerOption = {
+  value: string
+  label: string
+}
+
 const EMPTY_FORM: FormState = {
   catalogo_actividad: '',
 }
@@ -48,6 +52,89 @@ const EMPTY_SCHEDULE_ROW: ScheduleRow = {
   dia_actividad: '',
   hora_inicio: '',
   hora_fin: '',
+}
+
+const TIME_OPTIONS: PickerOption[] = Array.from({ length: 96 }, (_, index) => {
+  const totalMinutes = index * 15
+  const hour = String(Math.floor(totalMinutes / 60)).padStart(2, '0')
+  const minute = String(totalMinutes % 60).padStart(2, '0')
+  const value = `${hour}:${minute}`
+  return { value, label: value }
+})
+
+function SelectorField({
+  label,
+  value,
+  placeholder,
+  options,
+  onChange,
+  isDark,
+}: {
+  label: string
+  value: string
+  placeholder: string
+  options: PickerOption[]
+  onChange: (value: string) => void
+  isDark: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const selected = options.find((option) => option.value === value)
+  const titleClass = isDark ? 'text-white' : 'text-[#232D4F]'
+  const detailClass = isDark ? 'text-white/80' : 'text-slate-600'
+  const panelClass = isDark
+    ? 'border-white/20 bg-[#1E2846]'
+    : 'border-slate-200 bg-white'
+
+  return (
+    <div className="grid min-w-0 gap-1">
+      <span className={`text-[11px] font-semibold ${titleClass}`}>{label}</span>
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className={`flex min-h-[42px] w-full min-w-0 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm ${
+          isDark
+            ? 'border-white/30 bg-[#1E2846] text-white'
+            : 'border-slate-300 bg-white text-slate-700'
+        }`}
+      >
+        <span className={`min-w-0 break-words ${selected ? '' : detailClass}`}>
+          {selected?.label || placeholder}
+        </span>
+        <FontAwesomeIcon
+          icon={open ? faChevronUp : faChevronDown}
+          aria-hidden="true"
+          className="shrink-0"
+          style={{ fontSize: 12 }}
+        />
+      </button>
+      {open ? (
+        <div className={`grid max-h-52 min-w-0 gap-1 overflow-auto rounded-lg border p-1 ${panelClass}`}>
+          {options.map((option) => {
+            const selectedOption = option.value === value
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onChange(option.value)
+                  setOpen(false)
+                }}
+                className={`min-w-0 rounded-md px-2 py-2 text-left text-xs font-semibold ${
+                  selectedOption
+                    ? 'bg-[#232D4F] text-white'
+                    : isDark
+                      ? 'text-white hover:bg-white/10'
+                      : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                {option.label}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 function normalizeTimeValue(value: string | null | undefined): string {
@@ -62,8 +149,17 @@ function normalizeTimeValue(value: string | null | undefined): string {
   return `${match[1]}:${match[2]}`
 }
 
+function isValidTimeValue(value: string | null | undefined): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || '').trim())
+}
+
+function timeToMinutes(value: string): number {
+  const [hour, minute] = value.split(':').map(Number)
+  return hour * 60 + minute
+}
+
 function formatScheduleRange(startTime: string, endTime: string): string {
-  if (!startTime || !endTime) {
+  if (!isValidTimeValue(startTime) || !isValidTimeValue(endTime)) {
     return ''
   }
   return `${startTime} a ${endTime}`
@@ -107,6 +203,15 @@ function getScheduleBounds(item: SpaceActivityItem): { hora_inicio: string; hora
   return { hora_inicio: start, hora_fin: end }
 }
 
+function timeOptionsWithValue(value: string): PickerOption[] {
+  if (!isValidTimeValue(value) || TIME_OPTIONS.some((option) => option.value === value)) {
+    return TIME_OPTIONS
+  }
+  return [...TIME_OPTIONS, { value, label: value }].sort(
+    (a, b) => timeToMinutes(a.value) - timeToMinutes(b.value),
+  )
+}
+
 function hasScheduleOverlap(rows: ScheduleRow[], catalogoActividad: string): boolean {
   if (!catalogoActividad) {
     return false
@@ -114,13 +219,11 @@ function hasScheduleOverlap(rows: ScheduleRow[], catalogoActividad: string): boo
   const grouped = new Map<string, Array<{ start: number; end: number }>>()
 
   for (const row of rows) {
-    if (!row.dia_actividad || !row.hora_inicio || !row.hora_fin) {
+    if (!row.dia_actividad || !isValidTimeValue(row.hora_inicio) || !isValidTimeValue(row.hora_fin)) {
       continue
     }
-    const [startHour, startMinute] = row.hora_inicio.split(':').map(Number)
-    const [endHour, endMinute] = row.hora_fin.split(':').map(Number)
-    const startValue = startHour * 60 + startMinute
-    const endValue = endHour * 60 + endMinute
+    const startValue = timeToMinutes(row.hora_inicio)
+    const endValue = timeToMinutes(row.hora_fin)
     const currentRows = grouped.get(row.dia_actividad) || []
     currentRows.push({ start: startValue, end: endValue })
     grouped.set(row.dia_actividad, currentRows)
@@ -162,14 +265,11 @@ export function SpaceActivitiesPage() {
   const [scheduleRows, setScheduleRows] = useState<ScheduleRow[]>([EMPTY_SCHEDULE_ROW])
   const [selectedCategory, setSelectedCategory] = useState('')
   const [listCategoryFilter, setListCategoryFilter] = useState('TODAS')
-  const [selectedAgendaDayId, setSelectedAgendaDayId] = useState<number | null>(null)
+  const [expandedAgendaDays, setExpandedAgendaDays] = useState<Record<number, boolean>>({})
   const [enrolleesByActivity, setEnrolleesByActivity] = useState<Record<number, SpaceActivityEnrollee[]>>({})
   const [loadingEnrolleesIds, setLoadingEnrolleesIds] = useState<Record<number, boolean>>({})
   const [activityPendingDelete, setActivityPendingDelete] = useState<SpaceActivityItem | null>(null)
   const [deletingActivityId, setDeletingActivityId] = useState<number | null>(null)
-  const [existingSlotsLoading, setExistingSlotsLoading] = useState(false)
-  const [existingSlotsError, setExistingSlotsError] = useState('')
-  const [existingSlots, setExistingSlots] = useState<SpaceActivityItem[]>([])
 
   const cardStyle = isDark
     ? {
@@ -249,6 +349,10 @@ export function SpaceActivitiesPage() {
   const filteredCatalog = useMemo(
     () => (selectedCategory ? catalog.filter((item) => item.categoria === selectedCategory) : []),
     [catalog, selectedCategory],
+  )
+  const dayOptions = useMemo(
+    () => days.map((day) => ({ value: String(day.id), label: day.nombre })),
+    [days],
   )
   const listFilterCategories = useMemo(
     () => ['TODAS', ...Array.from(new Set(activities.map((item) => item.categoria))).sort((a, b) => a.localeCompare(b))],
@@ -364,89 +468,6 @@ export function SpaceActivitiesPage() {
       }),
     [weeklyAgenda],
   )
-  const selectedAgendaDay =
-    weeklyAgendaGrouped.find((day) => day.id === selectedAgendaDayId) ||
-    weeklyAgendaGrouped.find((day) => day.grupos.length > 0) ||
-    weeklyAgendaGrouped[0] ||
-    null
-  const selectedAgendaIndex = selectedAgendaDay
-    ? weeklyAgendaGrouped.findIndex((day) => day.id === selectedAgendaDay.id)
-    : -1
-  const selectedAgendaItems = useMemo(
-    () =>
-      [...(selectedAgendaDay?.items || [])].sort((a, b) => {
-        const hourCompare = (a.hora_inicio || '').localeCompare(b.hora_inicio || '')
-        if (hourCompare !== 0) {
-          return hourCompare
-        }
-        return a.actividad.localeCompare(b.actividad)
-      }),
-    [selectedAgendaDay],
-  )
-  const existingSlotsForSelectedCatalog = useMemo(() => {
-    if (!formData.catalogo_actividad) {
-      return []
-    }
-    const selectedCatalogId = Number(formData.catalogo_actividad)
-    return existingSlots
-      .filter((item) => item.catalogo_actividad === selectedCatalogId)
-      .sort((a, b) => {
-        const dayCompare =
-          (dayOrderMap.get(a.dia_actividad_nombre) ?? 999) - (dayOrderMap.get(b.dia_actividad_nombre) ?? 999)
-        if (dayCompare !== 0) {
-          return dayCompare
-        }
-        return (a.hora_inicio || '').localeCompare(b.hora_inicio || '')
-      })
-  }, [dayOrderMap, existingSlots, formData.catalogo_actividad])
-
-  useEffect(() => {
-    if (!selectedAgendaDay && selectedAgendaDayId !== null) {
-      setSelectedAgendaDayId(null)
-      return
-    }
-    if (selectedAgendaDay && selectedAgendaDay.id !== selectedAgendaDayId) {
-      setSelectedAgendaDayId(selectedAgendaDay.id)
-    }
-  }, [selectedAgendaDay, selectedAgendaDayId])
-
-  useEffect(() => {
-    let isMounted = true
-
-    async function loadExistingSlotsForCreate() {
-      if (!isCreateRoute || !spaceId || !formData.catalogo_actividad) {
-        setExistingSlots([])
-        setExistingSlotsError('')
-        setExistingSlotsLoading(false)
-        return
-      }
-      setExistingSlotsLoading(true)
-      setExistingSlotsError('')
-      try {
-        const rows = await listSpaceActivities(spaceId)
-        if (!isMounted) {
-          return
-        }
-        setExistingSlots(rows)
-      } catch {
-        if (!isMounted) {
-          return
-        }
-        setExistingSlots([])
-        setExistingSlotsError('No se pudieron cargar horarios existentes.')
-      } finally {
-        if (isMounted) {
-          setExistingSlotsLoading(false)
-        }
-      }
-    }
-
-    void loadExistingSlotsForCreate()
-    return () => {
-      isMounted = false
-    }
-  }, [formData.catalogo_actividad, isCreateRoute, spaceId])
-
   function openCreateForm() {
     setEditingId(null)
     setFormData(EMPTY_FORM)
@@ -493,13 +514,18 @@ export function SpaceActivitiesPage() {
       return 'Selecciona una actividad.'
     }
     if (scheduleRows.length === 0) {
-      return 'Agrega al menos un dia y horario.'
+      return 'Agrega al menos un día y horario.'
     }
-    const invalidRow = scheduleRows.some((row) => !row.dia_actividad || !row.hora_inicio || !row.hora_fin)
+    const invalidRow = scheduleRows.some(
+      (row) =>
+        !row.dia_actividad ||
+        !isValidTimeValue(row.hora_inicio) ||
+        !isValidTimeValue(row.hora_fin),
+    )
     if (invalidRow) {
-      return 'Completa todos los dias y horarios.'
+      return 'Completa todos los días y horarios con formato HH:MM.'
     }
-    const invalidRange = scheduleRows.some((row) => row.hora_fin <= row.hora_inicio)
+    const invalidRange = scheduleRows.some((row) => timeToMinutes(row.hora_fin) <= timeToMinutes(row.hora_inicio))
     if (invalidRange) {
       return 'La hora de fin debe ser posterior a la hora de inicio.'
     }
@@ -633,15 +659,11 @@ export function SpaceActivitiesPage() {
     }))
   }
 
-  function goToAgendaOffset(offset: number) {
-    if (selectedAgendaIndex < 0) {
-      return
-    }
-    const nextIndex = selectedAgendaIndex + offset
-    if (nextIndex < 0 || nextIndex >= weeklyAgendaGrouped.length) {
-      return
-    }
-    setSelectedAgendaDayId(weeklyAgendaGrouped[nextIndex].id)
+  function toggleAgendaDay(dayId: number) {
+    setExpandedAgendaDays((current) => ({
+      ...current,
+      [dayId]: !current[dayId],
+    }))
   }
 
   async function toggleHour(activityId: number) {
@@ -681,7 +703,7 @@ export function SpaceActivitiesPage() {
   }
 
   return (
-    <section className="pb-24">
+    <section className="min-w-0 overflow-x-hidden pb-24">
       {!isCreateRoute ? (
         <div className="flex items-center justify-between gap-2">
           <button
@@ -697,16 +719,17 @@ export function SpaceActivitiesPage() {
       ) : null}
 
       {formOpen || isCreateRoute ? (
-        <form
-          onSubmit={(event) => void handleSubmit(event)}
-          className={`mt-3 grid gap-2 rounded-xl border p-3 ${subCardClass}`}
-          style={cardStyle}
-        >
-          <p className={`text-sm font-semibold ${textClass}`}>{panelTitle}</p>
+        <>
+          <h2 className={`mt-3 text-[16px] font-semibold ${textClass}`}>{panelTitle}</h2>
+          <form
+            onSubmit={(event) => void handleSubmit(event)}
+            className={`mt-2 grid min-w-0 gap-2 rounded-xl border p-3 ${subCardClass}`}
+            style={cardStyle}
+          >
 
           <div className="grid gap-2">
             <p className={`text-xs font-semibold ${textClass}`}>Tipo de actividad</p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex min-w-0 flex-wrap gap-2">
               {categories.map((category) => (
                 <button
                   key={category}
@@ -716,7 +739,7 @@ export function SpaceActivitiesPage() {
                       setSelectedCategory(nextCategory)
                       setFormData((current) => ({ ...current, catalogo_actividad: '' }))
                     }}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                  className={`max-w-full rounded-full border px-3 py-1 text-xs font-semibold ${
                     selectedCategory === category
                       ? 'border-[#E7BA61] bg-[#232D4F] text-white'
                       : isDark
@@ -724,13 +747,13 @@ export function SpaceActivitiesPage() {
                         : 'border-slate-300 bg-white text-slate-700'
                   }`}
                 >
-                  {category}
+                  <span className="break-words">{category}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className={`max-h-[190px] overflow-auto rounded-lg border p-2 ${isDark ? 'border-white/20 bg-white/5' : 'border-slate-200 bg-white'}`}>
+          <div className={`min-w-0 max-h-[190px] overflow-auto rounded-lg border p-2 ${isDark ? 'border-white/20 bg-white/5' : 'border-slate-200 bg-white'}`}>
             <p className={`mb-2 text-xs font-semibold ${textClass}`}>Actividad</p>
             {!selectedCategory ? (
               <p className={`text-xs ${detailTextClass}`}>Selecciona primero un tipo.</p>
@@ -750,7 +773,7 @@ export function SpaceActivitiesPage() {
                           catalogo_actividad: checked ? '' : String(item.id),
                         }))
                       }
-                      className={`flex items-center justify-between rounded-md border px-2 py-1.5 text-left text-xs ${
+                      className={`flex min-w-0 items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-left text-xs ${
                         checked
                           ? 'border-[#E7BA61] bg-[#E7BA61]/20'
                           : isDark
@@ -758,9 +781,9 @@ export function SpaceActivitiesPage() {
                             : 'border-slate-200 bg-white'
                       }`}
                     >
-                      <span className={textClass}>{item.actividad}</span>
+                      <span className={`min-w-0 break-words ${textClass}`}>{item.actividad}</span>
                       <span
-                        className={`ml-2 flex h-4 w-4 items-center justify-center rounded border ${
+                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                           checked ? 'border-[#232D4F] bg-[#232D4F] text-white' : isDark ? 'border-white/50' : 'border-slate-400'
                         }`}
                       >
@@ -773,68 +796,41 @@ export function SpaceActivitiesPage() {
             )}
           </div>
 
-          {isCreateRoute && formData.catalogo_actividad ? (
-            <div className={`rounded-lg border p-2 ${isDark ? 'border-white/20 bg-white/5' : 'border-slate-200 bg-white'}`}>
-              <p className={`mb-2 text-xs font-semibold ${textClass}`}>Horarios ya creados</p>
-              {existingSlotsLoading ? (
-                <p className={`text-xs ${detailTextClass}`}>Cargando horarios...</p>
-              ) : existingSlotsError ? (
-                <p className={`text-xs ${detailTextClass}`}>{existingSlotsError}</p>
-              ) : existingSlotsForSelectedCatalog.length === 0 ? (
-                <p className={`text-xs ${detailTextClass}`}>Todavía no hay horarios para esta actividad.</p>
-              ) : (
-                <div className="grid gap-1">
-                  {existingSlotsForSelectedCatalog.map((slot) => (
-                    <p key={slot.id} className={`text-xs ${detailTextClass}`}>
-                      {slot.dia_actividad_nombre} · {slot.horario_actividad}
-                    </p>
-                  ))}
-                </div>
-              )}
+          <div className="grid min-w-0 gap-2">
+            <div className="flex min-w-0 items-center justify-between">
+              <p className={`text-xs font-semibold ${textClass}`}>Días y horarios</p>
             </div>
-          ) : null}
-
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between">
-              <p className={`text-xs font-semibold ${textClass}`}>Dias y horarios</p>
-            </div>
-            <div className="grid gap-2">
+            <div className="grid min-w-0 gap-2">
               {scheduleRows.map((row, index) => (
-                <div key={`schedule-${index}`} className={`grid grid-cols-1 gap-2 rounded-lg border p-2 ${subCardClass}`}>
-                  <select
-                    className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ${isDark ? 'border-white/30 bg-white/10 text-white' : 'border-slate-300 bg-white text-slate-700'}`}
+                <div key={`schedule-${index}`} className={`grid min-w-0 grid-cols-1 gap-2 overflow-hidden rounded-lg border p-2 ${subCardClass}`}>
+                  <SelectorField
+                    label="Día"
                     value={row.dia_actividad}
-                    onChange={(event) => updateScheduleRow(index, { dia_actividad: event.target.value })}
-                  >
-                    <option value="">Selecciona dia</option>
-                    {days.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    <label className="grid min-w-0 gap-1">
-                      <span className={`text-[11px] font-semibold ${textClass}`}>Hora de inicio</span>
-                      <input
-                        type="time"
-                        value={row.hora_inicio}
-                        onChange={(event) => updateScheduleRow(index, { hora_inicio: event.target.value })}
-                        className={`min-h-[42px] min-w-0 w-full rounded-lg border px-3 py-2 text-sm outline-none ${isDark ? 'border-white/30 bg-white/10 text-white' : 'border-slate-300 bg-white text-slate-700'}`}
-                      />
-                    </label>
-                    <label className="grid min-w-0 gap-1">
-                      <span className={`text-[11px] font-semibold ${textClass}`}>Hora de fin</span>
-                      <input
-                        type="time"
-                        value={row.hora_fin}
-                        onChange={(event) => updateScheduleRow(index, { hora_fin: event.target.value })}
-                        className={`min-h-[42px] min-w-0 w-full rounded-lg border px-3 py-2 text-sm outline-none ${isDark ? 'border-white/30 bg-white/10 text-white' : 'border-slate-300 bg-white text-slate-700'}`}
-                      />
-                    </label>
+                    placeholder="Selecciona día"
+                    options={dayOptions}
+                    onChange={(value) => updateScheduleRow(index, { dia_actividad: value })}
+                    isDark={isDark}
+                  />
+                  <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2">
+                    <SelectorField
+                      label="Hora de inicio"
+                      value={row.hora_inicio}
+                      placeholder="Selecciona hora"
+                      options={timeOptionsWithValue(row.hora_inicio)}
+                      onChange={(value) => updateScheduleRow(index, { hora_inicio: value })}
+                      isDark={isDark}
+                    />
+                    <SelectorField
+                      label="Hora de fin"
+                      value={row.hora_fin}
+                      placeholder="Selecciona hora"
+                      options={timeOptionsWithValue(row.hora_fin)}
+                      onChange={(value) => updateScheduleRow(index, { hora_fin: value })}
+                      isDark={isDark}
+                    />
                   </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className={`text-[11px] ${detailTextClass}`}>
+                  <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                    <p className={`min-w-0 text-[11px] ${detailTextClass}`}>
                       {row.hora_inicio && row.hora_fin
                         ? formatScheduleRange(row.hora_inicio, row.hora_fin)
                         : 'Completá el rango horario.'}
@@ -859,9 +855,10 @@ export function SpaceActivitiesPage() {
                 isDark
                   ? 'border-white/40 bg-white/10 text-white hover:bg-white/20'
                   : 'border-[#232D4F] text-[#232D4F]',
+                'min-w-0 flex-wrap whitespace-normal text-center leading-tight',
               )}
             >
-              + Agregar rango horario
+              + Agregar otro día y horario
             </button>
           </div>
 
@@ -870,11 +867,11 @@ export function SpaceActivitiesPage() {
               {formError}
             </div>
           ) : null}
-          <div className="mt-1 flex justify-end gap-2">
+          <div className="mt-1 grid min-w-0 grid-cols-1 gap-2 min-[360px]:grid-cols-[auto_auto] min-[360px]:justify-end">
             <button
               type="button"
               onClick={closeForm}
-              className={appButtonClass({ variant: 'danger', size: 'sm' })}
+              className={joinClasses(appButtonClass({ variant: 'danger', size: 'sm' }), 'w-full min-[360px]:w-auto')}
             >
               Cancelar
             </button>
@@ -882,15 +879,15 @@ export function SpaceActivitiesPage() {
               type="submit"
               disabled={saving}
               className={joinClasses(
-                appButtonClass({ variant: 'primary', size: 'md' }),
-                isDark ? 'border-[#E7BA61] bg-[#E7BA61] text-[#232D4F] hover:bg-[#D9A93D]' : undefined,
-                'min-w-[150px] shadow-[0_6px_14px_rgba(35,45,79,0.35)]',
+                appButtonClass({ variant: 'success', size: 'md' }),
+                'min-w-0 shadow-[0_6px_14px_rgba(35,45,79,0.35)] min-[360px]:min-w-[150px]',
               )}
-            >
-              {saving ? 'Guardando...' : submitLabel}
-            </button>
-          </div>
-        </form>
+          >
+            {saving ? 'Guardando...' : submitLabel}
+          </button>
+        </div>
+          </form>
+        </>
       ) : null}
 
       {!isCreateRoute ? (
@@ -920,81 +917,87 @@ export function SpaceActivitiesPage() {
           <FontAwesomeIcon icon={faCalendarDays} aria-hidden="true" className={textClass} style={{ fontSize: 14 }} />
           <h3 className={`text-[14px] font-semibold ${textClass}`}>Agenda semanal</h3>
         </div>
-        {selectedAgendaDay ? (
-          <article className={`mt-3 rounded-2xl border p-3 ${subCardClass}`} style={cardStyle}>
-            <div className="flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => goToAgendaOffset(-1)}
-                disabled={selectedAgendaIndex <= 0}
-                className={`flex h-9 w-9 items-center justify-center rounded-full border ${
-                  isDark ? 'border-white/30 text-white' : 'border-slate-300 text-slate-700'
-                } disabled:opacity-35`}
-                aria-label="Día anterior"
-              >
-                <FontAwesomeIcon icon={faChevronLeft} aria-hidden="true" style={{ fontSize: 12 }} />
-              </button>
-              <div className="min-w-0 text-center">
-                <p className={`text-[14px] font-semibold ${textClass}`}>{selectedAgendaDay.nombre}</p>
-                <p className={`mt-1 text-[11px] ${detailTextClass}`}>
-                  {selectedAgendaItems.length === 0
-                    ? 'Sin actividades cargadas.'
-                    : `${selectedAgendaItems.length} actividades programadas`}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => goToAgendaOffset(1)}
-                disabled={selectedAgendaIndex < 0 || selectedAgendaIndex >= weeklyAgendaGrouped.length - 1}
-                className={`flex h-9 w-9 items-center justify-center rounded-full border ${
-                  isDark ? 'border-white/30 text-white' : 'border-slate-300 text-slate-700'
-                } disabled:opacity-35`}
-                aria-label="Día siguiente"
-              >
-                <FontAwesomeIcon icon={faChevronRight} aria-hidden="true" style={{ fontSize: 12 }} />
-              </button>
-            </div>
-
-            {selectedAgendaItems.length === 0 ? (
-              <div className="mt-3 flex min-h-[72px] items-center rounded-xl border border-dashed border-slate-300/70 px-3 py-2">
-                <p className={`text-[12px] ${detailTextClass}`}>Sin actividades cargadas.</p>
-              </div>
-            ) : (
-              <div className="mt-3 grid gap-2">
-                {selectedAgendaItems.map((activity) => {
-                  const activityKey = `${selectedAgendaDay.id}-${activity.id}`
-                  return (
-                    <button
-                      key={`agenda-${activityKey}`}
-                      type="button"
-                      onClick={() =>
-                        navigate(`/app-org/espacios/${spaceId}/actividades/${activity.id}`)
-                      }
-                      className={`rounded-xl border ${isDark ? 'border-white/15 bg-[#1B2542]' : 'border-slate-200 bg-white'}`}
-                    >
-                      <div className="flex w-full items-start justify-between gap-3 p-3 text-left">
-                        <div className="min-w-0">
-                          <p className={`text-[13px] font-semibold leading-tight break-words ${textClass}`}>
-                            {activity.actividad}
-                          </p>
-                          <p className={`mt-1 text-[11px] ${detailTextClass}`}>
-                            {activity.categoria} · {activity.horario_actividad} · Inscriptos: {activity.cantidad_inscriptos}
-                          </p>
-                        </div>
-                        <span
-                          className={`flex shrink-0 items-center self-center ${
-                            isDark ? 'text-white' : 'text-slate-700'
-                          }`}
-                        >
-                          <FontAwesomeIcon icon={faChevronRight} aria-hidden="true" style={{ fontSize: 12 }} />
-                        </span>
+        {weeklyAgendaGrouped.length > 0 ? (
+          <div className="mt-3 grid gap-2">
+            {weeklyAgendaGrouped.map((day) => {
+              const isExpanded = Boolean(expandedAgendaDays[day.id])
+              return (
+                <article
+                  key={day.id}
+                  className={`min-w-0 rounded-2xl border p-3 ${subCardClass}`}
+                  style={cardStyle}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleAgendaDay(day.id)}
+                    className="flex w-full min-w-0 items-center justify-between gap-3 text-left"
+                    aria-label={isExpanded ? `Ocultar ${day.nombre}` : `Ver ${day.nombre}`}
+                  >
+                    <div className="min-w-0">
+                      <p className={`text-[14px] font-semibold ${textClass}`}>{day.nombre}</p>
+                      <div className={`mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] ${detailTextClass}`}>
+                        <span>Actividades: {day.grupos.length}</span>
+                        <span>Clases: {day.items.length}</span>
                       </div>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </article>
+                    </div>
+                    <span
+                      className={`flex shrink-0 items-center justify-center ${isDark ? 'text-white' : 'text-slate-700'}`}
+                    >
+                      <FontAwesomeIcon
+                        icon={isExpanded ? faChevronDown : faChevronRight}
+                        aria-hidden="true"
+                        style={{ fontSize: 12 }}
+                      />
+                    </span>
+                  </button>
+
+                  {isExpanded ? (
+                    day.items.length === 0 ? (
+                      <div className="mt-3 flex min-h-[72px] items-center rounded-xl border border-dashed border-slate-300/70 px-3 py-2">
+                        <p className={`text-[12px] ${detailTextClass}`}>Sin actividades cargadas.</p>
+                      </div>
+                    ) : (
+                      <div className="mt-3 grid gap-2">
+                        {day.items.map((activity) => (
+                          <button
+                            key={`agenda-${day.id}-${activity.id}`}
+                            type="button"
+                            onClick={() =>
+                              navigate(`/app-org/espacios/${spaceId}/actividades/${activity.id}`)
+                            }
+                            className={`min-w-0 rounded-xl border ${
+                              isDark ? 'border-white/15 bg-[#1B2542]' : 'border-slate-200 bg-white'
+                            }`}
+                          >
+                            <div className="flex w-full items-start justify-between gap-3 p-3 text-left">
+                              <div className="min-w-0">
+                                <p className={`break-words text-[13px] font-semibold leading-tight ${textClass}`}>
+                                  {activity.actividad}
+                                </p>
+                                <p className={`mt-1 text-[11px] ${detailTextClass}`}>
+                                  {activity.categoria} · {activity.horario_actividad}
+                                </p>
+                                <p className={`mt-1 text-[11px] ${detailTextClass}`}>
+                                  Inscriptos: {activity.cantidad_inscriptos}
+                                </p>
+                              </div>
+                              <span
+                                className={`flex shrink-0 items-center self-center ${
+                                  isDark ? 'text-white' : 'text-slate-700'
+                                }`}
+                              >
+                                <FontAwesomeIcon icon={faChevronRight} aria-hidden="true" style={{ fontSize: 12 }} />
+                              </span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  ) : null}
+                </article>
+              )
+            })}
+          </div>
         ) : null}
       </section>
       ) : null}

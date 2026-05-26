@@ -2,13 +2,16 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faCalendarDay,
-  faSquareCheck,
+  faChevronDown,
   faChevronRight,
   faIdCard,
   faMagnifyingGlass,
+  faSquareCheck,
   faUsers,
   faUserPlus,
+  faUserCheck,
   faUserGraduate,
+  faUserXmark,
   faUtensils,
 } from '@fortawesome/free-solid-svg-icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -19,6 +22,7 @@ import {
   type NominaTab,
 } from '../../api/nominaApi'
 import { parseApiError } from '../../api/errorUtils'
+import { AppToast } from '../../ui/AppToast'
 import { appButtonClass } from '../../ui/buttons'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
@@ -54,19 +58,30 @@ export function SpaceNominaPage() {
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
   const routeState =
-    (location.state as { spaceName?: string; programName?: string } | null) ?? null
+    (location.state as {
+      spaceName?: string
+      programName?: string
+      defaultTab?: NominaTab
+      successToast?: {
+        tone: 'success' | 'error'
+        message: string
+      }
+    } | null) ?? null
 
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-  const [tab, setTab] = useState<NominaTab>('consolidada')
+  const [toast, setToast] = useState(routeState?.successToast ?? null)
+  const [tab, setTab] = useState<NominaTab>(routeState?.defaultTab ?? 'consolidada')
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [stats, setStats] = useState<NominaStats>(EMPTY_STATS)
   const [rows, setRows] = useState<NominaPerson[]>([])
   const [showCachedDataNotice, setShowCachedDataNotice] = useState(false)
+  const [showStatsBreakdown, setShowStatsBreakdown] = useState(false)
 
   const textClass = isDark ? 'text-white' : 'text-[#232D4F]'
   const detailTextClass = isDark ? 'text-white/85' : 'text-slate-700'
+  const subCardClass = isDark ? 'border-white/20 bg-white/5' : 'border-[#E0E0E0] bg-white'
   const cardStyle = isDark
     ? {
         backgroundColor: '#232D4F',
@@ -78,8 +93,28 @@ export function SpaceNominaPage() {
         borderColor: '#E0E0E0',
         boxShadow: '4px 4px 4px rgba(0, 0, 0, 0.25)',
       }
-  const subCardClass = isDark ? 'border-white/20 bg-white/5' : 'border-[#E0E0E0] bg-white'
   const filteredRows = useMemo(() => rows, [rows])
+
+  useEffect(() => {
+    const incomingToast = routeState?.successToast
+    if (!incomingToast) {
+      return
+    }
+
+    setToast(incomingToast)
+    if (routeState?.defaultTab) {
+      setTab(routeState.defaultTab)
+    }
+
+    const nextState = { ...routeState }
+    delete nextState.successToast
+    delete nextState.defaultTab
+
+    navigate(location.pathname, {
+      replace: true,
+      state: nextState,
+    })
+  }, [location.pathname, navigate, routeState])
 
   useEffect(() => {
     let isMounted = true
@@ -145,6 +180,112 @@ export function SpaceNominaPage() {
 
   return (
     <section className="grid gap-3 pb-24">
+      <AppToast
+        open={Boolean(toast)}
+        message={toast?.message ?? ''}
+        tone={toast?.tone ?? 'success'}
+        onClose={() => setToast(null)}
+      />
+
+      <div className="px-3 py-1">
+        <button
+          type="button"
+          onClick={() => setShowStatsBreakdown((current) => !current)}
+          aria-expanded={showStatsBreakdown}
+          className={`flex w-full items-center justify-between gap-3 border-b pb-3 text-left ${isDark ? 'border-white/20' : 'border-slate-300'}`}
+        >
+          <span className={`text-[16px] font-bold ${textClass}`}>Total de Beneficiarios</span>
+          <span className="inline-flex items-center gap-2">
+            <span className={`text-[16px] font-bold ${textClass}`}>{formatPeopleLabel(stats.total_nomina)}</span>
+            <FontAwesomeIcon
+              icon={showStatsBreakdown ? faChevronDown : faChevronRight}
+              aria-hidden="true"
+              className={isDark ? 'text-white/80' : 'text-slate-500'}
+              style={{ fontSize: 12 }}
+            />
+          </span>
+        </button>
+        {showStatsBreakdown ? (
+          <div>
+            <div className={`mt-3 space-y-1.5 text-[14px] ${detailTextClass}`}>
+              <div className="flex items-center justify-between gap-3">
+                <span>Total Femenino</span>
+                <span className={`font-bold ${textClass}`}>{formatPeopleLabel(stats.genero.F)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Total Masculino</span>
+                <span className={`font-bold ${textClass}`}>{formatPeopleLabel(stats.genero.M)}</span>
+              </div>
+              {stats.genero.X > 0 ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span>Total X</span>
+                  <span className={`font-bold ${textClass}`}>{formatPeopleLabel(stats.genero.X)}</span>
+                </div>
+              ) : null}
+            </div>
+            <div className={`my-3 border-t ${isDark ? 'border-white/20' : 'border-slate-300'}`} />
+            <div className={`space-y-1.5 text-[14px] ${detailTextClass}`}>
+              <div className="flex items-center justify-between gap-3">
+                <span>Mayores de edad</span>
+                <span className={`font-bold ${textClass}`}>{formatPeopleLabel(stats.mayores_edad)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Menores de edad</span>
+                <span className={`font-bold ${textClass}`}>{formatPeopleLabel(stats.menores_edad)}</span>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <button
+        type="button"
+        onClick={() =>
+          navigate(`/app-org/espacios/${spaceId}/nomina/nueva`, {
+            state: {
+              spaceName: routeState?.spaceName,
+              defaultMode: tab === 'formacion' ? 'formacion' : 'alimentaria',
+            },
+          })
+        }
+        className={appButtonClass({ variant: 'success', size: 'md', fullWidth: true })}
+      >
+        <FontAwesomeIcon icon={faUserPlus} aria-hidden="true" />
+        Agregar persona
+      </button>
+
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            navigate(`/app-org/espacios/${spaceId}/nomina-alimentaria/asistencia`, {
+              state: {
+                spaceName: routeState?.spaceName,
+              },
+            })
+          }
+          className={appButtonClass({ variant: 'outline-secondary', size: 'md' })}
+        >
+          <FontAwesomeIcon icon={faSquareCheck} aria-hidden="true" />
+          Asistencia
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            navigate(`/app-org/espacios/${spaceId}/nomina/asistencias?tab=${tab === 'formacion' ? 'formacion' : 'alimentaria'}`, {
+              state: {
+                spaceName: routeState?.spaceName,
+                tab: tab === 'formacion' ? 'formacion' : 'alimentaria',
+              },
+            })
+          }
+          className={appButtonClass({ variant: 'outline-secondary', size: 'md' })}
+        >
+          <FontAwesomeIcon icon={faCalendarDay} aria-hidden="true" />
+          Historial
+        </button>
+      </div>
+
       <div
         className={`rounded-[15px] border px-3 py-2 ${isDark ? 'bg-[#232D4F]' : 'bg-[#F5F5F5]'}`}
         style={cardStyle}
@@ -179,7 +320,7 @@ export function SpaceNominaPage() {
 
       <div className="flex flex-wrap gap-2">
         {([
-          ['consolidada', 'Consolidada', faUsers],
+          ['consolidada', 'Total', faUsers],
           ['alimentaria', 'Alimentarias', faUtensils],
           ['formacion', 'Actividades', faUserGraduate],
         ] as Array<[NominaTab, string, typeof faUsers]>).map(([key, label, icon]) => (
@@ -201,72 +342,6 @@ export function SpaceNominaPage() {
             </span>
           </button>
         ))}
-      </div>
-
-      <div className="px-3 py-1">
-        <div className={`flex items-center justify-between gap-3 border-b pb-3 ${isDark ? 'border-white/20' : 'border-slate-300'}`}>
-          <p className={`text-[16px] font-bold ${textClass}`}>Total de Beneficiarios</p>
-          <p className={`text-[16px] font-bold ${textClass}`}>{formatPeopleLabel(stats.total_nomina)}</p>
-        </div>
-        <div className={`mt-3 space-y-1.5 text-[14px] ${detailTextClass}`}>
-          <div className="flex items-center justify-between gap-3">
-            <span>Total Femenino</span>
-            <span className={`font-bold ${textClass}`}>{formatPeopleLabel(stats.genero.F)}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span>Total Masculino</span>
-            <span className={`font-bold ${textClass}`}>{formatPeopleLabel(stats.genero.M)}</span>
-          </div>
-          {stats.genero.X > 0 ? (
-            <div className="flex items-center justify-between gap-3">
-              <span>Total X</span>
-              <span className={`font-bold ${textClass}`}>{formatPeopleLabel(stats.genero.X)}</span>
-            </div>
-          ) : null}
-        </div>
-        <div className={`my-3 border-t ${isDark ? 'border-white/20' : 'border-slate-300'}`} />
-        <div className={`space-y-1.5 text-[14px] ${detailTextClass}`}>
-          <div className="flex items-center justify-between gap-3">
-            <span>Mayores de edad</span>
-            <span className={`font-bold ${textClass}`}>{formatPeopleLabel(stats.mayores_edad)}</span>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span>Menores de edad</span>
-            <span className={`font-bold ${textClass}`}>{formatPeopleLabel(stats.menores_edad)}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() =>
-            navigate(`/app-org/espacios/${spaceId}/nomina-alimentaria/asistencia`, {
-              state: {
-                spaceName: routeState?.spaceName,
-              },
-            })
-          }
-          className={appButtonClass({ variant: 'outline-secondary', size: 'md' })}
-        >
-          <FontAwesomeIcon icon={faSquareCheck} aria-hidden="true" />
-          Asistencia
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            navigate(`/app-org/espacios/${spaceId}/nomina/nueva`, {
-              state: {
-                spaceName: routeState?.spaceName,
-                defaultMode: tab === 'formacion' ? 'formacion' : 'alimentaria',
-              },
-            })
-          }
-          className={appButtonClass({ variant: 'success', size: 'md' })}
-        >
-          <FontAwesomeIcon icon={faUserPlus} aria-hidden="true" />
-          Agregar persona
-        </button>
       </div>
 
       {showCachedDataNotice ? (
@@ -326,6 +401,15 @@ export function SpaceNominaPage() {
                       />
                       {formatLatinDate(row.fecha_nacimiento)}
                     </span>
+                    <span className={`inline-flex items-center gap-1 ${detailTextClass}`}>
+                      <span>Asistencia:</span>
+                      <FontAwesomeIcon
+                        icon={row.asistencia_mes_actual ? faUserCheck : faUserXmark}
+                        className={row.asistencia_mes_actual ? 'text-[#2E7D33]' : 'text-[#C62828]'}
+                        aria-hidden="true"
+                        style={{ fontSize: 14 }}
+                      />
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -333,7 +417,15 @@ export function SpaceNominaPage() {
                     <FontAwesomeIcon
                       icon={faUtensils}
                       aria-hidden="true"
-                      className="text-[#232D4F]"
+                      className={isDark ? 'text-white/85' : 'text-slate-600'}
+                      style={{ fontSize: 14 }}
+                    />
+                  ) : null}
+                  {row.badges.includes('Actividades') ? (
+                    <FontAwesomeIcon
+                      icon={faUserGraduate}
+                      aria-hidden="true"
+                      className={isDark ? 'text-white/85' : 'text-slate-600'}
                       style={{ fontSize: 14 }}
                     />
                   ) : null}

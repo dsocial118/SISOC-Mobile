@@ -26,7 +26,16 @@ export interface RendicionDocumentCategory {
   required: boolean
   multiple: boolean
   order: number
+  modelo?: RendicionModeloItem | null
   archivos: RendicionFileItem[]
+}
+
+export interface RendicionModeloItem {
+  codigo: string
+  label: string
+  filename: string
+  order: number
+  url: string
 }
 
 export interface RendicionItem {
@@ -38,6 +47,8 @@ export interface RendicionItem {
   periodo_inicio: string | null
   periodo_fin: string | null
   periodo_label: string
+  linea_programatica?: 'secos' | 'tradicional' | string | null
+  linea_programatica_label?: string | null
   estado: string
   estado_label: string
   documento_adjunto: boolean
@@ -52,6 +63,7 @@ export interface RendicionItem {
 export interface RendicionDetail extends RendicionItem {
   comprobantes: RendicionFileItem[]
   documentacion: RendicionDocumentCategory[]
+  modelos?: RendicionModeloItem[]
 }
 
 interface PaginatedResponse<T> {
@@ -68,6 +80,7 @@ export interface CreateRendicionPayload {
   numero_rendicion: number
   periodo_inicio: string
   periodo_fin: string
+  linea_programatica?: 'secos' | 'tradicional' | string
   observaciones?: string
 }
 
@@ -167,4 +180,26 @@ export async function deleteSpaceRendicion(
   rendicionId: string | number,
 ): Promise<void> {
   await http.post(`/comedores/${spaceId}/rendiciones/${rendicionId}/eliminar/`)
+}
+
+function normalizeApiUrl(url: string): string {
+  if (url.startsWith('/api/')) {
+    return url.slice(4)
+  }
+  return url
+}
+
+export async function downloadRendicionModelo(modelo: RendicionModeloItem): Promise<void> {
+  const { data } = await http.get<Blob>(normalizeApiUrl(modelo.url), {
+    responseType: 'blob',
+    timeout: 60000,
+  })
+  const objectUrl = window.URL.createObjectURL(data)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = modelo.filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(objectUrl)
 }

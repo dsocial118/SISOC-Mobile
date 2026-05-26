@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid'
+﻿import { v4 as uuidv4 } from 'uuid'
 import {
   createSpaceRendicion,
   deleteRendicionFile,
@@ -12,6 +12,7 @@ import {
   type RendicionDocumentCategory,
   type RendicionFileItem,
   type RendicionItem,
+  type RendicionModeloItem,
 } from '../../api/rendicionApi'
 import {
   db,
@@ -23,72 +24,205 @@ import { getCurrentUserKey } from '../../auth/session'
 import { enqueueOutbox } from '../../sync/outbox'
 
 type DocumentCategoryConfig = Omit<RendicionDocumentCategory, 'archivos'>
+type RendicionLineaProgramatica = 'secos' | 'tradicional'
+
+const LINEA_LABELS: Record<RendicionLineaProgramatica, string> = {
+  secos: 'Abordaje Comunitario - Línea Secos',
+  tradicional: 'Abordaje Comunitario - Línea Tradicional',
+}
 
 const DOCUMENT_CATEGORIES: DocumentCategoryConfig[] = [
   {
-    codigo: 'formulario_ii',
-    label: 'Formulario II',
+    codigo: 'formulario_i',
+    label: 'Formulario I - Certificación de Cuenta Bancaria',
     required: true,
     multiple: false,
     order: 1,
   },
   {
-    codigo: 'formulario_iii',
-    label: 'Formulario III',
+    codigo: 'formulario_ii',
+    label: 'Formulario II - Resumen',
     required: true,
     multiple: false,
     order: 2,
   },
   {
-    codigo: 'formulario_iv',
-    label: 'Formulario IV',
-    required: false,
+    codigo: 'formulario_iii_alimentario',
+    label: 'Formulario III - Desagregado por Facturas Prestación Alimentaria',
+    required: true,
     multiple: false,
     order: 3,
   },
   {
-    codigo: 'formulario_v',
-    label: 'Formulario V',
+    codigo: 'formulario_iii_siph',
+    label: 'Formulario III - Desagregado por Facturas SIPH',
     required: true,
     multiple: false,
     order: 4,
   },
   {
-    codigo: 'formulario_vi',
-    label: 'Formulario VI',
+    codigo: 'formulario_iv',
+    label: 'Formulario IV - Recibo de Fondos',
     required: false,
     multiple: false,
     order: 5,
+  },
+  {
+    codigo: 'formulario_v_alimentario',
+    label: 'Formulario V - Certificación de Prestaciones Alimentarias',
+    required: true,
+    multiple: false,
+    order: 6,
+  },
+  {
+    codigo: 'formulario_v_siph',
+    label: 'Formulario V - Certificación de SIPH',
+    required: true,
+    multiple: false,
+    order: 7,
+  },
+  {
+    codigo: 'formulario_vi',
+    label: 'Formulario VI - Planilla de Pagos',
+    required: false,
+    multiple: false,
+    order: 8,
   },
   {
     codigo: 'extracto_bancario',
     label: 'Extracto Bancario',
     required: true,
     multiple: false,
-    order: 6,
+    order: 9,
   },
   {
     codigo: 'comprobantes',
     label: 'Comprobante/s',
     required: true,
     multiple: true,
-    order: 7,
+    order: 10,
   },
   {
     codigo: 'planilla_seguros',
     label: 'Planilla de Seguros',
     required: false,
     multiple: false,
-    order: 8,
+    order: 11,
   },
   {
     codigo: 'otros',
-    label: 'Documentación Extra',
+    label: 'Documentación Adicional',
     required: false,
     multiple: true,
-    order: 9,
+    order: 12,
   },
 ]
+
+const MODELOS_POR_LINEA: Record<
+  RendicionLineaProgramatica,
+  Array<Omit<RendicionModeloItem, 'url'>>
+> = {
+  secos: [
+    {
+      codigo: 'formulario_i',
+      label: 'Formulario I - Certificación de Cuenta Bancaria',
+      filename: 'FORM.I.MS.-Certificacion.de.CUENTA.BANCARIA.2.xlsx',
+      order: 1,
+    },
+    {
+      codigo: 'formulario_ii',
+      label: 'Formulario II - Resumen',
+      filename: 'FORM.II.MS.-RESUMEN.1.xlsx',
+      order: 2,
+    },
+    {
+      codigo: 'formulario_iii_alimentario',
+      label: 'Formulario III - Desagregado por Facturas Prestación Alimentaria',
+      filename: 'FORM.III.MS.-.DESAGREGADO.ALIM.1.xlsx',
+      order: 3,
+    },
+    {
+      codigo: 'formulario_iii_siph',
+      label: 'Formulario III - Desagregado por Facturas SIPH',
+      filename: 'FORM.III.MS.-.DESAGREGADO.SIPH.1.xlsx',
+      order: 4,
+    },
+    {
+      codigo: 'formulario_iv',
+      label: 'Formulario IV - Recibo de Fondos',
+      filename: 'FORM.IV.MS.-.RECIBO.FONDOS.1.xlsx',
+      order: 5,
+    },
+    {
+      codigo: 'formulario_v_alimentario',
+      label: 'Formulario V - Certificación de Prestaciones Alimentarias',
+      filename: 'FORM.V.MS.-.CERTIF.PRESTAC.ALIM.1.xlsx',
+      order: 6,
+    },
+    {
+      codigo: 'formulario_v_siph',
+      label: 'Formulario V - Certificación de SIPH',
+      filename: 'FORM.V.MS.-.CERTIF.SS.INT.PRO.HUM.1.xlsx',
+      order: 7,
+    },
+    {
+      codigo: 'formulario_vi',
+      label: 'Formulario VI - Planilla de Pagos',
+      filename: 'FORMULARIO.VI.-.CONTROL.PAGOS.3.xlsx',
+      order: 8,
+    },
+  ],
+  tradicional: [
+    {
+      codigo: 'formulario_i',
+      label: 'Formulario I - Certificación de Cuenta Bancaria',
+      filename: 'FORM.I.-Certificacion.de.CUENTA.BANCARIA.1.xlsx',
+      order: 1,
+    },
+    {
+      codigo: 'formulario_ii',
+      label: 'Formulario II - Resumen',
+      filename: 'FORM.II.RMC.AF.1.xlsx',
+      order: 2,
+    },
+    {
+      codigo: 'formulario_iii_alimentario',
+      label: 'Formulario III - Desagregado por Facturas Prestación Alimentaria',
+      filename: 'FORM.III.RMC.ALIM.1.xlsx',
+      order: 3,
+    },
+    {
+      codigo: 'formulario_iii_siph',
+      label: 'Formulario III - Desagregado por Facturas SIPH',
+      filename: 'FORM.III.RMC.SIPH.1.xlsx',
+      order: 4,
+    },
+    {
+      codigo: 'formulario_iv',
+      label: 'Formulario IV - Recibo de Fondos',
+      filename: 'FORM.IV.RMC.AF.xlsx',
+      order: 5,
+    },
+    {
+      codigo: 'formulario_v_alimentario',
+      label: 'Formulario V - Certificación de Prestaciones Alimentarias',
+      filename: 'FORM.V.CERTIF.ALIM.1.xlsx',
+      order: 6,
+    },
+    {
+      codigo: 'formulario_v_siph',
+      label: 'Formulario V - Certificación de SIPH',
+      filename: 'FORM.V.CERTIF.SIPH.1.xlsx',
+      order: 7,
+    },
+    {
+      codigo: 'formulario_vi',
+      label: 'Formulario VI - Planilla de Pagos',
+      filename: 'FORM.VI.RMC.AF.1.xlsx',
+      order: 8,
+    },
+  ],
+}
 
 const RENDICION_STATUS_LABELS: Record<string, string> = {
   elaboracion: 'Presentación en elaboración',
@@ -105,6 +239,41 @@ const FILE_STATUS_LABELS: Record<string, string> = {
 
 function supportsSubsanacionHistoryCategory(categoria: string): boolean {
   return categoria === 'comprobantes' || categoria === 'otros'
+}
+
+function normalizeLineaProgramatica(value: string | null | undefined): RendicionLineaProgramatica {
+  return value === 'secos' ? 'secos' : 'tradicional'
+}
+
+function buildModeloUrl(
+  spaceId: number,
+  linea: RendicionLineaProgramatica,
+  codigo: string,
+): string {
+  return `/api/comedores/${spaceId}/rendiciones/modelos/${linea}/${codigo}/download/`
+}
+
+function buildModelosDescargables(
+  spaceId: number,
+  lineaProgramatica: string | null | undefined,
+): RendicionModeloItem[] {
+  const linea = normalizeLineaProgramatica(lineaProgramatica)
+  return MODELOS_POR_LINEA[linea].map((modelo) => ({
+    ...modelo,
+    url: buildModeloUrl(spaceId, linea, modelo.codigo),
+  }))
+}
+
+function fixDisplayText(value: string | null | undefined): string | null {
+  if (value === null || value === undefined) {
+    return null
+  }
+  return value
+    .replace(/Ã³/g, 'ó')
+    .replace(/Ã­/g, 'í')
+    .replace(/Ãº/g, 'ú')
+    .replace(/Ã©/g, 'é')
+    .replace(/Ã¡/g, 'á')
 }
 
 function toVisualFileStatus(file: {
@@ -133,11 +302,20 @@ function flattenDetailFiles(detail: RendicionDetail): RendicionFileItem[] {
 
 function buildDetailDocumentacion(
   files: LocalRendicionFileRecord[],
+  record: LocalRendicionRecord,
 ): RendicionDocumentCategory[] {
   const activeFiles = files.filter((file) => file.pending_action !== 'delete')
+  const modelos = new Map(
+    buildModelosDescargables(record.space_id, record.linea_programatica).map((modelo) => [
+      modelo.codigo,
+      modelo,
+    ]),
+  )
 
   return DOCUMENT_CATEGORIES.map((category) => ({
     ...category,
+    label: category.codigo === 'otros' ? 'Documentación Adicional' : category.label,
+    modelo: modelos.get(category.codigo) || null,
     archivos: (() => {
       const categoryFiles = activeFiles.filter((file) => file.categoria === category.codigo)
       if (!supportsSubsanacionHistoryCategory(category.codigo)) {
@@ -323,6 +501,7 @@ function buildLocalFileUrl(file: LocalRendicionFileRecord): string | null {
 }
 
 function toRendicionItem(record: LocalRendicionRecord): RendicionItem {
+  const linea = normalizeLineaProgramatica(record.linea_programatica)
   return {
     id: record.remote_id ?? record.id,
     convenio: record.convenio,
@@ -332,8 +511,11 @@ function toRendicionItem(record: LocalRendicionRecord): RendicionItem {
     periodo_inicio: record.periodo_inicio,
     periodo_fin: record.periodo_fin,
     periodo_label: record.periodo_label,
+    linea_programatica: linea,
+    linea_programatica_label:
+      fixDisplayText(record.linea_programatica_label) || LINEA_LABELS[linea],
     estado: record.estado,
-    estado_label: record.estado_label,
+    estado_label: fixDisplayText(record.estado_label) || record.estado_label,
     documento_adjunto: record.documento_adjunto,
     observaciones: record.observaciones,
     fecha_creacion: record.created_at,
@@ -360,7 +542,7 @@ function toRendicionFileItem(
     id: file.remote_id || file.id,
     nombre: file.nombre,
     categoria: file.categoria,
-    categoria_label: file.categoria_label,
+    categoria_label: fixDisplayText(file.categoria_label) || file.categoria_label,
     documento_subsanado:
       typeof file.documento_subsanado === 'number'
         ? file.documento_subsanado
@@ -369,9 +551,10 @@ function toRendicionFileItem(
           : null,
     url: buildLocalFileUrl(file),
     estado: file.estado,
-    estado_label: file.estado_label,
+    estado_label: fixDisplayText(file.estado_label) || file.estado_label,
     estado_visual: visualStatus.estadoVisual,
-    estado_label_visual: visualStatus.estadoLabelVisual,
+    estado_label_visual:
+      fixDisplayText(visualStatus.estadoLabelVisual) || visualStatus.estadoLabelVisual,
     observaciones: file.observaciones,
     fecha_creacion: file.created_at,
     ultima_modificacion: file.updated_at,
@@ -391,7 +574,8 @@ function toDetail(
     comprobantes: files
       .filter((file) => file.pending_action !== 'delete')
       .map((file) => toRendicionFileItem(file)),
-    documentacion: buildDetailDocumentacion(files),
+    documentacion: buildDetailDocumentacion(files, record),
+    modelos: buildModelosDescargables(record.space_id, record.linea_programatica),
   }
 }
 
@@ -445,6 +629,8 @@ function toLocalRendicionRecord(
     periodo_inicio: detail.periodo_inicio,
     periodo_fin: detail.periodo_fin,
     periodo_label: detail.periodo_label,
+    linea_programatica: detail.linea_programatica || null,
+    linea_programatica_label: detail.linea_programatica_label || null,
     estado: detail.estado,
     estado_label: detail.estado_label,
     documento_adjunto: detail.documento_adjunto,
@@ -659,29 +845,72 @@ export async function createRendicionOffline(
     periodo_inicio: payload.periodo_inicio,
     periodo_fin: payload.periodo_fin,
     periodo_label: formatPeriodLabel(payload.periodo_inicio, payload.periodo_fin),
+    linea_programatica: payload.linea_programatica || 'tradicional',
+    linea_programatica_label:
+      payload.linea_programatica === 'secos'
+        ? 'Abordaje Comunitario - Línea Secos'
+        : 'Abordaje Comunitario - Línea Tradicional',
     estado: 'elaboracion',
     estado_label: RENDICION_STATUS_LABELS.elaboracion,
     documento_adjunto: false,
     observaciones: payload.observaciones || null,
-    sync_status: 'pending',
-    pending_action: 'create',
+    sync_status: 'synced',
+    pending_action: null,
     last_error: null,
     created_at: timestamp,
     updated_at: timestamp,
   }
 
   await db.rendiciones.put(record)
-  await enqueueOutbox({
-    type: 'CREATE_RENDICION',
-    client_uuid: uuidv4(),
-    payload: outboxPayload<CreateRendicionOutboxPayload>({
-      local_id: localId,
-      space_id: parsedSpaceId,
-      data: payload,
-    }),
-  })
 
   return toDetail(record, [])
+}
+
+export async function updateRendicionLineaProgramaticaOffline(
+  rendicionId: string | number,
+  lineaProgramatica: RendicionLineaProgramatica,
+): Promise<RendicionDetail> {
+  const localRendicion = await getExistingLocalByIdentifier(rendicionId)
+  if (!localRendicion) {
+    throw new Error('No se encontró la rendición seleccionada.')
+  }
+  if (localRendicion.estado !== 'elaboracion') {
+    throw new Error('La línea programática solo puede modificarse en elaboración.')
+  }
+
+  const linea = normalizeLineaProgramatica(lineaProgramatica)
+  await db.rendiciones.update(localRendicion.id, {
+    linea_programatica: linea,
+    linea_programatica_label: LINEA_LABELS[linea],
+    updated_at: nowIso(),
+  })
+
+  const pendingCreates = await db.outbox
+    .where('type')
+    .equals('CREATE_RENDICION')
+    .toArray()
+  await Promise.all(
+    pendingCreates
+      .filter((row) => String(row.payload.local_id || '') === localRendicion.id)
+      .map((row) => {
+        if (!row.id) {
+          return Promise.resolve()
+        }
+        return db.outbox.update(row.id, {
+          payload: {
+            ...row.payload,
+            data: {
+              ...((row.payload.data || {}) as Record<string, unknown>),
+              linea_programatica: linea,
+            },
+          },
+        })
+      }),
+  )
+
+  const updated = await db.rendiciones.get(localRendicion.id)
+  const files = await db.rendicion_files.where('rendicion_id').equals(localRendicion.id).toArray()
+  return toDetail(updated || localRendicion, files)
 }
 
 export async function queueRendicionFileUpload(params: {
@@ -760,9 +989,10 @@ export async function queueRendicionFileUpload(params: {
     last_error: null,
   })
 
-  await enqueueOutbox({
-    type: 'UPLOAD_RENDICION_FILE',
-    client_uuid: uuidv4(),
+  if (localRendicion.remote_id) {
+    await enqueueOutbox({
+      type: 'UPLOAD_RENDICION_FILE',
+      client_uuid: uuidv4(),
       payload: outboxPayload<UploadRendicionFileOutboxPayload>({
         local_rendicion_id: localRendicion.id,
         local_file_id: fileId,
@@ -771,11 +1001,97 @@ export async function queueRendicionFileUpload(params: {
         name: storedName,
         documento_subsanado_id: params.documentoSubsanadoId,
       }),
-  })
+    })
+  }
 
   const updated = await db.rendiciones.get(localRendicion.id)
   const files = await db.rendicion_files.where('rendicion_id').equals(localRendicion.id).toArray()
   return toDetail(updated || localRendicion, files)
+}
+
+function buildCreatePayloadFromLocal(record: LocalRendicionRecord): CreateRendicionPayload {
+  return {
+    convenio: record.convenio || '',
+    numero_rendicion: record.numero_rendicion || 0,
+    periodo_inicio: record.periodo_inicio || '',
+    periodo_fin: record.periodo_fin || '',
+    linea_programatica: record.linea_programatica || 'tradicional',
+    observaciones: record.observaciones || undefined,
+  }
+}
+
+async function ensureCreateRendicionQueued(localRendicion: LocalRendicionRecord): Promise<void> {
+  if (localRendicion.remote_id) {
+    return
+  }
+  const existing = await db.outbox
+    .where('type')
+    .equals('CREATE_RENDICION')
+    .filter((row) => String(row.payload.local_id || '') === localRendicion.id)
+    .first()
+  const payload = outboxPayload<CreateRendicionOutboxPayload>({
+    local_id: localRendicion.id,
+    space_id: localRendicion.space_id,
+    data: buildCreatePayloadFromLocal(localRendicion),
+  })
+  if (existing?.id) {
+    await db.outbox.update(existing.id, {
+      payload,
+      status: 'pending',
+      next_retry_at: null,
+      last_error: null,
+    })
+    return
+  }
+  await enqueueOutbox({
+    type: 'CREATE_RENDICION',
+    client_uuid: uuidv4(),
+    payload,
+  })
+}
+
+async function ensurePendingUploadsQueued(
+  localRendicion: LocalRendicionRecord,
+  files: LocalRendicionFileRecord[],
+): Promise<void> {
+  await Promise.all(
+    files
+      .filter((file) => file.pending_action === 'upload')
+      .map(async (file) => {
+        await db.rendicion_files.update(file.id, {
+          sync_status: 'pending',
+          last_error: null,
+          updated_at: nowIso(),
+        })
+        const existing = await db.outbox
+          .where('type')
+          .equals('UPLOAD_RENDICION_FILE')
+          .filter((row) => String(row.payload.local_file_id || '') === file.id)
+          .first()
+        const payload = outboxPayload<UploadRendicionFileOutboxPayload>({
+          local_rendicion_id: localRendicion.id,
+          local_file_id: file.id,
+          space_id: localRendicion.space_id,
+          categoria: file.categoria,
+          name: file.nombre,
+          documento_subsanado_id: file.documento_subsanado ?? undefined,
+        })
+        if (existing?.id) {
+          await db.outbox.update(existing.id, {
+            payload,
+            status: 'pending',
+            next_retry_at: null,
+            last_error: null,
+          })
+          return
+        }
+        await enqueueOutbox({
+          type: 'UPLOAD_RENDICION_FILE',
+          client_uuid: uuidv4(),
+          payload,
+        })
+      }),
+  )
 }
 
 export async function deleteRendicionFileOffline(
@@ -867,6 +1183,14 @@ export async function presentRendicionOffline(
     updated_at: nowIso(),
     last_error: null,
   })
+  const rendicionToPresent: LocalRendicionRecord = {
+    ...localRendicion,
+    sync_status: 'pending',
+    pending_action: 'present',
+    last_error: null,
+  }
+  await ensureCreateRendicionQueued(rendicionToPresent)
+  await ensurePendingUploadsQueued(rendicionToPresent, files)
 
   const existing = await db.outbox
     .where('type')

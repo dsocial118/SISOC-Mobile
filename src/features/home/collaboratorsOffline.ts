@@ -3,6 +3,7 @@ import {
   listSpaceCollaborators,
   type CollaboratorPreview,
   type SpaceCollaborator,
+  type SpaceCollaboratorActivity,
   type SpaceCollaboratorPayload,
 } from '../../api/collaboratorsApi'
 import { db, type OutboxRecord, type SpaceCollaboratorRecord } from '../../db/database'
@@ -244,8 +245,11 @@ export async function createCollaboratorOffline(
 export async function updateCollaboratorOffline(
   collaborator: SpaceCollaboratorRecord,
   payload: SpaceCollaboratorPayload,
+  activityOptions: SpaceCollaboratorActivity[] = [],
 ): Promise<void> {
   const timestamp = nowIso()
+  const currentActivitiesById = new Map(collaborator.actividades.map((item) => [item.id, item]))
+  const optionsById = new Map(activityOptions.map((item) => [item.id, item]))
   await db.space_collaborators.update(collaborator.id, {
     ciudadano_id: payload.ciudadano_id || collaborator.ciudadano_id || null,
     genero: payload.genero,
@@ -253,6 +257,9 @@ export async function updateCollaboratorOffline(
     numero_telefono: payload.numero_telefono,
     fecha_alta: payload.fecha_alta,
     fecha_baja: payload.fecha_baja || null,
+    actividades: payload.actividad_ids
+      .map((id) => optionsById.get(id) || currentActivitiesById.get(id))
+      .filter((item): item is SpaceCollaboratorActivity => Boolean(item)),
     activo: !payload.fecha_baja,
     updated_at: timestamp,
     sync_status: 'pending',

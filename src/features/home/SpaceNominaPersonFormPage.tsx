@@ -316,7 +316,7 @@ export function SpaceNominaPersonFormPage() {
       }
 
       if (isActivitiesMode) {
-        payload.asistencia_alimentaria = false
+        payload.asistencia_alimentaria = formData.asistencia_alimentaria
         payload.asistencia_actividades = formData.actividad_ids.length > 0
         payload.actividad_ids = formData.actividad_ids
       }
@@ -345,11 +345,20 @@ export function SpaceNominaPersonFormPage() {
 
       const created = await createNominaPerson(spaceId, payload as CreateNominaPayload)
       void syncNow()
-      navigate(`/app-org/espacios/${spaceId}/nomina/${created.id}`, {
+      navigate(`/app-org/espacios/${spaceId}/nomina`, {
         replace: true,
         state: {
           spaceName: routeState?.spaceName,
-          personName: `${created.apellido}, ${created.nombre}`,
+          defaultTab:
+            formData.asistencia_actividades
+              ? 'formacion'
+              : formData.asistencia_alimentaria
+                ? 'alimentaria'
+                : 'consolidada',
+          successToast: {
+            tone: 'success',
+            message: `Se agregó a ${created.apellido}, ${created.nombre} a beneficiarios.`,
+          },
         },
       })
     } catch (error) {

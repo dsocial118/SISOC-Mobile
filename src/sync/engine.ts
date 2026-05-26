@@ -499,6 +499,15 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
         await db.outbox.delete(itemWithId.id)
         return true
       }
+      if (local.pending_action !== 'present') {
+        await db.rendiciones.update(local.id, {
+          sync_status: 'synced',
+          pending_action: null,
+          last_error: null,
+        })
+        await db.outbox.delete(itemWithId.id)
+        return true
+      }
 
       const created = await createRendicionOnServer(payload.space_id, payload.data)
       await syncRemoteRendicionDetailToLocal(payload.space_id, created, local.id)
@@ -515,6 +524,10 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
         return true
       }
       if (localFile.pending_action !== 'upload') {
+        await db.outbox.delete(itemWithId.id)
+        return true
+      }
+      if (!local.remote_id && local.pending_action !== 'present') {
         await db.outbox.delete(itemWithId.id)
         return true
       }

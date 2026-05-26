@@ -99,6 +99,102 @@ export interface BulkNominaAttendanceResponse {
   deleted_count: number
 }
 
+export interface NominaAttendancePeriodItem {
+  periodo_referencia: string
+  periodo_label: string
+  total_asistentes: number
+}
+
+export interface NominaAttendancePeriodResponse {
+  tab: NominaTab
+  results: NominaAttendancePeriodItem[]
+}
+
+export interface NominaAttendanceAttendee {
+  id: number
+  nomina_id: number
+  nombre: string
+  apellido: string
+  dni: string
+  genero: string
+  fecha_toma_asistencia: string
+  tomado_por: string | null
+}
+
+export interface NominaAttendancePeriodDetail {
+  tab: NominaTab
+  periodo_referencia: string
+  periodo_label: string
+  total_asistentes: number
+  asistentes: NominaAttendanceAttendee[]
+}
+
+function normalizeMojibake(value: string | null | undefined): string {
+  const input = (value ?? '').trim()
+  if (!input) {
+    return value ?? ''
+  }
+  const knownFixes: Array<[RegExp, string]> = [
+    [/\bAgla\uFFFD\b/giu, 'Agla\u00E9'],
+  ]
+  for (const [pattern, replacement] of knownFixes) {
+    if (pattern.test(input)) {
+      return input.replace(pattern, replacement)
+    }
+  }
+  if (input.includes('\uFFFD')) {
+    return value ?? ''
+  }
+  // Typical UTF-8 interpreted as Latin-1 artifacts: "AglaÃ©", "MuÃ±oz", etc.
+  if (!/[ÃÂãâ]/.test(input)) {
+    return value ?? ''
+  }
+  try {
+    const decoded = new TextDecoder('utf-8', { fatal: false }).decode(
+      new Uint8Array(Array.from(input, (char) => char.charCodeAt(0))),
+    )
+    return decoded || (value ?? '')
+  } catch {
+    return value ?? ''
+  }
+}
+
+function normalizeNominaPerson(person: NominaPerson): NominaPerson {
+  return {
+    ...person,
+    nombre: normalizeMojibake(person.nombre),
+    apellido: normalizeMojibake(person.apellido),
+    genero: normalizeMojibake(person.genero),
+    observaciones: person.observaciones ? normalizeMojibake(person.observaciones) : person.observaciones,
+    actividades: person.actividades.map((activity) => ({
+      ...activity,
+      categoria: normalizeMojibake(activity.categoria),
+      actividad: normalizeMojibake(activity.actividad),
+      dia: normalizeMojibake(activity.dia),
+      horario: normalizeMojibake(activity.horario),
+    })),
+    asistencia_mes_actual: person.asistencia_mes_actual
+      ? {
+          ...person.asistencia_mes_actual,
+          tomado_por: person.asistencia_mes_actual.tomado_por
+            ? normalizeMojibake(person.asistencia_mes_actual.tomado_por)
+            : person.asistencia_mes_actual.tomado_por,
+        }
+      : null,
+    historial_asistencias: person.historial_asistencias.map((record) => ({
+      ...record,
+      tomado_por: record.tomado_por ? normalizeMojibake(record.tomado_por) : record.tomado_por,
+      periodo_label: normalizeMojibake(record.periodo_label),
+      periodicidad: normalizeMojibake(record.periodicidad),
+    })),
+    observaciones_historial: person.observaciones_historial?.map((record) => ({
+      ...record,
+      texto: normalizeMojibake(record.texto),
+      creada_por: record.creada_por ? normalizeMojibake(record.creada_por) : record.creada_por,
+    })),
+  }
+}
+
 function buildNominaCacheKey(
   spaceId: string | number,
   options?: { tab?: NominaTab; q?: string },
@@ -117,7 +213,11 @@ function readNominaCache(cacheKey: string): NominaResponse | null {
     if (!raw) {
       return null
     }
-    return JSON.parse(raw) as NominaResponse
+    const parsed = JSON.parse(raw) as NominaResponse
+    return {
+      ...parsed,
+      results: parsed.results.map(normalizeNominaPerson),
+    }
   } catch {
     return null
   }
@@ -144,7 +244,11 @@ export async function listSpaceNomina(
       params: options,
       timeout,
     })
-    const response = { ...data, _source: 'network' as const }
+    const response = {
+      ...data,
+      results: data.results.map(normalizeNominaPerson),
+      _source: 'network' as const,
+    }
     writeNominaCache(cacheKey, response)
     return response
   }
@@ -199,7 +303,12 @@ export async function previewNominaDni(
     { dni },
     { timeout: 60000 },
   )
-  return data
+  return {
+    ...data,
+    nombre: normalizeMojibake(data.nombre),
+    apellido: normalizeMojibake(data.apellido),
+    sexo: normalizeMojibake(data.sexo),
+  }
 }
 
 export async function createNominaPerson(
@@ -209,7 +318,7 @@ export async function createNominaPerson(
   const { data } = await http.post<NominaPerson>(`/pwa/espacios/${spaceId}/nomina/`, payload, {
     timeout: 60000,
   })
-  return data
+  return normalizeNominaPerson(data)
 }
 
 export async function updateNominaPerson(
@@ -218,7 +327,7 @@ export async function updateNominaPerson(
   payload: Partial<CreateNominaPayload>,
 ): Promise<NominaPerson> {
   const { data } = await http.patch<NominaPerson>(`/pwa/espacios/${spaceId}/nomina/${nominaId}/`, payload)
-  return data
+  return normalizeNominaPerson(data)
 }
 
 export async function getNominaPersonDetail(
@@ -226,7 +335,7 @@ export async function getNominaPersonDetail(
   nominaId: string | number,
 ): Promise<NominaPerson> {
   const { data } = await http.get<NominaPerson>(`/pwa/espacios/${spaceId}/nomina/${nominaId}/`)
-  return data
+  return normalizeNominaPerson(data)
 }
 
 export async function deleteNominaPerson(spaceId: string | number, nominaId: string | number): Promise<void> {
@@ -260,6 +369,34 @@ export async function syncNominaAlimentariaAttendance(
   const { data } = await http.post<BulkNominaAttendanceResponse>(
     `/pwa/espacios/${spaceId}/nomina/asistencia-alimentaria/`,
     { nomina_ids: nominaIds },
+  )
+  return data
+}
+
+export async function listNominaAttendancePeriods(
+  spaceId: string | number,
+  options?: { tab?: NominaTab },
+): Promise<NominaAttendancePeriodResponse> {
+  const { data } = await http.get<NominaAttendancePeriodResponse>(
+    `/pwa/espacios/${spaceId}/nomina/asistencias-periodos/`,
+    { params: options },
+  )
+  return data
+}
+
+export async function getNominaAttendancePeriodDetail(
+  spaceId: string | number,
+  periodo: string,
+  options?: { tab?: NominaTab },
+): Promise<NominaAttendancePeriodDetail> {
+  const { data } = await http.get<NominaAttendancePeriodDetail>(
+    `/pwa/espacios/${spaceId}/nomina/asistencias-periodo/`,
+    {
+      params: {
+        ...options,
+        periodo,
+      },
+    },
   )
   return data
 }

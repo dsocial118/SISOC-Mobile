@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCamera, faChevronRight, faImage, faSpinner, faTrash } from '@fortawesome/free-solid-svg-icons'
+import { faCamera, faChevronRight, faSpinner, faTrash } from '@fortawesome/free-solid-svg-icons'
 import {
   deleteSpaceImage,
   getSpaceDetail,
@@ -10,7 +10,7 @@ import {
   type SpaceImageItem,
 } from '../../api/spacesApi'
 import { parseApiError } from '../../api/errorUtils'
-import { pickFromGallery, takePhoto, type SelectedPhoto } from '../../device/media'
+import { takePhoto, type SelectedPhoto } from '../../device/media'
 import { AppToast } from '../../ui/AppToast'
 import { CollaboratorsCard } from './CollaboratorsCard'
 import { usePageLoading } from '../../ui/PageLoadingContext'
@@ -600,64 +600,42 @@ export function SpaceDetailPage() {
             </div>
 
             {canUploadMorePhotos ? (
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                {[
-                  {
-                    key: 'camera',
-                    icon: faCamera,
-                    title: 'Tomar foto',
-                    subtitle: 'Abrir cámara',
-                    onClick: () => void handlePhotoSelection(() => takePhoto()),
-                  },
-                  {
-                    key: 'gallery',
-                    icon: faImage,
-                    title: 'Galería',
-                    subtitle: 'Elegir imagen',
-                    onClick: () => void handlePhotoSelection(() => pickFromGallery()),
-                  },
-                ].map((option) => (
-                  <button
-                    key={option.key}
-                    type="button"
-                    disabled={uploadingPhoto}
-                    onClick={option.onClick}
-                    className={joinClasses(
-                      'rounded-2xl border px-4 py-4 text-left transition-all duration-150',
-                      isDark
-                        ? 'border-white/15 bg-white/8 text-white hover:bg-white/12'
-                        : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50',
-                      uploadingPhoto
-                        ? 'cursor-not-allowed opacity-60'
-                        : 'shadow-[0_10px_24px_rgba(15,23,42,0.08)]',
-                    )}
-                  >
-                    <span className="flex items-start gap-3">
-                      <span
-                        className={joinClasses(
-                          'flex h-11 w-11 items-center justify-center rounded-2xl',
-                          option.key === 'camera'
-                            ? isDark
-                              ? 'bg-[#E7BA61]/20 text-[#F3CD82]'
-                              : 'bg-[#E7BA61]/20 text-[#9A6A00]'
-                            : isDark
-                              ? 'bg-[#4FC3F7]/20 text-[#8CDCFB]'
-                              : 'bg-[#DFF3FF] text-[#156C8F]',
-                        )}
-                      >
-                        {uploadingPhoto ? (
-                          <FontAwesomeIcon icon={faSpinner} spin aria-hidden="true" />
-                        ) : (
-                          <FontAwesomeIcon icon={option.icon} aria-hidden="true" />
-                        )}
-                      </span>
-                      <span className="flex min-w-0 flex-1 flex-col">
-                        <span className={`text-sm font-semibold ${textClass}`}>{option.title}</span>
-                        <span className={`mt-1 text-xs ${detailTextClass}`}>{option.subtitle}</span>
-                      </span>
+              <div className="mt-4">
+                <button
+                  type="button"
+                  disabled={uploadingPhoto}
+                  onClick={() => void handlePhotoSelection(() => takePhoto())}
+                  className={joinClasses(
+                    'w-full rounded-2xl border px-4 py-4 text-left transition-all duration-150',
+                    isDark
+                      ? 'border-white/15 bg-white/8 text-white hover:bg-white/12'
+                      : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50',
+                    uploadingPhoto
+                      ? 'cursor-not-allowed opacity-60'
+                      : 'shadow-[0_10px_24px_rgba(15,23,42,0.08)]',
+                  )}
+                >
+                  <span className="flex items-start gap-3">
+                    <span
+                      className={joinClasses(
+                        'flex h-11 w-11 items-center justify-center rounded-2xl',
+                        isDark
+                          ? 'bg-[#E7BA61]/20 text-[#F3CD82]'
+                          : 'bg-[#E7BA61]/20 text-[#9A6A00]',
+                      )}
+                    >
+                      {uploadingPhoto ? (
+                        <FontAwesomeIcon icon={faSpinner} spin aria-hidden="true" />
+                      ) : (
+                        <FontAwesomeIcon icon={faCamera} aria-hidden="true" />
+                      )}
                     </span>
-                  </button>
-                ))}
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className={`text-sm font-semibold ${textClass}`}>Tomar foto</span>
+                      <span className={`mt-1 text-xs ${detailTextClass}`}>Abrir cámara</span>
+                    </span>
+                  </span>
+                </button>
               </div>
             ) : null}
 

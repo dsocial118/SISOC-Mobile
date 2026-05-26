@@ -320,7 +320,7 @@ export function CollaboratorsCard({
           setFormError('No se encontró el colaborador a editar.')
           return
         }
-        await updateCollaboratorOffline(editing, payload)
+        await updateCollaboratorOffline(editing, payload, activityOptions)
       } else if (preview) {
         await createCollaboratorOffline(spaceId, payload, preview)
       }
@@ -579,19 +579,30 @@ export function CollaboratorsCard({
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => toggleExpanded(collaborator.id)}
-                  className={`flex h-7 w-7 items-center justify-center rounded-full border ${isDark ? 'border-white/40 text-white' : 'border-slate-300 text-slate-700'}`}
-                  aria-label={expandedIds[collaborator.id] ? 'Ocultar detalles' : 'Ver detalles'}
-                  title={expandedIds[collaborator.id] ? 'Ocultar detalles' : 'Ver detalles'}
-                >
-                  <FontAwesomeIcon
-                    icon={expandedIds[collaborator.id] ? faChevronUp : faChevronDown}
-                    aria-hidden="true"
-                    style={{ fontSize: 12 }}
-                  />
-                </button>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openEditForm(collaborator)}
+                    className={`rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#232D4F] ${
+                      isDark ? '' : 'border border-[#232D4F]'
+                    }`}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(collaborator.id)}
+                    className={`flex h-7 w-7 items-center justify-center rounded-full border ${isDark ? 'border-white/40 text-white' : 'border-slate-300 text-slate-700'}`}
+                    aria-label={expandedIds[collaborator.id] ? 'Ocultar detalles' : 'Ver detalles'}
+                    title={expandedIds[collaborator.id] ? 'Ocultar detalles' : 'Ver detalles'}
+                  >
+                    <FontAwesomeIcon
+                      icon={expandedIds[collaborator.id] ? faChevronUp : faChevronDown}
+                      aria-hidden="true"
+                      style={{ fontSize: 12 }}
+                    />
+                  </button>
+                </div>
               </div>
 
               <div
@@ -620,15 +631,6 @@ export function CollaboratorsCard({
                 </div>
 
                 <div className="mt-3 flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openEditForm(collaborator)}
-                    className={`rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#232D4F] ${
-                      isDark ? '' : 'border border-[#232D4F]'
-                    }`}
-                  >
-                    Editar
-                  </button>
                   <button
                     type="button"
                     onClick={() => setCollaboratorPendingDelete(collaborator)}

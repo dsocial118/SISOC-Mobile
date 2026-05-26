@@ -96,6 +96,11 @@ const SpaceNominaAlimentariaAttendancePage = lazy(() =>
     default: module.SpaceNominaAlimentariaAttendancePage,
   })),
 )
+const SpaceNominaAttendancePeriodsPage = lazy(() =>
+  import('../features/home/SpaceNominaAttendancePeriodsPage').then((module) => ({
+    default: module.SpaceNominaAttendancePeriodsPage,
+  })),
+)
 const SpaceNominaPersonDetailPage = lazy(() =>
   import('../features/home/SpaceNominaPersonDetailPage').then((module) => ({
     default: module.SpaceNominaPersonDetailPage,
@@ -205,6 +210,14 @@ export function AppRouter() {
               <Route
                 path="espacios/:spaceId/nomina-alimentaria/asistencia"
                 element={<SpaceNominaAlimentariaAttendancePage />}
+              />
+              <Route
+                path="espacios/:spaceId/nomina/asistencias"
+                element={<SpaceNominaAttendancePeriodsPage />}
+              />
+              <Route
+                path="espacios/:spaceId/nomina/asistencias/:periodo"
+                element={<SpaceNominaAttendancePeriodsPage />}
               />
               <Route
                 path="espacios/:spaceId/nomina-alimentaria/:nominaId"

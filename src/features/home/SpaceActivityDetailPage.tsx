@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faUsers } from '@fortawesome/free-solid-svg-icons'
+import { faCheck, faChevronDown, faChevronUp, faMagnifyingGlass, faUsers } from '@fortawesome/free-solid-svg-icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   deleteSpaceActivity,
@@ -48,6 +48,130 @@ function uniqueIds(values: number[]): number[] {
   return Array.from(new Set(values))
 }
 
+function normalizeSearchValue(value: string | number | null | undefined): string {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+type PickerOption = {
+  value: string
+  label: string
+}
+
+const TIME_OPTIONS: PickerOption[] = Array.from({ length: 96 }, (_, index) => {
+  const totalMinutes = index * 15
+  const hour = String(Math.floor(totalMinutes / 60)).padStart(2, '0')
+  const minute = String(totalMinutes % 60).padStart(2, '0')
+  const value = `${hour}:${minute}`
+  return { value, label: value }
+})
+
+function SelectorField({
+  label,
+  value,
+  placeholder,
+  options,
+  onChange,
+  isDark,
+}: {
+  label: string
+  value: string
+  placeholder: string
+  options: PickerOption[]
+  onChange: (value: string) => void
+  isDark: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const selected = options.find((option) => option.value === value)
+  const titleClass = isDark ? 'text-white' : 'text-[#232D4F]'
+  const detailClass = isDark ? 'text-white/80' : 'text-slate-600'
+  const panelClass = isDark ? 'border-white/20 bg-[#1E2846]' : 'border-slate-200 bg-white'
+
+  return (
+    <div className="grid min-w-0 gap-1">
+      <span className={`text-[11px] font-semibold ${titleClass}`}>{label}</span>
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className={`flex min-h-[42px] w-full min-w-0 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm ${
+          isDark
+            ? 'border-white/30 bg-[#1E2846] text-white'
+            : 'border-slate-300 bg-white text-slate-700'
+        }`}
+      >
+        <span className={`min-w-0 break-words ${selected ? '' : detailClass}`}>
+          {selected?.label || placeholder}
+        </span>
+        <FontAwesomeIcon
+          icon={open ? faChevronUp : faChevronDown}
+          aria-hidden="true"
+          className="shrink-0"
+          style={{ fontSize: 12 }}
+        />
+      </button>
+      {open ? (
+        <div className={`grid max-h-52 min-w-0 gap-1 overflow-auto rounded-lg border p-1 ${panelClass}`}>
+          {options.map((option) => {
+            const selectedOption = option.value === value
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onChange(option.value)
+                  setOpen(false)
+                }}
+                className={`min-w-0 rounded-md px-2 py-2 text-left text-xs font-semibold break-words ${
+                  selectedOption
+                    ? 'bg-[#232D4F] text-white'
+                    : isDark
+                      ? 'text-white hover:bg-white/10'
+                      : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                {option.label}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function normalizeTimeValue(value: string | null | undefined): string {
+  const rawValue = String(value || '').trim()
+  if (!rawValue) {
+    return ''
+  }
+  const match = rawValue.match(/^(\d{2}):(\d{2})/)
+  if (!match) {
+    return ''
+  }
+  return `${match[1]}:${match[2]}`
+}
+
+function isValidTimeValue(value: string | null | undefined): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || '').trim())
+}
+
+function timeToMinutes(value: string): number {
+  const [hour, minute] = value.split(':').map(Number)
+  return hour * 60 + minute
+}
+
+function timeOptionsWithValue(value: string): PickerOption[] {
+  if (!isValidTimeValue(value) || TIME_OPTIONS.some((option) => option.value === value)) {
+    return TIME_OPTIONS
+  }
+  return [...TIME_OPTIONS, { value, label: value }].sort(
+    (a, b) => timeToMinutes(a.value) - timeToMinutes(b.value),
+  )
+}
+
 export function SpaceActivityDetailPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -63,6 +187,7 @@ export function SpaceActivityDetailPage() {
   const [activity, setActivity] = useState<SpaceActivityItem | null>(null)
   const [enrollees, setEnrollees] = useState<SpaceActivityEnrollee[]>([])
   const [nominaRows, setNominaRows] = useState<NominaPerson[]>([])
+  const [nominaSearchTerm, setNominaSearchTerm] = useState('')
   const [pendingAddNominaIds, setPendingAddNominaIds] = useState<number[]>([])
   const [days, setDays] = useState<ActivityDayItem[]>([])
   const [catalog, setCatalog] = useState<ActivityCatalogItem[]>([])
@@ -92,12 +217,42 @@ export function SpaceActivityDetailPage() {
   const textClass = isDark ? 'text-white' : 'text-[#232D4F]'
   const detailTextClass = isDark ? 'text-white/85' : 'text-slate-700'
   const subCardClass = isDark ? 'border-white/20 bg-white/5' : 'border-slate-200 bg-white'
-  const inputClass = `rounded-md border px-2 py-2 text-sm ${
-    isDark ? 'border-white/20 bg-[#1E2846] text-white' : 'border-slate-300 bg-white text-slate-800'
-  }`
 
   const nominaById = useMemo(() => new Map(nominaRows.map((row) => [row.id, row])), [nominaRows])
   const enrolledNominaSet = useMemo(() => new Set(enrollees.map((item) => item.nomina)), [enrollees])
+  const filteredNominaRows = useMemo(() => {
+    const query = normalizeSearchValue(nominaSearchTerm)
+    const numericQuery = nominaSearchTerm.replace(/\D/g, '')
+    if (!query && !numericQuery) {
+      return nominaRows
+    }
+    return nominaRows.filter((person) => {
+      const lastName = normalizeSearchValue(person.apellido)
+      const dni = normalizeSearchValue(person.dni)
+      const dniDigits = String(person.dni || '').replace(/\D/g, '')
+      return (
+        lastName.includes(query) ||
+        dni.includes(query) ||
+        (numericQuery ? dniDigits.includes(numericQuery) : false)
+      )
+    })
+  }, [nominaRows, nominaSearchTerm])
+  const activityOptions = useMemo(
+    () =>
+      catalog.map((item) => ({
+        value: String(item.id),
+        label: `${item.categoria} - ${item.actividad}`,
+      })),
+    [catalog],
+  )
+  const dayOptions = useMemo(
+    () =>
+      days.map((item) => ({
+        value: String(item.id),
+        label: item.nombre,
+      })),
+    [days],
+  )
 
   async function loadAll() {
     if (!spaceId || !activityId) {
@@ -121,8 +276,8 @@ export function SpaceActivityDetailPage() {
       setEditForm({
         catalogo_actividad: String(selected.catalogo_actividad),
         dia_actividad: String(selected.dia_actividad),
-        hora_inicio: String(selected.hora_inicio || '').slice(0, 5),
-        hora_fin: String(selected.hora_fin || '').slice(0, 5),
+        hora_inicio: normalizeTimeValue(selected.hora_inicio),
+        hora_fin: normalizeTimeValue(selected.hora_fin),
       })
     }
   }
@@ -232,11 +387,16 @@ export function SpaceActivityDetailPage() {
     if (!spaceId || !activity) {
       return
     }
-    if (!editForm.catalogo_actividad || !editForm.dia_actividad || !editForm.hora_inicio || !editForm.hora_fin) {
+    if (
+      !editForm.catalogo_actividad ||
+      !editForm.dia_actividad ||
+      !isValidTimeValue(editForm.hora_inicio) ||
+      !isValidTimeValue(editForm.hora_fin)
+    ) {
       setFormError('Completa todos los campos de la actividad.')
       return
     }
-    if (editForm.hora_fin <= editForm.hora_inicio) {
+    if (timeToMinutes(editForm.hora_fin) <= timeToMinutes(editForm.hora_inicio)) {
       setFormError('La hora de fin debe ser posterior a la hora de inicio.')
       return
     }
@@ -302,8 +462,8 @@ export function SpaceActivityDetailPage() {
   }
 
   return (
-    <section className="grid gap-3 pb-20">
-      <article className="rounded-xl border p-4" style={cardStyle}>
+    <section className="grid min-w-0 gap-3 pb-20">
+      <article className="min-w-0 rounded-xl border p-4" style={cardStyle}>
         <h2 className={`text-[16px] font-semibold ${textClass}`}>{activity.actividad}</h2>
         <div className={`mt-2 grid gap-1 text-[13px] ${detailTextClass}`}>
           <p>
@@ -345,62 +505,44 @@ export function SpaceActivityDetailPage() {
       </article>
 
       {isEditing ? (
-        <article className="rounded-xl border p-4" style={cardStyle}>
+        <article className="min-w-0 rounded-xl border p-3 sm:p-4" style={cardStyle}>
           <p className={`text-[12px] font-semibold ${textClass}`}>Editar actividad</p>
-          <div className="mt-3 grid gap-2">
-            <label className={`text-[12px] ${detailTextClass}`}>Disciplina/actividad</label>
-            <select
+          <div className="mt-3 grid min-w-0 gap-2">
+            <SelectorField
+              label="Disciplina/actividad"
               value={editForm.catalogo_actividad}
-              onChange={(event) =>
-                setEditForm((current) => ({ ...current, catalogo_actividad: event.target.value }))
+              placeholder="Seleccioná una actividad"
+              options={activityOptions}
+              onChange={(value) =>
+                setEditForm((current) => ({ ...current, catalogo_actividad: value }))
               }
-              className={inputClass}
-            >
-              <option value="">Seleccioná una actividad</option>
-              {catalog.map((item) => (
-                <option key={item.id} value={String(item.id)}>
-                  {item.categoria} · {item.actividad}
-                </option>
-              ))}
-            </select>
-            <label className={`text-[12px] ${detailTextClass}`}>Día</label>
-            <select
+              isDark={isDark}
+            />
+            <SelectorField
+              label="Día"
               value={editForm.dia_actividad}
-              onChange={(event) =>
-                setEditForm((current) => ({ ...current, dia_actividad: event.target.value }))
-              }
-              className={inputClass}
-            >
-              <option value="">Seleccioná un día</option>
-              {days.map((item) => (
-                <option key={item.id} value={String(item.id)}>
-                  {item.nombre}
-                </option>
-              ))}
-            </select>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className={`text-[12px] ${detailTextClass}`}>Hora inicio</label>
-                <input
-                  type="time"
-                  value={editForm.hora_inicio}
-                  onChange={(event) =>
-                    setEditForm((current) => ({ ...current, hora_inicio: event.target.value }))
-                  }
-                  className={`mt-1 w-full ${inputClass}`}
-                />
-              </div>
-              <div>
-                <label className={`text-[12px] ${detailTextClass}`}>Hora fin</label>
-                <input
-                  type="time"
-                  value={editForm.hora_fin}
-                  onChange={(event) =>
-                    setEditForm((current) => ({ ...current, hora_fin: event.target.value }))
-                  }
-                  className={`mt-1 w-full ${inputClass}`}
-                />
-              </div>
+              placeholder="Seleccioná un día"
+              options={dayOptions}
+              onChange={(value) => setEditForm((current) => ({ ...current, dia_actividad: value }))}
+              isDark={isDark}
+            />
+            <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2">
+              <SelectorField
+                label="Hora inicio"
+                value={editForm.hora_inicio}
+                placeholder="Seleccioná hora"
+                options={timeOptionsWithValue(editForm.hora_inicio)}
+                onChange={(value) => setEditForm((current) => ({ ...current, hora_inicio: value }))}
+                isDark={isDark}
+              />
+              <SelectorField
+                label="Hora fin"
+                value={editForm.hora_fin}
+                placeholder="Seleccioná hora"
+                options={timeOptionsWithValue(editForm.hora_fin)}
+                onChange={(value) => setEditForm((current) => ({ ...current, hora_fin: value }))}
+                isDark={isDark}
+              />
             </div>
             {formError ? (
               <div className="rounded-lg border border-[#F2B8B5] bg-[#7A1C1C]/50 p-2 text-xs text-white">
@@ -458,11 +600,38 @@ export function SpaceActivityDetailPage() {
 
       <article className="rounded-xl border p-4" style={cardStyle}>
         <p className={`text-[12px] font-semibold ${textClass}`}>Agregar desde nómina</p>
+        <label className="sr-only" htmlFor="nomina-activity-search">
+          Buscar por apellido o documento
+        </label>
+        <div
+          className={`mt-3 flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 ${
+            isDark
+              ? 'border-white/30 bg-[#1E2846] text-white'
+              : 'border-slate-300 bg-white text-slate-700'
+          }`}
+        >
+          <FontAwesomeIcon
+            icon={faMagnifyingGlass}
+            aria-hidden="true"
+            className={isDark ? 'text-white/70' : 'text-slate-500'}
+            style={{ fontSize: 13 }}
+          />
+          <input
+            id="nomina-activity-search"
+            type="search"
+            value={nominaSearchTerm}
+            onChange={(event) => setNominaSearchTerm(event.target.value)}
+            placeholder="Buscar por apellido o documento"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-inherit placeholder:opacity-60"
+          />
+        </div>
         {nominaRows.length === 0 ? (
           <p className={`mt-2 text-[12px] ${detailTextClass}`}>No hay beneficiarios en la nómina.</p>
+        ) : filteredNominaRows.length === 0 ? (
+          <p className={`mt-3 text-[12px] ${detailTextClass}`}>No hay resultados para esa búsqueda.</p>
         ) : (
           <div className="mt-3 grid gap-2">
-            {nominaRows.map((person) => {
+            {filteredNominaRows.map((person) => {
               const alreadyEnrolled = enrolledNominaSet.has(person.id)
               return (
                 <label key={person.id} className={`rounded-lg border p-3 ${subCardClass}`}>
@@ -478,13 +647,19 @@ export function SpaceActivityDetailPage() {
                         <p className="mt-1 text-[11px] font-semibold text-[#2E7D33]">Ya inscripto</p>
                       ) : null}
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={pendingAddNominaIds.includes(person.id)}
-                      disabled={alreadyEnrolled || savingBulk}
-                      onChange={(event) => togglePendingAdd(person.id, event.target.checked)}
-                      className="mt-1 h-5 w-5 accent-[#2E7D33]"
-                    />
+                    {alreadyEnrolled ? (
+                      <span className="grid h-5 w-5 shrink-0 place-items-center self-center rounded-full bg-[#2E7D33] text-white">
+                        <FontAwesomeIcon icon={faCheck} aria-hidden="true" style={{ fontSize: 11 }} />
+                      </span>
+                    ) : (
+                      <input
+                        type="checkbox"
+                        checked={pendingAddNominaIds.includes(person.id)}
+                        disabled={savingBulk}
+                        onChange={(event) => togglePendingAdd(person.id, event.target.checked)}
+                        className="mt-1 h-5 w-5 accent-[#2E7D33]"
+                      />
+                    )}
                   </div>
                 </label>
               )
@@ -513,4 +688,3 @@ export function SpaceActivityDetailPage() {
     </section>
   )
 }
-

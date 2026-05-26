@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faArrowUpRightFromSquare,
   faCamera,
+  faDownload,
   faImage,
   faFileArrowUp,
   faPaperPlane,
@@ -10,7 +11,11 @@ import {
   faTrashCan,
 } from '@fortawesome/free-solid-svg-icons'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { type RendicionDetail } from '../../api/rendicionApi'
+import {
+  downloadRendicionModelo,
+  type RendicionDetail,
+  type RendicionModeloItem,
+} from '../../api/rendicionApi'
 import { parseApiError } from '../../api/errorUtils'
 import {
   deleteRendicionFileOffline,
@@ -19,6 +24,7 @@ import {
   presentRendicionOffline,
   queueRendicionFileUpload,
   resolveLocalRendicionId,
+  updateRendicionLineaProgramaticaOffline,
 } from './rendicionOffline'
 import { syncNow, syncRendicionNow, type RendicionSyncStage } from '../../sync/engine'
 import { appButtonClass, joinClasses } from '../../ui/buttons'
@@ -26,6 +32,10 @@ import { ConfirmActionModal } from '../../ui/ConfirmActionModal'
 import { NoticeModal } from '../../ui/NoticeModal'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
+import {
+  RENDICION_LINEA_OPTIONS,
+  type RendicionLineaProgramatica,
+} from './rendicionProgramatica'
 
 function formatDateTime(value: string): string {
   const parsed = new Date(value)
@@ -128,6 +138,7 @@ export function SpaceRendicionDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [presenting, setPresenting] = useState(false)
   const [presentingStage, setPresentingStage] = useState<RendicionSyncStage | null>(null)
+  const [downloadingModeloCodigo, setDownloadingModeloCodigo] = useState<string | null>(null)
 
   const titleClass = isDark ? 'text-white' : 'text-[#232D4F]'
   const subtitleClass = isDark ? 'text-white/80' : 'text-slate-600'
@@ -146,12 +157,12 @@ export function SpaceRendicionDetailPage() {
     ? 'border-white/20 bg-white/10 text-white placeholder:text-white/60'
     : 'border-slate-300 bg-white text-slate-700 placeholder:text-slate-400'
 
-  function openNotice(message: string, title = 'Revisa la rendicion') {
+  function openNotice(message: string, title = 'Revisa la rendición') {
     setNoticeTitle(title)
     setNoticeMessage(message)
   }
 
-  function openSuccessAndReturnToList(message: string, title = 'Envio realizado') {
+  function openSuccessAndReturnToList(message: string, title = 'Envío realizado') {
     setRedirectToListOnNoticeClose(true)
     openNotice(message, title)
   }
@@ -171,12 +182,23 @@ export function SpaceRendicionDetailPage() {
 
   async function reloadDetail() {
     if (!spaceId || !rendicionId) {
-      setLoadErrorMessage('No se encontro la rendicion seleccionada.')
+      setLoadErrorMessage('No se encontró la rendición seleccionada.')
       setLoading(false)
       return
     }
     const detail = await getRendicionDetailOfflineFirst(spaceId, rendicionId)
     setRendicion(detail)
+  }
+
+  async function handleDownloadModelo(modelo: RendicionModeloItem) {
+    setDownloadingModeloCodigo(modelo.codigo)
+    try {
+      await downloadRendicionModelo(modelo)
+    } catch (error) {
+      openNotice(parseApiError(error, 'No se pudo descargar el modelo. Verificá la conexión.'))
+    } finally {
+      setDownloadingModeloCodigo(null)
+    }
   }
 
   useEffect(() => {
@@ -192,7 +214,7 @@ export function SpaceRendicionDetailPage() {
         if (!isMounted) {
           return
         }
-        setLoadErrorMessage(parseApiError(error, 'No se pudo cargar la rendicion.'))
+        setLoadErrorMessage(parseApiError(error, 'No se pudo cargar la rendición.'))
       } finally {
         if (isMounted) {
           setLoading(false)
@@ -235,13 +257,23 @@ export function SpaceRendicionDetailPage() {
     () => rendicion?.estado === 'elaboracion' && !isSubmissionInFlight,
     [isSubmissionInFlight, rendicion?.estado],
   )
+  const canEditLineaProgramatica = useMemo(
+    () =>
+      rendicion?.estado === 'elaboracion'
+      && (
+        rendicion?.pending_action === 'create'
+        || String(rendicion?.id || '').startsWith('local-rendicion-')
+      )
+      && !isSubmissionInFlight,
+    [isSubmissionInFlight, rendicion?.estado, rendicion?.id, rendicion?.pending_action],
+  )
 
   useEffect(() => {
     const syncNotice = rendicion?.last_error?.trim()
     if (!syncNotice) {
       return
     }
-    openNotice(syncNotice, 'Aviso de sincronizacion')
+    openNotice(syncNotice, 'Aviso de sincronización')
   }, [rendicion?.last_error])
 
   async function handleUpload(params: {
@@ -256,7 +288,7 @@ export function SpaceRendicionDetailPage() {
     }
     const selectedFile = params.file || selectedFiles[params.slotKey]
     if (!selectedFile) {
-      openNotice('Selecciona un archivo para adjuntar.')
+      openNotice('Seleccioná un archivo para adjuntar.')
       return
     }
     setUploadingTargetKey(params.slotKey)
@@ -301,6 +333,18 @@ export function SpaceRendicionDetailPage() {
     }
   }
 
+  async function handleLineaProgramaticaChange(value: RendicionLineaProgramatica) {
+    if (!rendicionId) {
+      return
+    }
+    try {
+      const detail = await updateRendicionLineaProgramaticaOffline(rendicionId, value)
+      setRendicion(detail)
+    } catch (error) {
+      openNotice(parseApiError(error, 'No se pudo modificar la línea programática.'))
+    }
+  }
+
   async function handlePresent() {
     if (!spaceId || !rendicionId) {
       return
@@ -318,9 +362,9 @@ export function SpaceRendicionDetailPage() {
       }
       openNotice(
         rendicion?.estado === 'subsanar'
-          ? 'Los cambios se enviaron nuevamente a revisi?n.'
-          : 'La rendicion se envi? a revisi?n.',
-        'Env?o realizado',
+          ? 'Los cambios se enviaron nuevamente a revisión.'
+          : 'La rendición se envió a revisión.',
+        'Envío realizado',
       )
     } catch (error) {
       openNotice(
@@ -328,7 +372,7 @@ export function SpaceRendicionDetailPage() {
           error,
           rendicion?.estado === 'subsanar'
             ? 'No se pudieron enviar los cambios.'
-            : 'No se pudo enviar la rendicion a revision.',
+            : 'No se pudo enviar la rendición a revisión.',
         ),
       )
     } finally {
@@ -344,7 +388,7 @@ export function SpaceRendicionDetailPage() {
       if (typeof navigator !== 'undefined' && navigator.onLine) {
         const localRendicionId = await resolveLocalRendicionId(rendicionId as string)
         if (!localRendicionId) {
-          throw new Error('No se pudo resolver la rendicion local para sincronizar.')
+          throw new Error('No se pudo resolver la rendición local para sincronizar.')
         }
         await syncRendicionNow(localRendicionId, {
           onStageChange: (stage) => setPresentingStage(stage),
@@ -352,14 +396,14 @@ export function SpaceRendicionDetailPage() {
         await reloadDetail()
         openSuccessAndReturnToList(
           rendicion?.estado === 'subsanar'
-            ? 'Los cambios se enviaron nuevamente a revisi?n.'
-            : 'La rendicion se envi? a revisi?n.',
-          'Env?o realizado',
+            ? 'Los cambios se enviaron nuevamente a revisión.'
+            : 'La rendición se envió a revisión.',
+          'Envío realizado',
         )
       } else {
         openNotice(
-          'Sin conexi?n. Los cambios quedaron guardados para sincronizar.',
-          'Pendiente de sincronizaci?n',
+          'Sin conexión. Los cambios quedaron guardados para sincronizar.',
+          'Pendiente de sincronización',
         )
       }
     } catch (error) {
@@ -368,7 +412,7 @@ export function SpaceRendicionDetailPage() {
           error,
           rendicion?.estado === 'subsanar'
             ? 'No se pudieron enviar los cambios.'
-            : 'No se pudo enviar la rendicion a revisi?n.',
+            : 'No se pudo enviar la rendición a revisión.',
         ),
       )
     } finally {
@@ -379,22 +423,22 @@ export function SpaceRendicionDetailPage() {
 
   function getPresentButtonLabel(): string {
     if (!presenting && isSubmissionInFlight) {
-      return 'Sincronizando env?o...'
+      return 'Sincronizando envío...'
     }
     if (!presenting) {
-      return rendicion?.estado === 'subsanar' ? 'Enviar cambios' : 'Enviar a revisi?n'
+      return rendicion?.estado === 'subsanar' ? 'Enviar cambios' : 'Enviar a revisión'
     }
     if (presentingStage === 'creating' || presentingStage === 'preparing') {
-      return 'Preparando env?o...'
+      return 'Preparando envío...'
     }
     if (presentingStage === 'uploading_files') {
       return 'Subiendo archivos...'
     }
     if (presentingStage === 'presenting') {
-      return 'Enviando rendicion...'
+      return 'Enviando rendición...'
     }
     if (presentingStage === 'refreshing') {
-      return 'Confirmando env?o...'
+      return 'Confirmando envío...'
     }
     return 'Procesando...'
   }
@@ -415,7 +459,7 @@ export function SpaceRendicionDetailPage() {
         state: routeState,
       })
     } catch (error) {
-      openNotice(parseApiError(error, 'No se pudo eliminar la rendicion.'))
+      openNotice(parseApiError(error, 'No se pudo eliminar la rendición.'))
       setDeletingRendicion(false)
     }
   }
@@ -456,17 +500,17 @@ export function SpaceRendicionDetailPage() {
   }
 
   return (
-    <section className="grid gap-3">
+    <section className="grid min-w-0 gap-3 overflow-x-hidden pb-24">
       <div>
         <h2 className={`text-[16px] font-semibold ${titleClass}`}>
           Rendición {rendicion.numero_rendicion ?? rendicion.id}
         </h2>
         <p className={`mt-1 text-sm ${subtitleClass}`}>
-          Seguimiento de documentacion y estado de revision.
+          Seguimiento de documentación y estado de revisión.
         </p>
       </div>
 
-      <article className="rounded-xl border p-4" style={cardStyle}>
+      <article className="min-w-0 rounded-xl border p-3 sm:p-4" style={cardStyle}>
         <div className="grid gap-2">
           <p className={`text-[15px] font-semibold ${titleClass}`}>
             Convenio {rendicion.convenio || 'Sin dato'}
@@ -476,7 +520,33 @@ export function SpaceRendicionDetailPage() {
           >
             {rendicion.estado_label}
           </p>
-          <p className={`text-[12px] ${subtitleClass}`}>Periodo: {rendicion.periodo_label}</p>
+          <p className={`text-[12px] ${subtitleClass}`}>Período: {rendicion.periodo_label}</p>
+          {canEditLineaProgramatica ? (
+            <label className="grid gap-1">
+              <span className={`text-[12px] font-semibold ${titleClass}`}>
+                Línea Programática
+              </span>
+              <select
+                value={rendicion.linea_programatica || 'tradicional'}
+                onChange={(event) =>
+                  void handleLineaProgramaticaChange(
+                    event.target.value as RendicionLineaProgramatica,
+                  )
+                }
+                className={`rounded-xl border px-3 py-3 text-sm outline-none ${inputClass}`}
+              >
+                {RENDICION_LINEA_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : rendicion.linea_programatica_label ? (
+            <p className={`text-[12px] ${subtitleClass}`}>
+              Línea Programática: {rendicion.linea_programatica_label}
+            </p>
+          ) : null}
           <p className={`text-[12px] ${subtitleClass}`}>
             Creada el {formatDateTime(rendicion.fecha_creacion)}
           </p>
@@ -487,12 +557,12 @@ export function SpaceRendicionDetailPage() {
       </article>
 
       {isSubmissionInFlight ? (
-        <article className="rounded-xl border p-4" style={cardStyle}>
+        <article className="min-w-0 rounded-xl border p-3 sm:p-4" style={cardStyle}>
           <p className={`text-[13px] font-semibold ${titleClass}`}>
-            La rendicion se est? sincronizando.
+            La rendición se está sincronizando.
           </p>
           <p className={`mt-1 text-[12px] ${subtitleClass}`}>
-            Mientras se env?an los cambios no se pueden cargar ni borrar archivos.
+            Mientras se envían los cambios no se pueden cargar ni borrar archivos.
           </p>
         </article>
       ) : null}
@@ -515,18 +585,42 @@ export function SpaceRendicionDetailPage() {
           const currentLabel = fileLabels[categorySlotKey] || ''
 
           return (
-            <article key={categoria.codigo} className="rounded-xl border p-4" style={cardStyle}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
+            <article
+              key={categoria.codigo}
+              className="min-w-0 rounded-xl border p-3 sm:p-4"
+              style={cardStyle}
+            >
+              <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
                   <p className={`text-[14px] font-semibold ${titleClass}`}>{categoria.label}</p>
                   <p className={`mt-1 text-[12px] ${subtitleClass}`}>
-                    {categoria.required ? 'Obligatorio' : 'Opcional'} ?{' '}
-                    {categoria.multiple ? 'M?ltiples archivos' : 'Un ?nico archivo'}
+                    {categoria.required ? 'Obligatorio' : 'Opcional'} -{' '}
+                    {categoria.multiple ? 'Múltiples archivos' : 'Un único archivo'}
                   </p>
                 </div>
-                <span className={`text-[12px] font-semibold ${subtitleClass}`}>
-                  {categoria.archivos.length} archivo(s)
-                </span>
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                  {categoria.modelo ? (
+                    <button
+                      type="button"
+                      disabled={downloadingModeloCodigo === categoria.modelo.codigo}
+                      onClick={() =>
+                        void handleDownloadModelo(categoria.modelo as RendicionModeloItem)
+                      }
+                      className={joinClasses(
+                        appButtonClass({ variant: 'primary', size: 'md' }),
+                        'px-3 py-2 text-[12px]',
+                      )}
+                    >
+                      <FontAwesomeIcon icon={faDownload} aria-hidden="true" />
+                      {downloadingModeloCodigo === categoria.modelo.codigo
+                        ? 'Descargando...'
+                        : 'Descargar Modelo'}
+                    </button>
+                  ) : null}
+                  <span className={`text-[12px] font-semibold ${subtitleClass}`}>
+                    {categoria.archivos.length} archivo(s)
+                  </span>
+                </div>
               </div>
 
               {categoria.archivos.length === 0 ? (
@@ -536,7 +630,7 @@ export function SpaceRendicionDetailPage() {
                   {categoria.archivos.map((item) => (
                     <div
                       key={item.id}
-                      className={`rounded-lg border p-3 ${
+                      className={`min-w-0 rounded-lg border p-3 ${
                         isDark ? 'border-white/20 bg-white/10' : 'border-slate-300 bg-white/80'
                       }`}
                     >
@@ -553,8 +647,8 @@ export function SpaceRendicionDetailPage() {
 
                         return (
                           <>
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
+                            <div className="flex min-w-0 items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
                                 <p className={`truncate text-[13px] font-semibold ${titleClass}`}>
                                   {item.nombre}
                                 </p>
@@ -584,7 +678,7 @@ export function SpaceRendicionDetailPage() {
                                   </div>
                                 ) : null}
                               </div>
-                              <div className="flex items-center gap-3">
+                              <div className="flex shrink-0 items-center gap-3">
                                 {item.url ? (
                                   <a href={item.url} target="_blank" rel="noreferrer">
                                     <FontAwesomeIcon
@@ -612,9 +706,9 @@ export function SpaceRendicionDetailPage() {
                               <div className="mt-3 grid gap-3">
                                 <div className="grid gap-2">
                                   <p className={`text-[12px] font-semibold ${titleClass}`}>
-                                    Cargar subsanacion
+                                    Cargar subsanación
                                   </p>
-                                  <div className="grid grid-cols-3 gap-2">
+                                  <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-3">
                                     {[
                                       {
                                         mode: 'camera' as const,
@@ -624,7 +718,7 @@ export function SpaceRendicionDetailPage() {
                                       {
                                         mode: 'gallery' as const,
                                         icon: faImage,
-                                        label: 'Imagen de galeria',
+                                        label: 'Imagen de galería',
                                       },
                                       {
                                         mode: 'file' as const,
@@ -636,7 +730,7 @@ export function SpaceRendicionDetailPage() {
                                       return (
                                         <label
                                           key={`${documentSlotKey}-${option.mode}`}
-                                          className={`cursor-pointer rounded-xl border px-2 py-2 text-center ${
+                                          className={`min-w-0 cursor-pointer rounded-xl border px-2 py-2 text-center ${
                                             isDark
                                               ? 'border-white/20 bg-white/10 text-white'
                                               : 'border-slate-300 bg-white text-slate-700'
@@ -655,7 +749,7 @@ export function SpaceRendicionDetailPage() {
                                               }))
                                             }
                                           />
-                                          <span className="flex flex-col items-center justify-center gap-1 text-[11px] font-semibold leading-tight sm:text-xs">
+                                          <span className="flex min-w-0 flex-col items-center justify-center gap-1 break-words text-[11px] font-semibold leading-tight sm:text-xs">
                                             <FontAwesomeIcon icon={option.icon} aria-hidden="true" />
                                             {option.label}
                                           </span>
@@ -667,13 +761,14 @@ export function SpaceRendicionDetailPage() {
 
                                 {selectedDocumentFile ? (
                                   <div
-                                    className={`rounded-xl border px-3 py-3 text-sm ${
+                                    className={`min-w-0 break-words rounded-xl border px-3 py-3 text-sm ${
                                       isDark
                                         ? 'border-white/20 bg-white/10 text-white'
                                         : 'border-slate-300 bg-white text-slate-700'
                                     }`}
                                   >
-                                    Archivo seleccionado: <strong>{selectedDocumentFile.name}</strong>
+                                    Archivo seleccionado:{' '}
+                                    <strong className="break-all">{selectedDocumentFile.name}</strong>
                                   </div>
                                 ) : null}
 
@@ -689,16 +784,19 @@ export function SpaceRendicionDetailPage() {
                                       documentoSubsanadoId: item.id,
                                     })
                                   }
-                                  className={appButtonClass({
-                                    variant: 'success',
-                                    size: 'lg',
-                                    fullWidth: true,
-                                  })}
+                                  className={joinClasses(
+                                    appButtonClass({
+                                      variant: 'success',
+                                      size: 'lg',
+                                      fullWidth: true,
+                                    }),
+                                    'min-w-0 flex-wrap whitespace-normal text-center leading-tight',
+                                  )}
                                 >
                                   <FontAwesomeIcon icon={faFileArrowUp} aria-hidden="true" />
                                   {uploadingTargetKey === documentSlotKey
                                     ? 'Adjuntando...'
-                                    : 'Cargar subsanacion'}
+                                    : 'Cargar subsanación'}
                                 </button>
                               </div>
                             ) : null}
@@ -725,14 +823,14 @@ export function SpaceRendicionDetailPage() {
                                     return (
                                       <div
                                         key={subsanacion.id}
-                                        className={`rounded-lg border p-3 ${
+                                        className={`min-w-0 rounded-lg border p-3 ${
                                           isDark
                                             ? 'border-white/15 bg-white/5'
                                             : 'border-slate-200 bg-white'
                                         }`}
                                       >
-                                        <div className="flex items-start justify-between gap-3">
-                                          <div className="min-w-0">
+                                        <div className="flex min-w-0 items-start justify-between gap-3">
+                                          <div className="min-w-0 flex-1">
                                             <p
                                               className={`truncate text-[13px] font-semibold ${titleClass}`}
                                             >
@@ -771,6 +869,7 @@ export function SpaceRendicionDetailPage() {
                                               href={subsanacion.url}
                                               target="_blank"
                                               rel="noreferrer"
+                                              className="shrink-0"
                                             >
                                               <FontAwesomeIcon
                                                 icon={faArrowUpRightFromSquare}
@@ -820,8 +919,8 @@ export function SpaceRendicionDetailPage() {
                   ) : null}
 
                   <div className="grid gap-2">
-                    <p className={`text-[12px] font-semibold ${titleClass}`}>Como cargar</p>
-                    <div className="grid grid-cols-3 gap-2">
+                    <p className={`text-[12px] font-semibold ${titleClass}`}>Cómo cargar</p>
+                    <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-3">
                       {[
                         {
                           mode: 'camera' as const,
@@ -831,7 +930,7 @@ export function SpaceRendicionDetailPage() {
                         {
                           mode: 'gallery' as const,
                           icon: faImage,
-                          label: 'Imagen de galeria',
+                          label: 'Imagen de galería',
                         },
                         {
                           mode: 'file' as const,
@@ -843,7 +942,7 @@ export function SpaceRendicionDetailPage() {
                         return (
                           <label
                             key={`${categoria.codigo}-${option.mode}`}
-                            className={`cursor-pointer rounded-xl border px-2 py-2 text-center ${
+                            className={`min-w-0 cursor-pointer rounded-xl border px-2 py-2 text-center ${
                               isDark
                                 ? 'border-white/20 bg-white/10 text-white'
                                 : 'border-slate-300 bg-white text-slate-700'
@@ -878,7 +977,7 @@ export function SpaceRendicionDetailPage() {
                                   }))
                                 }}
                               />
-                            <span className="flex flex-col items-center justify-center gap-1 text-[11px] font-semibold leading-tight sm:text-xs">
+                            <span className="flex min-w-0 flex-col items-center justify-center gap-1 break-words text-[11px] font-semibold leading-tight sm:text-xs">
                               <FontAwesomeIcon icon={option.icon} aria-hidden="true" />
                               {option.label}
                             </span>
@@ -890,7 +989,7 @@ export function SpaceRendicionDetailPage() {
 
                   {selectedFilesBatch.length > 0 ? (
                     <div
-                      className={`rounded-xl border px-3 py-3 text-sm ${
+                      className={`min-w-0 break-words rounded-xl border px-3 py-3 text-sm ${
                         isDark
                           ? 'border-white/20 bg-white/10 text-white'
                           : 'border-slate-300 bg-white text-slate-700'
@@ -902,13 +1001,13 @@ export function SpaceRendicionDetailPage() {
 
                   {selectedFile ? (
                     <div
-                      className={`rounded-xl border px-3 py-3 text-sm ${
+                      className={`min-w-0 break-words rounded-xl border px-3 py-3 text-sm ${
                         isDark
                           ? 'border-white/20 bg-white/10 text-white'
                           : 'border-slate-300 bg-white text-slate-700'
                       }`}
                     >
-                      Archivo seleccionado: <strong>{selectedFile.name}</strong>
+                      Archivo seleccionado: <strong className="break-all">{selectedFile.name}</strong>
                     </div>
                   ) : null}
 
@@ -947,11 +1046,14 @@ export function SpaceRendicionDetailPage() {
                           : undefined,
                       })
                     }}
-                    className={appButtonClass({
-                      variant: canReplaceObservedFile ? 'success' : 'primary',
-                      size: 'lg',
-                      fullWidth: true,
-                    })}
+                    className={joinClasses(
+                      appButtonClass({
+                        variant: canReplaceObservedFile ? 'success' : 'primary',
+                        size: 'lg',
+                        fullWidth: true,
+                      }),
+                      'min-w-0 flex-wrap whitespace-normal text-center leading-tight',
+                    )}
                   >
                     <FontAwesomeIcon icon={faFileArrowUp} aria-hidden="true" />
                     {uploadingTargetKey === categorySlotKey
@@ -959,7 +1061,7 @@ export function SpaceRendicionDetailPage() {
                       : canReplaceObservedFile
                         ? 'Reemplazar archivo observado'
                         : isExtraCategory
-                        ? 'Adjuntar documentacion extra'
+                        ? 'Adjuntar documentación extra'
                         : 'Adjuntar archivo'}
                   </button>
                 </div>
@@ -977,12 +1079,12 @@ export function SpaceRendicionDetailPage() {
               : 'border-slate-200 bg-white text-slate-700'
           }`}
         >
-          Esta rendicion ya no admite cambios en esta etapa.
+          Esta rendición ya no admite cambios en esta etapa.
         </div>
       ) : null}
 
       {canPresentChanges || isSubmissionInFlight ? (
-        <div className={`grid gap-3 ${canDeleteRendicion ? 'grid-cols-4' : 'grid-cols-1'}`}>
+        <div className={`grid min-w-0 gap-3 ${canDeleteRendicion ? 'grid-cols-4' : 'grid-cols-1'}`}>
           {canDeleteRendicion ? (
             <button
               type="button"
@@ -992,7 +1094,7 @@ export function SpaceRendicionDetailPage() {
                 appButtonClass({ variant: 'danger', size: 'lg', fullWidth: true }),
                 'col-span-1',
               )}
-              aria-label={deletingRendicion ? 'Eliminando rendicion' : 'Borrar rendicion'}
+              aria-label={deletingRendicion ? 'Eliminando rendición' : 'Borrar rendición'}
             >
               <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
             </button>
@@ -1005,6 +1107,7 @@ export function SpaceRendicionDetailPage() {
             className={joinClasses(
               appButtonClass({ variant: 'success', size: 'lg', fullWidth: true }),
               canDeleteRendicion ? 'col-span-3' : 'col-span-1',
+              'min-w-0 flex-wrap whitespace-normal text-center leading-tight',
             )}
           >
             <FontAwesomeIcon
@@ -1019,7 +1122,7 @@ export function SpaceRendicionDetailPage() {
 
       <ConfirmActionModal
         open={showDeleteConfirm}
-        title="?Borrar rendicion?"
+        title="¿Borrar rendición?"
         message={`Se va a borrar la rendición ${rendicion.numero_rendicion ?? rendicion.id}. Esta acción no se puede deshacer.`}
         confirmLabel="Confirmar"
         loading={deletingRendicion}

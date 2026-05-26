@@ -78,6 +78,14 @@ function sanitizeMojibake<T>(value: T): T {
   if (typeof value === 'string') {
     return tryFixMojibake(value) as T
   }
+  if (
+    value instanceof Blob
+    || value instanceof ArrayBuffer
+    || value instanceof File
+    || value instanceof FormData
+  ) {
+    return value
+  }
   if (Array.isArray(value)) {
     return value.map((item) => sanitizeMojibake(item)) as T
   }
@@ -99,7 +107,9 @@ http.interceptors.request.use(async (config) => {
 
 http.interceptors.response.use(
   (response: AxiosResponse) => {
-    response.data = sanitizeMojibake(response.data)
+    if (response.config.responseType !== 'blob' && response.config.responseType !== 'arraybuffer') {
+      response.data = sanitizeMojibake(response.data)
+    }
     return response
   },
   async (error: AxiosError) => {

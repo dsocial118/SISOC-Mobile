@@ -110,6 +110,8 @@ export interface LocalRendicionRecord {
   periodo_inicio: string | null
   periodo_fin: string | null
   periodo_label: string
+  linea_programatica?: string | null
+  linea_programatica_label?: string | null
   estado: string
   estado_label: string
   documento_adjunto: boolean

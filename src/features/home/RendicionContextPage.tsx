@@ -6,6 +6,7 @@ import {
   faChevronRight,
   faDiagramProject,
   faFolderOpen,
+  faLayerGroup,
 } from '@fortawesome/free-solid-svg-icons'
 import { useNavigate } from 'react-router-dom'
 import { parseApiError } from '../../api/errorUtils'
@@ -25,6 +26,11 @@ import {
   type RendicionProjectContext,
 } from './rendicionContext'
 import { loadRendicionesOfflineFirst } from './rendicionOffline'
+import {
+  RENDICION_LINEA_OPTIONS,
+  inferRendicionLineaProgramatica,
+  type RendicionLineaProgramatica,
+} from './rendicionProgramatica'
 import { getRendicionHubCache, setRendicionHubCache } from './rendicionViewCache'
 
 interface RendicionContextListItem {
@@ -65,12 +71,15 @@ function getStatusClasses(status: string, isDark: boolean): string {
     : 'bg-[#EEF2FF] text-[#232D4F]'
 }
 
-function buildRouteState(context: RendicionProjectContext) {
+function buildRouteState(context: RendicionProjectContext, lineaProgramatica: string) {
+  const lineOption = RENDICION_LINEA_OPTIONS.find((option) => option.value === lineaProgramatica)
   return {
     organizationName: context.organizationName,
     projectName: context.projectLabel,
-    programName: context.projectLabel,
+    programName: context.representativeSpace.programa__nombre || context.projectLabel,
     spaceName: context.representativeSpace.nombre,
+    lineaProgramatica,
+    lineaProgramaticaLabel: lineOption?.label || RENDICION_LINEA_OPTIONS[1].label,
   }
 }
 
@@ -121,6 +130,8 @@ export function RendicionContextPage() {
   const [selectedProjectKey, setSelectedProjectKey] = useState(
     hubCache?.selectedProjectKey ?? '',
   )
+  const [selectedLineaProgramatica, setSelectedLineaProgramatica] =
+    useState<RendicionLineaProgramatica>('tradicional')
   const [existingLoading, setExistingLoading] = useState(!hubCache)
   const [existingError, setExistingError] = useState('')
   const [existingRendiciones, setExistingRendiciones] = useState<RendicionContextListItem[]>(
@@ -215,6 +226,18 @@ export function RendicionContextPage() {
   )
 
   useEffect(() => {
+    if (!selectedContext) {
+      return
+    }
+    setSelectedLineaProgramatica(
+      inferRendicionLineaProgramatica(
+        selectedContext.representativeSpace.programa_id,
+        selectedContext.representativeSpace.programa__nombre,
+      ),
+    )
+  }, [selectedContext])
+
+  useEffect(() => {
     let isMounted = true
 
     async function loadExistingRendiciones() {
@@ -291,13 +314,19 @@ export function RendicionContextPage() {
       return
     }
     navigate(`/app-org/espacios/${selectedContext.representativeSpace.id}/rendicion`, {
-      state: buildRouteState(selectedContext),
+      state: buildRouteState(selectedContext, selectedLineaProgramatica),
     })
   }
 
   function handleOpenExisting(context: RendicionProjectContext, rendicionId: string | number) {
     navigate(`/app-org/espacios/${context.representativeSpace.id}/rendicion/${rendicionId}`, {
-      state: buildRouteState(context),
+      state: buildRouteState(
+        context,
+        inferRendicionLineaProgramatica(
+          context.representativeSpace.programa_id,
+          context.representativeSpace.programa__nombre,
+        ),
+      ),
     })
   }
 
@@ -374,6 +403,29 @@ export function RendicionContextPage() {
               {availableProjects.map((option) => (
                 <option key={option.projectKey} value={option.projectKey}>
                   {option.projectLabel}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="grid gap-1">
+            <span
+              className={`inline-flex items-center gap-2 text-[12px] font-semibold ${titleClass}`}
+            >
+              <FontAwesomeIcon icon={faLayerGroup} aria-hidden="true" />
+              Línea Programática
+            </span>
+            <select
+              value={selectedLineaProgramatica}
+              onChange={(event) =>
+                setSelectedLineaProgramatica(event.target.value as RendicionLineaProgramatica)
+              }
+              disabled={!selectedContext}
+              className={`rounded-xl border px-3 py-3 text-sm outline-none disabled:opacity-60 ${inputClass}`}
+            >
+              {RENDICION_LINEA_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>

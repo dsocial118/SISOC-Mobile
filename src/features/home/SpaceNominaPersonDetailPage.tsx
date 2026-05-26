@@ -1,7 +1,6 @@
 ﻿import { useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-  faCirclePlus,
   faCalendarDay,
   faCheck,
   faClock,
@@ -21,8 +20,10 @@ import {
 } from '../../api/nominaApi'
 import { appButtonClass, joinClasses } from '../../ui/buttons'
 import { ConfirmActionModal } from '../../ui/ConfirmActionModal'
+import { AppToast } from '../../ui/AppToast'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
+import { getNominaAttendancePeriod } from './attendancePeriod'
 
 function formatLatinDate(rawDate: string | null | undefined): string {
   const value = (rawDate || '').trim()
@@ -128,7 +129,9 @@ export function SpaceNominaPersonDetailPage() {
   const [deletingPerson, setDeletingPerson] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showAllAsistencias, setShowAllAsistencias] = useState(false)
-  const currentPeriodLabel = getCurrentPeriodLabel()
+  const attendancePeriod = getNominaAttendancePeriod()
+  const [showAttendanceNotice, setShowAttendanceNotice] = useState(attendancePeriod.isOpeningDay)
+  const currentPeriodLabel = attendancePeriod.periodLabel || getCurrentPeriodLabel()
 
   useEffect(() => {
     let isMounted = true
@@ -257,6 +260,12 @@ export function SpaceNominaPersonDetailPage() {
 
   return (
     <section className="grid gap-3">
+      <AppToast
+        open={showAttendanceNotice}
+        message={attendancePeriod.enabledMessage}
+        tone="success"
+        onClose={() => setShowAttendanceNotice(false)}
+      />
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className={`text-[16px] font-semibold ${textClass}`}>
@@ -294,6 +303,11 @@ export function SpaceNominaPersonDetailPage() {
             <p className={`text-[12px] font-semibold ${textClass}`}>
               Asistencia del período {currentPeriodLabel}
             </p>
+            <p className={`mt-1 text-[12px] ${detailTextClass}`}>
+              {attendancePeriod.isEnabled
+                ? `Se tomara asistencia para el periodo ${currentPeriodLabel}.`
+                : attendancePeriod.disabledMessage}
+            </p>
             {person.asistencia_mes_actual ? (
               <div className={`mt-1 grid gap-1 text-[12px] ${detailTextClass}`}>
                 <p className="font-semibold text-[#2E7D33]">Asistencia tomada</p>
@@ -311,10 +325,16 @@ export function SpaceNominaPersonDetailPage() {
           </div>
           <button
             type="button"
-            disabled={Boolean(person.asistencia_mes_actual) || savingAttendance}
+            disabled={
+              Boolean(person.asistencia_mes_actual)
+              || savingAttendance
+              || !attendancePeriod.isEnabled
+            }
             onClick={() => void handleRegisterAttendance()}
             aria-label={
-              person.asistencia_mes_actual
+              !attendancePeriod.isEnabled
+                ? 'Asistencia mensual no habilitada'
+                : person.asistencia_mes_actual
                 ? 'Asistencia mensual ya tomada'
                 : 'Tomar asistencia'
             }
@@ -327,6 +347,8 @@ export function SpaceNominaPersonDetailPage() {
           >
             {savingAttendance ? (
               'Guardando...'
+            ) : !attendancePeriod.isEnabled ? (
+              'No habilitada'
             ) : person.asistencia_mes_actual ? (
               <FontAwesomeIcon icon={faCheck} aria-hidden="true" />
             ) : (
@@ -366,10 +388,9 @@ export function SpaceNominaPersonDetailPage() {
                 },
               })
             }
-            className={appButtonClass({ variant: 'primary', size: 'sm' })}
+            className={appButtonClass({ variant: 'outline-secondary', size: 'sm' })}
           >
-            <FontAwesomeIcon icon={faCirclePlus} aria-hidden="true" style={{ fontSize: 11 }} />
-            Sumar a actividad
+            Editar actividades
           </button>
         </div>
         {person.actividades.length === 0 ? (

@@ -5,6 +5,7 @@ import { syncNow } from '../../sync/engine'
 import { appButtonClass } from '../../ui/buttons'
 import { useAppTheme } from '../../ui/ThemeContext'
 import { createRendicionOffline, listOfflineRendiciones } from './rendicionOffline'
+import { getRendicionLineaLabel } from './rendicionProgramatica'
 
 function toComparableDate(value: string | null | undefined): number | null {
   const raw = String(value || '').trim()
@@ -28,6 +29,8 @@ export function SpaceRendicionFormPage() {
           programName?: string
           projectName?: string
           organizationName?: string
+          lineaProgramatica?: string
+          lineaProgramaticaLabel?: string
         }
       | null) ?? null
 
@@ -59,7 +62,7 @@ export function SpaceRendicionFormPage() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!spaceId) {
-      setErrorMessage('No se encontr? el espacio seleccionado.')
+      setErrorMessage('No se encontró el espacio seleccionado.')
       return
     }
     setSaving(true)
@@ -99,6 +102,7 @@ export function SpaceRendicionFormPage() {
         numero_rendicion: Number(numeroRendicion),
         periodo_inicio: periodoInicio,
         periodo_fin: periodoFin,
+        linea_programatica: routeState?.lineaProgramatica || 'tradicional',
         observaciones,
       })
       void syncNow()
@@ -107,7 +111,7 @@ export function SpaceRendicionFormPage() {
         state: routeState,
       })
     } catch (error) {
-      setErrorMessage(parseApiError(error, 'No se pudo crear la rendicion.'))
+      setErrorMessage(parseApiError(error, 'No se pudo crear la rendición.'))
       setSaving(false)
     }
   }
@@ -115,15 +119,18 @@ export function SpaceRendicionFormPage() {
   return (
     <section className="grid gap-3">
       <div>
-        <h2 className={`text-[16px] font-semibold ${titleClass}`}>Nueva rendicion</h2>
+        <h2 className={`text-[16px] font-semibold ${titleClass}`}>Nueva rendición</h2>
         <p className={`mt-1 text-sm ${subtitleClass}`}>
-          Carg? los datos generales para iniciar la presentaci?n.
+          Cargá los datos generales para iniciar la presentación.
         </p>
       </div>
 
       {routeState?.organizationName && (routeState?.projectName || routeState?.programName) ? (
         <div className={`rounded-xl border px-4 py-3 text-sm ${subtitleClass}`} style={cardStyle}>
           {routeState.organizationName} - {routeState.projectName || routeState.programName}
+          <br />
+          {routeState.lineaProgramaticaLabel
+            || getRendicionLineaLabel(routeState.lineaProgramatica)}
         </div>
       ) : null}
 
@@ -149,7 +156,7 @@ export function SpaceRendicionFormPage() {
 
             <label className="grid gap-1">
               <span className={`text-[12px] font-semibold ${titleClass}`}>
-                N?mero de rendicion
+                Número de rendición
               </span>
               <input
                 value={numeroRendicion}
@@ -203,7 +210,7 @@ export function SpaceRendicionFormPage() {
           disabled={saving}
           className={appButtonClass({ variant: 'success', size: 'lg', fullWidth: true })}
         >
-          {saving ? 'Guardando...' : 'Continuar con documentaci?n'}
+          {saving ? 'Guardando...' : 'Continuar con documentación'}
         </button>
       </form>
     </section>

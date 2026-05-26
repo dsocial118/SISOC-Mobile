@@ -36,7 +36,7 @@ function buildRendicionLabel(
 
   const suffixParts = []
   if (numeroRendicionLabel) {
-    suffixParts.push(`Rendicion ${numeroRendicionLabel}`)
+    suffixParts.push(`Rendición ${numeroRendicionLabel}`)
   }
   if (categoria) {
     suffixParts.push(categoria)
@@ -46,6 +46,30 @@ function buildRendicionLabel(
   }
   const suffix = suffixParts.length > 0 ? `: ${suffixParts.join(' - ')}` : ''
   return `${action}${suffix}`
+}
+
+function fixDisplayText(value: string | null | undefined): string {
+  return String(value || '')
+    .replace(/edici\?n/g, 'edición')
+    .replace(/eliminaci\?n/g, 'eliminación')
+    .replace(/Creaci\?n/g, 'Creación')
+    .replace(/Env\?o/g, 'Envío')
+    .replace(/revisi\?n/g, 'revisión')
+    .replace(/rendicion/g, 'rendición')
+    .replace(/Rendicion/g, 'Rendición')
+    .replace(/conexi\?n/g, 'conexión')
+    .replace(/est\?/g, 'está')
+    .replace(/reci\?n/g, 'recién')
+    .replace(/Creacióon/g, 'Creación')
+    .replace(/revisióon/g, 'revisión')
+    .replace(/edicióon/g, 'edición')
+    .replace(/eliminacióon/g, 'eliminación')
+    .replace(/Envóo/g, 'Envío')
+    .replace(/conexióon/g, 'conexión')
+    .replace(/estó/g, 'está')
+    .replace(/recióon/g, 'recién')
+    .replace(/timeout of 15000ms exceeded/g, 'La sincronización demoró más de lo esperado. Probá nuevamente.')
+    .replace(/timeout of \d+ms exceeded/g, 'La sincronización demoró más de lo esperado. Probá nuevamente.')
 }
 
 function getOutboxLabel(
@@ -63,19 +87,19 @@ function getOutboxLabel(
     case 'CREATE_COLLABORATOR':
       return `Colaborador (alta): ${String((payload as { data?: { nombre?: string; apellido?: string } }).data?.nombre || '')} ${String((payload as { data?: { nombre?: string; apellido?: string } }).data?.apellido || '')}`.trim()
     case 'UPDATE_COLLABORATOR':
-      return `Colaborador (edici?n): ${String((payload as { data?: { nombre?: string; apellido?: string } }).data?.nombre || '')} ${String((payload as { data?: { nombre?: string; apellido?: string } }).data?.apellido || '')}`.trim()
+      return `Colaborador (edición): ${String((payload as { data?: { nombre?: string; apellido?: string } }).data?.nombre || '')} ${String((payload as { data?: { nombre?: string; apellido?: string } }).data?.apellido || '')}`.trim()
     case 'DELETE_COLLABORATOR':
-      return 'Colaborador (eliminaci?n)'
+      return 'Colaborador (eliminación)'
     case 'CREATE_RENDICION':
-      return buildRendicionLabel('Creaci?n de rendicion', payload, numeroRendicion)
+      return buildRendicionLabel('Creación de rendición', payload, numeroRendicion)
     case 'UPLOAD_RENDICION_FILE':
-      return buildRendicionLabel('Carga de archivo de rendicion', payload, numeroRendicion)
+      return buildRendicionLabel('Carga de archivo de rendición', payload, numeroRendicion)
     case 'DELETE_RENDICION_FILE':
-      return buildRendicionLabel('Eliminaci?n de archivo de rendicion', payload, numeroRendicion)
+      return buildRendicionLabel('Eliminación de archivo de rendición', payload, numeroRendicion)
     case 'PRESENT_RENDICION':
-      return buildRendicionLabel('Env?o de rendicion a revisi?n', payload, numeroRendicion)
+      return buildRendicionLabel('Envío de rendición a revisión', payload, numeroRendicion)
     case 'DELETE_RENDICION':
-      return buildRendicionLabel('Eliminaci?n de rendicion', payload, numeroRendicion)
+      return buildRendicionLabel('Eliminación de rendición', payload, numeroRendicion)
     default:
       return `Pendiente: ${item.type}`
   }
@@ -102,11 +126,11 @@ async function getPendingOutboxItems(): Promise<SyncListItem[]> {
     .sort((a, b) => a.created_at.localeCompare(b.created_at))
     .map((row) => ({
       id: row.id,
-      label: getOutboxLabel(row, rendicionNumbersByLocalId),
+      label: fixDisplayText(getOutboxLabel(row, rendicionNumbersByLocalId)),
       type: row.type,
       localRendicionId: String(row.payload.local_rendicion_id || '').trim() || null,
       status: row.status,
-      lastError: row.last_error || null,
+      lastError: fixDisplayText(row.last_error) || null,
       nextRetryAt: row.next_retry_at || null,
     }))
 }
@@ -165,7 +189,7 @@ export function SyncCenterPage() {
     setSyncError('')
     const online = await isOnline()
     if (!online) {
-      setSyncError('No hay conexi?n a internet para sincronizar.')
+      setSyncError('No hay conexión a internet para sincronizar.')
       return
     }
 
@@ -216,7 +240,7 @@ export function SyncCenterPage() {
               style={{ color: '#32A852', fontSize: 82, opacity: 0.6 }}
             />
           </div>
-          <p className={`mt-2 text-center text-[16px] font-semibold ${textClass}`}>Todo est? sincronizado</p>
+          <p className={`mt-2 text-center text-[16px] font-semibold ${textClass}`}>Todo está sincronizado</p>
         </div>
       ) : (
         <div className="grid gap-3">
@@ -272,7 +296,7 @@ export function SyncCenterPage() {
 
       {syncedNow.length > 0 ? (
         <div className="progressive-card grid gap-2" style={{ ['--card-delay' as string]: '80ms' }}>
-          <h3 className={`text-[14px] font-semibold ${textClass}`}>Sincronizados reci?n</h3>
+          <h3 className={`text-[14px] font-semibold ${textClass}`}>Sincronizados recién</h3>
           <div className="grid gap-2">
             {syncedNow.map((label, index) => (
               <div

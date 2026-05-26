@@ -74,10 +74,11 @@ export function parseApiError(
 
   if (axios.isAxiosError(error)) {
     if (
-      (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT')
-      && timeoutMessage
+      error.code === 'ECONNABORTED'
+      || error.code === 'ETIMEDOUT'
+      || /timeout of \d+ms exceeded/i.test(error.message || '')
     ) {
-      return timeoutMessage
+      return timeoutMessage || 'La operación demoró más de lo esperado. Probá nuevamente.'
     }
 
     const data = (error as AxiosError<unknown>).response?.data
