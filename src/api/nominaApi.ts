@@ -49,6 +49,8 @@ export interface NominaPerson {
   actividades: NominaActividad[]
   cantidad_actividades: number
   es_indocumentado: boolean
+  pertenece_comunidad_indigena: boolean
+  situacion_calle: boolean
   identificador_interno: string | null
   asistencia_mes_actual: NominaAttendanceRecord | null
   historial_asistencias: NominaAttendanceRecord[]
@@ -84,6 +86,8 @@ export interface CreateNominaPayload {
   sexo_id?: number
   fecha_nacimiento?: string
   es_indocumentado?: boolean
+  pertenece_comunidad_indigena?: boolean
+  situacion_calle?: boolean
   identificador_interno?: string
   asistencia_alimentaria: boolean
   asistencia_actividades: boolean
@@ -326,7 +330,9 @@ export async function updateNominaPerson(
   nominaId: string | number,
   payload: Partial<CreateNominaPayload>,
 ): Promise<NominaPerson> {
-  const { data } = await http.patch<NominaPerson>(`/pwa/espacios/${spaceId}/nomina/${nominaId}/`, payload)
+  const { data } = await http.patch<NominaPerson>(`/pwa/espacios/${spaceId}/nomina/${nominaId}/`, payload, {
+    timeout: 60000,
+  })
   return normalizeNominaPerson(data)
 }
 
@@ -334,7 +340,9 @@ export async function getNominaPersonDetail(
   spaceId: string | number,
   nominaId: string | number,
 ): Promise<NominaPerson> {
-  const { data } = await http.get<NominaPerson>(`/pwa/espacios/${spaceId}/nomina/${nominaId}/`)
+  const { data } = await http.get<NominaPerson>(`/pwa/espacios/${spaceId}/nomina/${nominaId}/`, {
+    timeout: 60000,
+  })
   return normalizeNominaPerson(data)
 }
 
@@ -358,6 +366,7 @@ export async function listNominaAttendanceHistory(
 ): Promise<NominaAttendanceRecord[]> {
   const { data } = await http.get<NominaAttendanceRecord[]>(
     `/pwa/espacios/${spaceId}/nomina/${nominaId}/historial-asistencia/`,
+    { timeout: 60000 },
   )
   return data
 }

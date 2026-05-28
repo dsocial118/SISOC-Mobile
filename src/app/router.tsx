@@ -46,6 +46,11 @@ const SpaceCapacitacionesPage = lazy(() =>
     default: module.SpaceCapacitacionesPage,
   })),
 )
+const SpacePrestacionesConveniadasPage = lazy(() =>
+  import('../features/home/SpacePrestacionesConveniadasPage').then((module) => ({
+    default: module.SpacePrestacionesConveniadasPage,
+  })),
+)
 const SpaceCursosPage = lazy(() =>
   import('../features/home/SpaceCursosPage').then((module) => ({
     default: module.SpaceCursosPage,
@@ -188,6 +193,10 @@ export function AppRouter() {
                 path="espacios/:spaceId/informacion/capacitaciones"
                 element={<SpaceCapacitacionesPage />}
               />
+              <Route
+                path="espacios/:spaceId/prestaciones-conveniadas"
+                element={<SpacePrestacionesConveniadasPage />}
+              />
               <Route path="espacios/:spaceId/cursos" element={<SpaceCursosPage />} />
               <Route path="espacios/:spaceId/mensajes" element={<SpaceMessagesPage />} />
               <Route
@@ -222,6 +231,10 @@ export function AppRouter() {
               <Route
                 path="espacios/:spaceId/nomina-alimentaria/:nominaId"
                 element={<SpaceNominaAlimentariaPersonDetailPage />}
+              />
+              <Route
+                path="espacios/:spaceId/nomina-alimentaria/:nominaId/editar"
+                element={<SpaceNominaPersonFormPage />}
               />
               <Route
                 path="espacios/:spaceId/nomina/nueva"

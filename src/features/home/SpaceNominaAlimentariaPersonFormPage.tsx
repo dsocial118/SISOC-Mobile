@@ -23,6 +23,8 @@ type FormState = {
   sexo_id: string
   fecha_nacimiento: string
   es_indocumentado: boolean
+  pertenece_comunidad_indigena: boolean
+  situacion_calle: boolean
 }
 
 const EMPTY_FORM: FormState = {
@@ -32,6 +34,8 @@ const EMPTY_FORM: FormState = {
   sexo_id: '',
   fecha_nacimiento: '',
   es_indocumentado: false,
+  pertenece_comunidad_indigena: false,
+  situacion_calle: false,
 }
 
 function formatLatinDate(rawDate: string | null | undefined): string {
@@ -91,7 +95,7 @@ export function SpaceNominaAlimentariaPersonFormPage() {
 
     async function bootstrap() {
       if (!spaceId) {
-        setErrorMessage('No se encontr? el espacio seleccionado.')
+        setErrorMessage('No se encontró el espacio seleccionado.')
         setLoading(false)
         return
       }
@@ -134,7 +138,7 @@ export function SpaceNominaAlimentariaPersonFormPage() {
     const normalizedDni = formData.dni.replace(/\D/g, '')
     if (!formData.es_indocumentado && !renaperPreview) {
       if (!/^\d{7,8}$/.test(normalizedDni)) {
-        setFormError('Formato de DNI inv?lido. Debe contener 7 u 8 d?gitos.')
+        setFormError('Formato de DNI inválido. Debe contener 7 u 8 dígitos.')
         return
       }
       setPreviewingRenaper(true)
@@ -146,7 +150,7 @@ export function SpaceNominaAlimentariaPersonFormPage() {
         setFormError(
           parseApiError(error, 'No se pudieron obtener datos desde RENAPER.', {
             timeoutMessage:
-              'La validaci?n del DNI est? demorando. Intent? nuevamente en unos segundos.',
+              'La validación del DNI está demorando. Intentá nuevamente en unos segundos.',
           }),
         )
       } finally {
@@ -163,6 +167,8 @@ export function SpaceNominaAlimentariaPersonFormPage() {
         asistencia_actividades: false,
         actividad_ids: [],
         es_indocumentado: formData.es_indocumentado,
+        pertenece_comunidad_indigena: formData.pertenece_comunidad_indigena,
+        situacion_calle: formData.situacion_calle,
       }
 
       if (formData.es_indocumentado) {
@@ -182,7 +188,7 @@ export function SpaceNominaAlimentariaPersonFormPage() {
           spaceName: routeState?.spaceName,
           successToast: {
             tone: 'success',
-            message: `Se agreg? a ${created.apellido}, ${created.nombre} a beneficiarios alimentarios.`,
+            message: `Se agregó a ${created.apellido}, ${created.nombre} a beneficiarios alimentarios.`,
           },
         },
       })
@@ -212,7 +218,7 @@ export function SpaceNominaAlimentariaPersonFormPage() {
       <div>
         <h2 className={`text-[16px] font-semibold ${textClass}`}>Alta de persona</h2>
         <p className={`mt-1 text-sm ${detailTextClass}`}>
-          {routeState?.spaceName ? `${routeState.spaceName} ? ` : ''}
+          {routeState?.spaceName ? `${routeState.spaceName} · ` : ''}
           Beneficiarios alimentarios
         </p>
       </div>
@@ -265,7 +271,7 @@ export function SpaceNominaAlimentariaPersonFormPage() {
               }`}
             >
               <p className={`text-[12px] font-semibold ${isDark ? 'text-white' : 'text-slate-700'}`}>
-                G?nero
+                Género
               </p>
               <div
                 className={`grid gap-1 rounded-xl p-1 ${isDark ? 'bg-[#1A223E]/80' : 'bg-slate-100'}`}
@@ -363,6 +369,37 @@ export function SpaceNominaAlimentariaPersonFormPage() {
           </div>
         ) : null}
 
+        {formData.es_indocumentado || renaperPreview ? (
+          <div className={`grid gap-2 rounded-lg border p-3 ${subCardClass}`}>
+            <label className={`flex items-start gap-2 text-xs ${detailTextClass}`}>
+              <input
+                type="checkbox"
+                checked={formData.pertenece_comunidad_indigena}
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    pertenece_comunidad_indigena: event.target.checked,
+                  }))
+                }
+              />
+              Pertenece a comunidades indígenas o pueblos originarios
+            </label>
+            <label className={`flex items-start gap-2 text-xs ${detailTextClass}`}>
+              <input
+                type="checkbox"
+                checked={formData.situacion_calle}
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    situacion_calle: event.target.checked,
+                  }))
+                }
+              />
+              Está en situación de calle
+            </label>
+          </div>
+        ) : null}
+
         {formError ? (
           <div className="rounded-lg border border-[#F2B8B5] bg-[#7A1C1C]/50 p-3 text-sm text-white">
             {formError}
@@ -379,7 +416,7 @@ export function SpaceNominaAlimentariaPersonFormPage() {
                 isDark ? 'border-white/40 bg-white text-[#232D4F]' : undefined,
               )}
             >
-              Cancelar validaci?n
+              Cancelar validación
             </button>
           ) : null}
           <button

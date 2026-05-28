@@ -1,7 +1,13 @@
 ﻿import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCamera, faChevronRight, faSpinner, faTrash } from '@fortawesome/free-solid-svg-icons'
+import {
+  faCamera,
+  faChevronRight,
+  faClipboardCheck,
+  faSpinner,
+  faTrash,
+} from '@fortawesome/free-solid-svg-icons'
 import {
   deleteSpaceImage,
   getSpaceDetail,
@@ -571,6 +577,50 @@ export function SpaceDetailPage() {
                   <p className={`mt-1 text-xs ${detailTextClass}`}>
                     Carga y seguimiento de certificados de capacitaciones.
                   </p>
+                </div>
+                <span
+                  className={`inline-flex items-center justify-center ${isDark ? 'text-white/85' : 'text-slate-700'}`}
+                  aria-hidden="true"
+                >
+                  <FontAwesomeIcon icon={faChevronRight} aria-hidden="true" />
+                </span>
+              </div>
+            </article>
+          ) : null}
+
+          {isAlimentarComunidad ? (
+            <article
+              className="progressive-card rounded-[15px] border p-5"
+              style={{ ...cardStyle, ['--card-delay' as string]: '405ms' }}
+              role="button"
+              tabIndex={0}
+              onClick={() =>
+                navigate(`/app-org/espacios/${spaceId}/prestaciones-conveniadas`, {
+                  state: location.state,
+                })
+              }
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  navigate(`/app-org/espacios/${spaceId}/prestaciones-conveniadas`, {
+                    state: location.state,
+                  })
+                }
+              }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className={`mt-0.5 ${isDark ? 'text-white/85' : 'text-slate-700'}`}>
+                    <FontAwesomeIcon icon={faClipboardCheck} aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className={`text-[16px] font-semibold ${textClass}`}>
+                      Prestaciones conveniadas
+                    </h2>
+                    <p className={`mt-1 text-xs ${detailTextClass}`}>
+                      Consulta de prestaciones aprobadas y conformidad mensual.
+                    </p>
+                  </div>
                 </div>
                 <span
                   className={`inline-flex items-center justify-center ${isDark ? 'text-white/85' : 'text-slate-700'}`}

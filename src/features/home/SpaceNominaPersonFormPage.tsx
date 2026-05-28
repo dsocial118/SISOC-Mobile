@@ -26,6 +26,8 @@ type FormState = {
   sexo_id: string
   fecha_nacimiento: string
   es_indocumentado: boolean
+  pertenece_comunidad_indigena: boolean
+  situacion_calle: boolean
   asistencia_alimentaria: boolean
   asistencia_actividades: boolean
   actividad_ids: number[]
@@ -46,6 +48,8 @@ const EMPTY_FORM: FormState = {
   sexo_id: '',
   fecha_nacimiento: '',
   es_indocumentado: false,
+  pertenece_comunidad_indigena: false,
+  situacion_calle: false,
   asistencia_alimentaria: true,
   asistencia_actividades: false,
   actividad_ids: [],
@@ -81,6 +85,7 @@ export function SpaceNominaPersonFormPage() {
     ) ?? null
 
   const isEditing = Boolean(nominaId)
+  const isAlimentariaRoute = location.pathname.includes('/nomina-alimentaria/')
   const isActivitiesMode = isEditing && location.pathname.endsWith('/actividades')
   const isPersonEditMode = isEditing && !isActivitiesMode
   const [loading, setLoading] = useState(true)
@@ -124,7 +129,7 @@ export function SpaceNominaPersonFormPage() {
         boxShadow: '4px 4px 4px rgba(0, 0, 0, 0.25)',
       }
   const subCardClass = isDark ? 'border-white/20 bg-white/5' : 'border-[#E0E0E0] bg-white'
-  const isReadOnlyPersonEdit = isPersonEditMode && !formData.es_indocumentado
+  const isReadOnlyPersonalData = isPersonEditMode
 
   const groupedActivityOptions = useMemo<GroupedActivityOption[]>(() => {
     const map = new Map<number, SpaceActivityItem>()
@@ -175,7 +180,7 @@ export function SpaceNominaPersonFormPage() {
 
     async function bootstrap() {
       if (!spaceId) {
-        setErrorMessage('No se encontro el espacio seleccionado.')
+        setErrorMessage('No se encontró el espacio seleccionado.')
         setLoading(false)
         return
       }
@@ -203,6 +208,8 @@ export function SpaceNominaPersonFormPage() {
               gendersResult.find((item) => item.sexo === detailResult.genero)?.id?.toString() || '',
             fecha_nacimiento: detailResult.fecha_nacimiento || '',
             es_indocumentado: detailResult.es_indocumentado,
+            pertenece_comunidad_indigena: detailResult.pertenece_comunidad_indigena,
+            situacion_calle: detailResult.situacion_calle,
             asistencia_alimentaria: detailResult.badges.includes('Alimentación'),
             asistencia_actividades: detailResult.badges.includes('Actividades'),
             actividad_ids: detailResult.actividades.map((item) => item.actividad_id),
@@ -315,13 +322,18 @@ export function SpaceNominaPersonFormPage() {
         payload.es_indocumentado = formData.es_indocumentado
       }
 
+      if (!isActivitiesMode) {
+        payload.pertenece_comunidad_indigena = formData.pertenece_comunidad_indigena
+        payload.situacion_calle = formData.situacion_calle
+      }
+
       if (isActivitiesMode) {
         payload.asistencia_alimentaria = formData.asistencia_alimentaria
         payload.asistencia_actividades = formData.actividad_ids.length > 0
         payload.actividad_ids = formData.actividad_ids
       }
 
-      if (formData.es_indocumentado && (!isActivitiesMode || !isEditing)) {
+      if (formData.es_indocumentado && !isEditing) {
         payload.nombre = formData.nombre.trim()
         payload.apellido = formData.apellido.trim()
         payload.sexo_id = Number(formData.sexo_id)
@@ -333,7 +345,7 @@ export function SpaceNominaPersonFormPage() {
       if (isEditing && nominaId) {
         await updateNominaPerson(spaceId, nominaId, payload)
         void syncNow()
-        navigate(`/app-org/espacios/${spaceId}/nomina/${nominaId}`, {
+        navigate(`/app-org/espacios/${spaceId}/${isAlimentariaRoute ? 'nomina-alimentaria' : 'nomina'}/${nominaId}`, {
           replace: true,
           state: {
             spaceName: routeState?.spaceName,
@@ -386,7 +398,7 @@ export function SpaceNominaPersonFormPage() {
     <section className="grid gap-3 pb-8">
       <div>
         <h2 className={`text-[16px] font-semibold ${textClass}`}>
-          {isActivitiesMode ? 'Actividades de la persona' : isEditing ? 'Editar persona' : 'Alta de persona'}
+          {isActivitiesMode ? 'Actividades de la persona' : isEditing ? 'Datos sociales' : 'Alta de persona'}
         </h2>
         <p className={`mt-1 text-sm ${detailTextClass}`}>
           {routeState?.spaceName ? `${routeState.spaceName} · ` : ''}
@@ -445,7 +457,7 @@ export function SpaceNominaPersonFormPage() {
           </div>
         ) : null}
 
-        {!isActivitiesMode && formData.es_indocumentado ? (
+        {!isEditing && !isActivitiesMode && formData.es_indocumentado ? (
           <div className="grid gap-2">
             <input
               placeholder="Nombre"
@@ -558,6 +570,37 @@ export function SpaceNominaPersonFormPage() {
                 <p className={infoValueClass}>{renaperPreview.sexo || '-'}</p>
               </div>
             </div>
+          </div>
+        ) : null}
+
+        {!isActivitiesMode ? (
+          <div className={`grid gap-2 rounded-lg border p-3 ${subCardClass}`}>
+            <label className={`flex items-start gap-2 text-xs ${detailTextClass}`}>
+              <input
+                type="checkbox"
+                checked={formData.pertenece_comunidad_indigena}
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    pertenece_comunidad_indigena: event.target.checked,
+                  }))
+                }
+              />
+              Pertenece a comunidades indígenas o pueblos originarios
+            </label>
+            <label className={`flex items-start gap-2 text-xs ${detailTextClass}`}>
+              <input
+                type="checkbox"
+                checked={formData.situacion_calle}
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    situacion_calle: event.target.checked,
+                  }))
+                }
+              />
+              Está en situación de calle
+            </label>
           </div>
         ) : null}
 
@@ -686,11 +729,11 @@ export function SpaceNominaPersonFormPage() {
           </div>
         ) : null}
 
-        {isReadOnlyPersonEdit ? (
+        {isReadOnlyPersonalData ? (
           <div className={`rounded-lg border p-3 ${subCardClass}`}>
             <p className={`text-[12px] font-semibold ${textClass}`}>Datos personales</p>
             <p className={`mt-2 text-[12px] ${detailTextClass}`}>
-              Las personas documentadas no se editan desde Mobile. Para cambiar sus datos, regularizalos en SISOC Web.
+              Los datos personales no se editan desde Mobile.
             </p>
           </div>
         ) : null}
@@ -714,33 +757,23 @@ export function SpaceNominaPersonFormPage() {
               Cancelar validación
             </button>
           ) : null}
-          {isReadOnlyPersonEdit ? (
-            <button
-              type="button"
-              onClick={() => navigate(`/app-org/espacios/${spaceId}/nomina/${nominaId}`)}
-              className={appButtonClass({ variant: 'primary', size: 'md' })}
-            >
-              Volver
-            </button>
-          ) : (
-            <button
-              type="submit"
-              disabled={saving || previewingRenaper}
-              className={appButtonClass({ variant: 'primary', size: 'md' })}
-            >
-              {previewingRenaper
-                ? 'Consultando RENAPER...'
-                : saving
-                  ? 'Guardando...'
-                  : !isEditing && !formData.es_indocumentado && !renaperPreview
-                    ? 'Validar DNI'
-                    : isActivitiesMode
-                      ? 'Guardar actividades'
-                      : isEditing
-                        ? 'Guardar cambios'
-                        : 'Guardar'}
-            </button>
-          )}
+          <button
+            type="submit"
+            disabled={saving || previewingRenaper}
+            className={appButtonClass({ variant: isPersonEditMode ? 'success' : 'primary', size: 'md' })}
+          >
+            {previewingRenaper
+              ? 'Consultando RENAPER...'
+              : saving
+                ? 'Guardando...'
+                : !isEditing && !formData.es_indocumentado && !renaperPreview
+                  ? 'Validar DNI'
+                  : isActivitiesMode
+                    ? 'Guardar actividades'
+                    : isEditing
+                      ? 'Guardar cambios'
+                      : 'Guardar'}
+          </button>
         </div>
       </form>
     </section>

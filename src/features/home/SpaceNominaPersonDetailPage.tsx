@@ -147,16 +147,22 @@ export function SpaceNominaPersonDetailPage() {
       setLoading(true)
       setErrorMessage('')
       try {
-        const [detail, attendanceHistory] = await Promise.all([
-          getNominaPersonDetail(spaceId, nominaId),
-          listNominaAttendanceHistory(spaceId, nominaId),
-        ])
+        const detail = await getNominaPersonDetail(spaceId, nominaId)
         if (!isMounted) {
           return
         }
         setPerson(detail)
         setShowAllAsistencias(false)
-        setHistory(attendanceHistory)
+        try {
+          const attendanceHistory = await listNominaAttendanceHistory(spaceId, nominaId)
+          if (isMounted) {
+            setHistory(attendanceHistory)
+          }
+        } catch {
+          if (isMounted) {
+            setHistory([])
+          }
+        }
       } catch (error) {
         if (!isMounted) {
           return
@@ -295,6 +301,30 @@ export function SpaceNominaPersonDetailPage() {
         {person.es_indocumentado ? (
           <p className="mt-2 text-sm font-semibold text-[#E7BA61]">Indocumentado</p>
         ) : null}
+        <div className={`mt-3 grid gap-1 text-[12px] ${detailTextClass}`}>
+          <p>
+            Comunidad indígena / pueblo originario:{' '}
+            <span className="font-semibold">{person.pertenece_comunidad_indigena ? 'Sí' : 'No'}</span>
+          </p>
+          <p>
+            Situación de calle: <span className="font-semibold">{person.situacion_calle ? 'Sí' : 'No'}</span>
+          </p>
+        </div>
+        <div className="mt-3 flex justify-end">
+          <button
+            type="button"
+            onClick={() =>
+              navigate(`/app-org/espacios/${spaceId}/nomina/${nominaId}/editar`, {
+                state: {
+                  spaceName: routeState?.spaceName,
+                },
+              })
+            }
+            className={appButtonClass({ variant: 'outline-secondary', size: 'sm' })}
+          >
+            Editar datos sociales
+          </button>
+        </div>
       </article>
 
       <article className="rounded-xl border p-4" style={cardStyle}>
