@@ -47,6 +47,12 @@ function todayIso(): string {
   return nowIso().slice(0, 10)
 }
 
+function defaultFechaBaja(fechaAlta?: string | null, fechaBaja?: string | null): string {
+  const today = todayIso()
+  const alta = fechaAlta || ''
+  return fechaBaja || (alta && today < alta ? alta : today)
+}
+
 function toLocalRecord(remote: SpaceCollaborator, userKey: string): SpaceCollaboratorRecord {
   const now = nowIso()
   return {
@@ -284,6 +290,11 @@ export async function updateCollaboratorOffline(
     return
   }
 
+  const existingDelete = await findOutboxForLocalId('DELETE_COLLABORATOR', collaborator.id)
+  if (existingDelete?.id) {
+    await db.outbox.delete(existingDelete.id)
+  }
+
   const existingUpdate = await findOutboxForLocalId('UPDATE_COLLABORATOR', collaborator.id)
   if (existingUpdate?.id) {
     await db.outbox.update(existingUpdate.id, {
@@ -317,7 +328,7 @@ export async function deleteCollaboratorOffline(
     await removeOutboxForLocalId(collaborator.id)
     await db.space_collaborators.update(collaborator.id, {
       activo: false,
-      fecha_baja: collaborator.fecha_baja || todayIso(),
+      fecha_baja: defaultFechaBaja(collaborator.fecha_alta, collaborator.fecha_baja),
       pending_action: null,
       sync_status: 'synced',
       updated_at: nowIso(),
@@ -327,7 +338,7 @@ export async function deleteCollaboratorOffline(
 
   await db.space_collaborators.update(collaborator.id, {
     activo: false,
-    fecha_baja: collaborator.fecha_baja || todayIso(),
+    fecha_baja: defaultFechaBaja(collaborator.fecha_alta, collaborator.fecha_baja),
     sync_status: 'pending',
     pending_action: 'delete',
     updated_at: nowIso(),

@@ -358,6 +358,14 @@ export function SpaceActivitiesPage() {
     () => ['TODAS', ...Array.from(new Set(activities.map((item) => item.categoria))).sort((a, b) => a.localeCompare(b))],
     [activities],
   )
+  const listFilterCategoryOptions = useMemo(
+    () =>
+      listFilterCategories.map((category) => ({
+        value: category,
+        label: category === 'TODAS' ? 'Todas las categorias' : category,
+      })),
+    [listFilterCategories],
+  )
   const filteredActivities = useMemo(
     () => (listCategoryFilter === 'TODAS' ? activities : activities.filter((item) => item.categoria === listCategoryFilter)),
     [activities, listCategoryFilter],
@@ -729,25 +737,38 @@ export function SpaceActivitiesPage() {
 
           <div className="grid gap-2">
             <p className={`text-xs font-semibold ${textClass}`}>Tipo de actividad</p>
-            <div className="flex min-w-0 flex-wrap gap-2">
+            <div className={`grid max-h-[220px] min-w-0 gap-1 overflow-auto rounded-lg border p-1 ${isDark ? 'border-white/20 bg-white/5' : 'border-slate-200 bg-white'}`}>
               {categories.map((category) => (
                 <button
                   key={category}
                   type="button"
-                    onClick={() => {
-                      const nextCategory = selectedCategory === category ? '' : category
-                      setSelectedCategory(nextCategory)
-                      setFormData((current) => ({ ...current, catalogo_actividad: '' }))
-                    }}
-                  className={`max-w-full rounded-full border px-3 py-1 text-xs font-semibold ${
+                  onClick={() => {
+                    const nextCategory = selectedCategory === category ? '' : category
+                    setSelectedCategory(nextCategory)
+                    setFormData((current) => ({ ...current, catalogo_actividad: '' }))
+                  }}
+                  className={`flex min-w-0 items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-left text-xs ${
                     selectedCategory === category
-                      ? 'border-[#E7BA61] bg-[#232D4F] text-white'
+                      ? 'border-[#E7BA61] bg-[#E7BA61]/20'
                       : isDark
-                        ? 'border-white/30 bg-white/10 text-white'
-                        : 'border-slate-300 bg-white text-slate-700'
+                        ? 'border-white/20 bg-white/5'
+                        : 'border-slate-200 bg-white'
                   }`}
                 >
-                  <span className="break-words">{category}</span>
+                  <span className={`min-w-0 break-words ${textClass}`}>{category}</span>
+                  <span
+                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                      selectedCategory === category
+                        ? 'border-[#232D4F] bg-[#232D4F] text-white'
+                        : isDark
+                          ? 'border-white/50'
+                          : 'border-slate-400'
+                    }`}
+                  >
+                    {selectedCategory === category ? (
+                      <FontAwesomeIcon icon={faCheck} aria-hidden="true" style={{ fontSize: 9 }} />
+                    ) : null}
+                  </span>
                 </button>
               ))}
             </div>
@@ -891,23 +912,15 @@ export function SpaceActivitiesPage() {
       ) : null}
 
       {!isCreateRoute ? (
-      <div className="mt-4 flex flex-wrap gap-2">
-        {listFilterCategories.map((category) => (
-          <button
-            key={category}
-            type="button"
-            onClick={() => setListCategoryFilter(category)}
-            className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-              listCategoryFilter === category
-                ? 'border-[#E7BA61] bg-[#232D4F] text-white'
-                : isDark
-                  ? 'border-white/30 bg-white/10 text-white'
-                  : 'border-slate-300 bg-white text-slate-700'
-            }`}
-          >
-            {category}
-          </button>
-        ))}
+      <div className="mt-4">
+        <SelectorField
+          label="Filtrar por tipo"
+          value={listCategoryFilter}
+          placeholder="Todas las categorias"
+          options={listFilterCategoryOptions}
+          onChange={setListCategoryFilter}
+          isDark={isDark}
+        />
       </div>
       ) : null}
 

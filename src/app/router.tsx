@@ -36,6 +36,11 @@ const SpaceDetailPage = lazy(() =>
     default: module.SpaceDetailPage,
   })),
 )
+const SpaceCollaboratorFormPage = lazy(() =>
+  import('../features/home/SpaceCollaboratorFormPage').then((module) => ({
+    default: module.SpaceCollaboratorFormPage,
+  })),
+)
 const SpaceRelevamientoDetailPage = lazy(() =>
   import('../features/home/SpaceRelevamientoDetailPage').then((module) => ({
     default: module.SpaceRelevamientoDetailPage,
@@ -185,6 +190,18 @@ export function AppRouter() {
               <Route path="espacios/:spaceId" element={<SpaceHubPage />} />
               <Route path="espacios/:spaceId/hub" element={<SpaceHubPage />} />
               <Route path="espacios/:spaceId/informacion" element={<SpaceDetailPage />} />
+              <Route
+                path="espacios/:spaceId/informacion/colaboradores/nuevo"
+                element={<SpaceCollaboratorFormPage />}
+              />
+              <Route
+                path="espacios/:spaceId/informacion/colaboradores/:collaboratorId/editar"
+                element={<SpaceCollaboratorFormPage />}
+              />
+              <Route
+                path="espacios/:spaceId/informacion/colaboradores/:collaboratorId/reactivar"
+                element={<SpaceCollaboratorFormPage />}
+              />
               <Route
                 path="espacios/:spaceId/informacion/relevamiento"
                 element={<SpaceRelevamientoDetailPage />}

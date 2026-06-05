@@ -2,6 +2,7 @@
 import type { AxiosError } from 'axios'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   listCollaboratorActivities,
   listCollaboratorGenders,
@@ -104,9 +105,12 @@ export function CollaboratorsCard({
   detailTextClass: string
   subCardClass: string
 }) {
+  const navigate = useNavigate()
+  const location = useLocation()
   const [refreshError, setRefreshError] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [reactivatingId, setReactivatingId] = useState<string | null>(null)
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({})
   const [formData, setFormData] = useState<FormState>(EMPTY_FORM)
   const [formError, setFormError] = useState('')
@@ -121,8 +125,19 @@ export function CollaboratorsCard({
   const [deletingCollaboratorId, setDeletingCollaboratorId] = useState<string | null>(null)
 
   const isEditing = Boolean(editingId)
-  const submitLabel = isEditing ? 'Guardar cambios' : !preview ? 'Validar DNI' : 'Guardar colaborador'
-  const panelTitle = isEditing ? 'Editar colaborador' : 'Alta de colaborador'
+  const isReactivating = Boolean(reactivatingId)
+  const submitLabel = isReactivating
+    ? 'Reactivar colaborador'
+    : isEditing
+      ? 'Guardar cambios'
+      : !preview
+        ? 'Validar DNI'
+        : 'Guardar colaborador'
+  const panelTitle = isReactivating
+    ? 'Reactivar colaborador'
+    : isEditing
+      ? 'Editar colaborador'
+      : 'Alta de colaborador'
   const infoLabelClass = isDark ? 'text-[10px] font-normal text-white/75' : 'text-[10px] font-normal text-[#232D4F]'
   const infoValueClass = isDark ? 'text-[14px] font-medium text-white' : 'text-[14px] font-medium text-[#232D4F]'
   const inputBaseClass = `w-full rounded-lg border px-3 py-2 text-sm outline-none ${isDark ? 'border-white/30 bg-white/10 text-white placeholder:text-white/60' : 'border-slate-300 bg-white text-slate-700 placeholder:text-slate-400'}`
@@ -179,53 +194,12 @@ export function CollaboratorsCard({
 
   function resetForm() {
     setEditingId(null)
+    setReactivatingId(null)
     setFormData(EMPTY_FORM)
     setFormError('')
     setPreview(null)
     setPreviewing(false)
     setFormOpen(false)
-  }
-
-  function openCreateForm() {
-    setExpandedIds({})
-    setEditingId(null)
-    setFormData({
-      ...EMPTY_FORM,
-      fecha_alta: new Date().toISOString().slice(0, 10),
-    })
-    setFormError('')
-    setPreview(null)
-    setFormOpen(true)
-  }
-
-  function openEditForm(item: SpaceCollaboratorRecord) {
-    setEditingId(item.id)
-    setFormData({
-      dni: item.dni,
-      genero: item.genero || 'ND',
-      codigo_telefono: item.codigo_telefono || '',
-      numero_telefono: item.numero_telefono || '',
-      fecha_alta: item.fecha_alta || new Date().toISOString().slice(0, 10),
-      fecha_baja: item.fecha_baja || '',
-      actividad_ids: item.actividades.map((actividad) => actividad.id),
-    })
-    setPreview({
-      source: item.ciudadano_id ? 'sisoc' : 'renaper',
-      ciudadano_id: item.ciudadano_id || null,
-      ya_registrado_en_espacio: false,
-      colaborador_activo_id: item.remote_id || null,
-      apellido: item.apellido,
-      nombre: item.nombre,
-      dni: item.dni,
-      prefijo_cuil: item.prefijo_cuil || null,
-      cuil_cuit: item.cuil_cuit || null,
-      sufijo_cuil: item.sufijo_cuil || null,
-      sexo: item.sexo || null,
-      fecha_nacimiento: item.fecha_nacimiento || null,
-      edad: item.edad ?? null,
-    })
-    setFormError('')
-    setFormOpen(true)
   }
 
   function toggleExpanded(collaboratorId: string) {
@@ -236,7 +210,7 @@ export function CollaboratorsCard({
   }
 
   function validateForm(data: FormState): string {
-    if (!isEditing && !preview) {
+    if (!isEditing && !isReactivating && !preview) {
       if (!DNI_REGEX.test(data.dni.trim())) {
         return 'El DNI debe tener 7 u 8 dígitos.'
       }
@@ -244,6 +218,9 @@ export function CollaboratorsCard({
     }
     if (!data.fecha_alta) {
       return 'La fecha de alta es obligatoria.'
+    }
+    if (isReactivating) {
+      return ''
     }
     if (data.codigo_telefono.trim() && !/^\d+$/.test(data.codigo_telefono.trim())) {
       return 'El código de teléfono debe contener solo números.'
@@ -278,7 +255,7 @@ export function CollaboratorsCard({
       return
     }
 
-    if (!isEditing && !preview) {
+    if (!isEditing && !isReactivating && !preview) {
       setPreviewing(true)
       setFormError('')
       try {
@@ -307,17 +284,26 @@ export function CollaboratorsCard({
       codigo_telefono: normalized.codigo_telefono,
       numero_telefono: normalized.numero_telefono,
       fecha_alta: normalized.fecha_alta,
-      fecha_baja: normalized.fecha_baja || null,
+      fecha_baja: isReactivating ? null : normalized.fecha_baja || null,
       actividad_ids: normalized.actividad_ids,
     }
 
     setSaving(true)
     setFormError('')
     try {
-      if (editingId) {
-        const editing = collaborators?.find((row) => row.id === editingId)
+      if (editingId || reactivatingId) {
+        const targetId = editingId || reactivatingId
+        const editing = collaborators?.find((row) => row.id === targetId)
         if (!editing) {
           setFormError('No se encontró el colaborador a editar.')
+          return
+        }
+        if (editingId && !editing.activo) {
+          setFormError('Solo se pueden editar colaboradores activos.')
+          return
+        }
+        if (reactivatingId && editing.activo) {
+          setFormError('El colaborador ya se encuentra activo.')
           return
         }
         await updateCollaboratorOffline(editing, payload, activityOptions)
@@ -346,15 +332,33 @@ export function CollaboratorsCard({
     }
 
     setDeletingCollaboratorId(item.id)
+    const today = new Date().toISOString().slice(0, 10)
+    const deletedAt = item.fecha_baja || (item.fecha_alta && today < item.fecha_alta ? item.fecha_alta : today)
+    setCollaborators((current) =>
+      current?.map((row) =>
+        row.id === item.id
+          ? {
+              ...row,
+              activo: false,
+              fecha_baja: deletedAt,
+              pending_action: row.remote_id ? 'delete' : null,
+              sync_status: row.remote_id ? 'pending' : 'synced',
+              last_error: null,
+              updated_at: new Date().toISOString(),
+            }
+          : row,
+      ),
+    )
+    setCollaboratorPendingDelete(null)
     try {
       await deleteCollaboratorOffline(item)
       if (editingId === item.id) {
         resetForm()
       }
       await refreshLocalRows()
-      setCollaboratorPendingDelete(null)
       void syncNow()
     } catch (error) {
+      await refreshLocalRows()
       setFormError(
         parseApiError(
           error,
@@ -387,7 +391,11 @@ export function CollaboratorsCard({
         <h2 className={`text-[16px] font-semibold ${textClass}`}>Colaboradores del espacio</h2>
         <button
           type="button"
-          onClick={openCreateForm}
+          onClick={() =>
+            navigate(`/app-org/espacios/${spaceId}/informacion/colaboradores/nuevo`, {
+              state: location.state,
+            })
+          }
           className="rounded-full bg-[#2E7D33] px-3 py-1 text-xs font-semibold text-white"
         >
           + Agregar
@@ -401,7 +409,7 @@ export function CollaboratorsCard({
         >
           <p className={`text-sm font-semibold ${textClass}`}>{panelTitle}</p>
 
-          {!isEditing ? (
+          {!isEditing && !isReactivating ? (
             <input
               className={inputBaseClass}
               placeholder="DNI"
@@ -415,7 +423,7 @@ export function CollaboratorsCard({
             />
           ) : null}
 
-          {preview ? (
+          {preview && !isEditing && !isReactivating ? (
             <div className={`grid gap-2 rounded-lg border p-3 ${subCardClass}`}>
               <p className={`text-[12px] font-semibold ${textClass}`}>
                 Datos {preview.source === 'sisoc' ? 'SISOC' : 'RENAPER'}
@@ -449,6 +457,17 @@ export function CollaboratorsCard({
             </div>
           ) : null}
 
+          {isReactivating ? (
+            <div className="grid gap-1">
+              <label className={`text-[12px] font-semibold ${textClass}`}>Fecha de alta</label>
+              <input
+                type="date"
+                value={formData.fecha_alta}
+                onChange={(event) => setFormData((current) => ({ ...current, fecha_alta: event.target.value }))}
+                className={inputBaseClass}
+              />
+            </div>
+          ) : (
           <div className="grid gap-2 md:grid-cols-2">
             <div className="grid gap-1">
               <label className={`text-[12px] font-semibold ${textClass}`}>Género</label>
@@ -501,7 +520,9 @@ export function CollaboratorsCard({
               />
             </div>
           </div>
+          )}
 
+          {!isReactivating ? (
           <div className={`grid gap-2 rounded-lg border p-3 ${subCardClass}`}>
             <p className={`text-[12px] font-semibold ${textClass}`}>Actividades</p>
             {activityOptions.length === 0 ? (
@@ -521,6 +542,7 @@ export function CollaboratorsCard({
               </div>
             )}
           </div>
+          ) : null}
 
           {formError ? (
             <div className="rounded-lg border border-[#F2B8B5] bg-[#7A1C1C]/50 p-3 text-sm text-white">
@@ -535,7 +557,7 @@ export function CollaboratorsCard({
             >
               Cancelar
             </button>
-            {!isEditing && preview ? (
+            {!isEditing && !isReactivating && preview ? (
               <button
                 type="button"
                 onClick={() => setPreview(null)}
@@ -563,32 +585,59 @@ export function CollaboratorsCard({
         <p className={`mt-3 text-sm ${detailTextClass}`}>No hay colaboradores asociados.</p>
       ) : (
         <div className="mt-3 grid gap-3">
-          {currentRows.map((collaborator, index) => (
-            <div
-              key={collaborator.id}
-              className={`progressive-card rounded-xl border p-3 ${subCardClass}`}
-              style={{ ['--card-delay' as string]: `${280 + index * 60}ms` }}
-            >
+          {currentRows.map((collaborator, index) => {
+            const isDeletingRow =
+              deletingCollaboratorId === collaborator.id
+              || collaborator.pending_action === 'delete'
+            const canEditCollaborator = collaborator.activo && !isDeletingRow
+            return (
+              <div
+                key={collaborator.id}
+                className={`progressive-card rounded-xl border p-3 ${subCardClass}`}
+                style={{ ['--card-delay' as string]: `${280 + index * 60}ms` }}
+              >
               <div className="flex items-start justify-between gap-3">
                 <div className={`min-w-0 text-[13px] ${detailTextClass}`}>
                   <p className={`truncate text-[14px] font-semibold ${textClass}`}>
                     {collaborator.apellido}, {collaborator.nombre}
                   </p>
                   <p className="mt-0.5 truncate text-[12px]">
-                    {collaborator.activo ? 'Activo' : `Baja: ${formatLatinDate(collaborator.fecha_baja)}`}
+                    {isDeletingRow
+                      ? 'Baja pendiente'
+                      : collaborator.activo
+                        ? 'Activo'
+                        : `Baja: ${formatLatinDate(collaborator.fecha_baja)}`}
                   </p>
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openEditForm(collaborator)}
-                    className={`rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#232D4F] ${
-                      isDark ? '' : 'border border-[#232D4F]'
-                    }`}
-                  >
-                    Editar
-                  </button>
+                  {canEditCollaborator ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate(`/app-org/espacios/${spaceId}/informacion/colaboradores/${collaborator.id}/editar`, {
+                          state: location.state,
+                        })
+                      }
+                      className={`rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#232D4F] ${
+                        isDark ? '' : 'border border-[#232D4F]'
+                      }`}
+                    >
+                      Editar
+                    </button>
+                  ) : !isDeletingRow ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate(`/app-org/espacios/${spaceId}/informacion/colaboradores/${collaborator.id}/reactivar`, {
+                          state: location.state,
+                        })
+                      }
+                      className="rounded-full bg-[#2E7D33] px-3 py-1 text-xs font-semibold text-white"
+                    >
+                      Reactivar
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => toggleExpanded(collaborator.id)}
@@ -634,19 +683,20 @@ export function CollaboratorsCard({
                   <button
                     type="button"
                     onClick={() => setCollaboratorPendingDelete(collaborator)}
-                    disabled={!collaborator.activo || deletingCollaboratorId === collaborator.id}
+                    disabled={!canEditCollaborator}
                     className="rounded-full bg-[#C62828] px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
                   >
-                    {deletingCollaboratorId === collaborator.id
-                      ? 'Eliminando...'
-                      : collaborator.activo
+                    {isDeletingRow
+                      ? 'Dando de baja...'
+                      : canEditCollaborator
                         ? 'Eliminar'
                         : 'Dado de baja'}
                   </button>
                 </div>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

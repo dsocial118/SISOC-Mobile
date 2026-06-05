@@ -88,9 +88,12 @@ function groupNotifications(
 
   messages.forEach((item) => {
     const rendicionId = item.message.accion?.rendicion_id
-    const groupKey = rendicionId
-      ? `rendicion:${rendicionId}`
-      : `space:${item.spaceId}:message:${item.message.id}`
+    const groupKey =
+      item.message.seccion === 'general'
+        ? `general:${item.message.id}`
+        : rendicionId
+          ? `rendicion:${rendicionId}`
+          : `space:${item.spaceId}:message:${item.message.id}`
     const existing = grouped.get(groupKey)
 
     if (!existing) {
@@ -107,7 +110,9 @@ function groupNotifications(
     }
 
     existing.groupedItems.push(item)
-    existing.unreadCount += item.message.visto ? 0 : 1
+    if (item.message.seccion !== 'general') {
+      existing.unreadCount += item.message.visto ? 0 : 1
+    }
   })
 
   return Array.from(grouped.values())

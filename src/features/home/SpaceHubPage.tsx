@@ -382,17 +382,14 @@ export function SpaceHubPage() {
 
     preloadTasks.push(listSpaceNomina(spaceId, { tab: nominaTab }))
 
-    if (
-      normalizedProgramName.includes('alimentar comunidad')
-      || normalizedProgramName.includes('abordaje comunitario')
-    ) {
+    if (isPnudProgram) {
       preloadTasks.push(listActivityCatalog(spaceId))
       preloadTasks.push(listActivityDays(spaceId))
       preloadTasks.push(listSpaceActivities(spaceId))
     }
 
     void Promise.allSettled(preloadTasks)
-  }, [normalizedProgramName, spaceId])
+  }, [isPnudProgram, normalizedProgramName, spaceId])
 
   const cardStyle = isDark
     ? {

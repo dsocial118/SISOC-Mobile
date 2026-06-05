@@ -355,19 +355,19 @@ export function RendicionContextPage() {
   }
 
   return (
-    <section className="grid gap-4 pb-24">
-      <div className="grid gap-1 pt-2">
+    <section className="grid min-w-0 max-w-full gap-4 overflow-x-hidden pb-24">
+      <div className="grid min-w-0 gap-1 pt-2">
         <h2 className={`text-[16px] font-semibold ${titleClass}`}>Nueva rendición</h2>
       </div>
 
       <article
-        className={`rounded-[18px] border p-4 ${cardClass}`}
+        className={`min-w-0 max-w-full overflow-hidden rounded-[18px] border p-4 ${cardClass}`}
         style={{ boxShadow: '4px 4px 4px rgba(0, 0, 0, 0.25)' }}
       >
-        <div className="grid gap-3">
-          <label className="grid gap-1">
+        <div className="grid min-w-0 gap-3">
+          <label className="grid min-w-0 gap-1">
             <span
-              className={`inline-flex items-center gap-2 text-[12px] font-semibold ${titleClass}`}
+              className={`inline-flex min-w-0 items-center gap-2 text-[12px] font-semibold ${titleClass}`}
             >
               <FontAwesomeIcon icon={faBuilding} aria-hidden="true" />
               Organización
@@ -375,7 +375,7 @@ export function RendicionContextPage() {
             <select
               value={selectedOrganizationId}
               onChange={(event) => setSelectedOrganizationId(event.target.value)}
-              className={`rounded-xl border px-3 py-3 text-sm outline-none ${inputClass}`}
+              className={`min-w-0 w-full max-w-full rounded-xl border px-3 py-3 text-sm outline-none ${inputClass}`}
             >
               <option value="">Seleccioná una organización</option>
               {organizationOptions.map((option) => (
@@ -386,9 +386,9 @@ export function RendicionContextPage() {
             </select>
           </label>
 
-          <label className="grid gap-1">
+          <label className="grid min-w-0 gap-1">
             <span
-              className={`inline-flex items-center gap-2 text-[12px] font-semibold ${titleClass}`}
+              className={`inline-flex min-w-0 items-center gap-2 text-[12px] font-semibold ${titleClass}`}
             >
               <FontAwesomeIcon icon={faDiagramProject} aria-hidden="true" />
               Proyecto
@@ -397,7 +397,7 @@ export function RendicionContextPage() {
               value={selectedProjectKey}
               onChange={(event) => setSelectedProjectKey(event.target.value)}
               disabled={!selectedOrganizationId}
-              className={`rounded-xl border px-3 py-3 text-sm outline-none disabled:opacity-60 ${inputClass}`}
+              className={`min-w-0 w-full max-w-full rounded-xl border px-3 py-3 text-sm outline-none disabled:opacity-60 ${inputClass}`}
             >
               <option value="">Seleccioná un proyecto</option>
               {availableProjects.map((option) => (
@@ -408,9 +408,9 @@ export function RendicionContextPage() {
             </select>
           </label>
 
-          <label className="grid gap-1">
+          <label className="grid min-w-0 gap-1">
             <span
-              className={`inline-flex items-center gap-2 text-[12px] font-semibold ${titleClass}`}
+              className={`inline-flex min-w-0 items-center gap-2 text-[12px] font-semibold ${titleClass}`}
             >
               <FontAwesomeIcon icon={faLayerGroup} aria-hidden="true" />
               Línea Programática
@@ -421,7 +421,7 @@ export function RendicionContextPage() {
                 setSelectedLineaProgramatica(event.target.value as RendicionLineaProgramatica)
               }
               disabled={!selectedContext}
-              className={`rounded-xl border px-3 py-3 text-sm outline-none disabled:opacity-60 ${inputClass}`}
+              className={`min-w-0 w-full max-w-full rounded-xl border px-3 py-3 text-sm outline-none disabled:opacity-60 ${inputClass}`}
             >
               {RENDICION_LINEA_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -437,14 +437,14 @@ export function RendicionContextPage() {
         type="button"
         disabled={!selectedContext}
         onClick={handleContinue}
-        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2E7D33] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+        className="inline-flex min-w-0 max-w-full items-center justify-center gap-2 rounded-xl bg-[#2E7D33] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
       >
         Continuá
         <FontAwesomeIcon icon={faChevronRight} aria-hidden="true" />
       </button>
 
 
-      <div className="grid gap-1">
+      <div className="grid min-w-0 gap-1">
         <h2 className={`text-[16px] font-semibold ${titleClass}`}>Rendiciones creadas</h2>
       </div>
 
@@ -470,26 +470,26 @@ export function RendicionContextPage() {
           </p>
         </article>
       ) : (
-        <div className="grid gap-3">
+        <div className="grid min-w-0 gap-3">
           {existingRendiciones.map(({ context, rendiciones }) =>
             rendiciones.map((row) => (
               <button
                 key={`${context.organizationId}:${context.projectKey}:${row.id}`}
                 type="button"
                 onClick={() => handleOpenExisting(context, row.id)}
-                className={`rounded-[18px] border p-4 text-left ${cardClass}`}
+                className={`min-w-0 max-w-full overflow-hidden rounded-[18px] border p-4 text-left ${cardClass}`}
                 style={{ boxShadow: '4px 4px 4px rgba(0, 0, 0, 0.18)' }}
               >
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className={`mt-1 text-[15px] font-semibold ${titleClass}`}>
+                    <p className={`mt-1 min-w-0 break-words text-[15px] font-semibold ${titleClass}`}>
                       Rendición {row.numero_rendicion ?? row.id}
                     </p>
-                    <p className={`mt-2 text-[12px] ${subtitleClass}`}>
+                    <p className={`mt-2 min-w-0 break-words text-[12px] ${subtitleClass}`}>
                       Convenio: {row.convenio || 'Sin dato'}
                     </p>
                     <p
-                      className={`mt-3 inline-flex items-center gap-2 text-[12px] ${subtitleClass}`}
+                      className={`mt-3 inline-flex min-w-0 flex-wrap items-center gap-2 text-[12px] ${subtitleClass}`}
                     >
                       <FontAwesomeIcon
                         icon={faCalendarDay}

@@ -82,6 +82,16 @@ function normalizeDni(value: string | undefined | null): string {
   return String(value || '').replace(/\D/g, '')
 }
 
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function defaultFechaBaja(fechaAlta?: string | null, fechaBaja?: string | null): string {
+  const today = todayIso()
+  const alta = fechaAlta || ''
+  return fechaBaja || (alta && today < alta ? alta : today)
+}
+
 function normalizeFileName(value: string | undefined | null): string {
   return String(value || '').trim().toLowerCase()
 }
@@ -231,7 +241,20 @@ async function tryResolveCollaboratorDelete(item: OutboxRecord & { id: number })
     ? remoteRows.find((row) => row.id === local.remote_id)
     : remoteRows.find((row) => normalizeDni(row.dni) === normalizeDni(local.dni) && row.fecha_alta === local.fecha_alta)
 
-  if (!remote || remote.activo) {
+  if (!remote) {
+    await db.space_collaborators.update(local.id, {
+      activo: false,
+      fecha_baja: defaultFechaBaja(local.fecha_alta, local.fecha_baja),
+      sync_status: 'synced',
+      pending_action: null,
+      last_error: null,
+      updated_at: new Date().toISOString(),
+    })
+    await db.outbox.delete(item.id)
+    return true
+  }
+
+  if (remote.activo) {
     return false
   }
 
@@ -444,7 +467,7 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
       if (!local.remote_id) {
         await db.space_collaborators.update(local.id, {
           activo: false,
-          fecha_baja: local.fecha_baja || new Date().toISOString().slice(0, 10),
+          fecha_baja: defaultFechaBaja(local.fecha_alta, local.fecha_baja),
           sync_status: 'synced',
           pending_action: null,
           last_error: null,
@@ -471,7 +494,7 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
         codigo_telefono: remote?.codigo_telefono || local.codigo_telefono,
         numero_telefono: remote?.numero_telefono || local.numero_telefono,
         fecha_alta: remote?.fecha_alta || local.fecha_alta,
-        fecha_baja: remote?.fecha_baja || local.fecha_baja || new Date().toISOString().slice(0, 10),
+        fecha_baja: remote?.fecha_baja || defaultFechaBaja(local.fecha_alta, local.fecha_baja),
         actividades: remote?.actividades || local.actividades,
         activo: false,
         sync_status: 'synced',
@@ -643,12 +666,20 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
       item.type === 'CREATE_COLLABORATOR' ||
       item.type === 'UPDATE_COLLABORATOR' ||
       item.type === 'DELETE_COLLABORATOR'
+    const collaboratorDeleteServerError =
+      item.type === 'DELETE_COLLABORATOR' &&
+      axios.isAxiosError(error) &&
+      typeof error.response?.status === 'number' &&
+      error.response.status >= 500
 
     if (
       collaboratorAction &&
       (isTransientNetworkError(error) ||
+        collaboratorDeleteServerError ||
         (axios.isAxiosError(error) &&
-          (error.response?.status === 400 || error.response?.status === 409)))
+          (error.response?.status === 400 ||
+            error.response?.status === 404 ||
+            error.response?.status === 409)))
     ) {
       try {
         const resolved = await tryResolveCollaboratorFromRemote(itemWithId)
@@ -658,6 +689,23 @@ async function processOutboxItem(item: OutboxRecord): Promise<boolean> {
       } catch {
         // Continua manejo normal de error.
       }
+    }
+
+    if (collaboratorDeleteServerError) {
+      if (localId) {
+        await db.space_collaborators.update(localId, {
+          sync_status: 'pending',
+          pending_action: 'delete',
+          last_error: null,
+        })
+      }
+      await db.outbox.update(itemWithId.id, {
+        status: 'pending',
+        attempts: item.attempts,
+        next_retry_at: new Date(Date.now() + nextBackoffMs(item.attempts + 1)).toISOString(),
+        last_error: null,
+      })
+      return false
     }
 
     if (

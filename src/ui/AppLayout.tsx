@@ -82,6 +82,9 @@ export function AppLayout({
       | null) ?? null
   const isRendicionSelectorRoute = /^\/app-org\/rendicion\/?$/.test(location.pathname)
   const isInstitutionalRoute = location.pathname.endsWith('/informacion')
+  const isCollaboratorFormRoute = /^\/app-org\/espacios\/\d+\/informacion\/colaboradores\/(?:nuevo|[^/]+\/(?:editar|reactivar))\/?$/.test(
+    location.pathname,
+  )
   const organizationWelcomeTitle = userProfile?.fullName?.trim()
     ? `Bienvenido ${userProfile.fullName.trim()}`
     : 'Bienvenido'
@@ -104,6 +107,8 @@ export function AppLayout({
           ? 'Formación'
         : isNominaAlimentariaPersonDetailRoute
           ? headerState?.spaceName || 'Espacio'
+        : isCollaboratorFormRoute
+          ? 'Colaboradores'
         : isOrgSpaceScopedRoute
           ? headerState?.spaceName || 'Espacio'
           : title
@@ -126,6 +131,8 @@ export function AppLayout({
           ? headerState?.spaceName || 'Espacio'
         : isNominaAlimentariaPersonDetailRoute
           ? headerState?.personName || ''
+        : isCollaboratorFormRoute
+          ? headerState?.spaceName || 'Espacio'
         : isOrgSpaceScopedRoute
           ? isInstitutionalRoute
             ? headerState?.programName || 'Programa sin definir'
@@ -424,7 +431,7 @@ export function AppLayout({
       ) : null}
 
       <main
-        className="mx-auto w-full max-w-4xl px-4"
+        className="mx-auto min-w-0 w-full max-w-4xl overflow-x-hidden px-4"
         style={{
           paddingTop: isOffline
             ? 'calc(102px + env(safe-area-inset-top) + 52px)'
@@ -432,17 +439,17 @@ export function AppLayout({
           paddingBottom: 'calc(61px + env(safe-area-inset-bottom) + 16px)',
         }}
       >
-        <div className="relative min-h-[320px]">
+        <div className="relative min-h-[420px] min-w-0 overflow-x-hidden">
           <PageLoadingContext.Provider value={{ setPageLoading: setIsPageLoading }}>
             <div
               key={`${location.pathname}:${refreshNonce}`}
-              className={`page-fade-in transition-opacity ${showSkeletonOverlay ? 'opacity-0' : 'opacity-100'}`}
+              className={`page-fade-in min-w-0 overflow-x-hidden transition-opacity ${showSkeletonOverlay ? 'opacity-0' : 'opacity-100'}`}
             >
               <Outlet />
             </div>
           </PageLoadingContext.Provider>
           {showSkeletonOverlay ? (
-            <div className="pointer-events-none absolute inset-0 z-20">
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-20">
               <PageSkeleton isDark={isDark} />
             </div>
           ) : null}
@@ -475,7 +482,7 @@ function PageSkeleton({ isDark }: { isDark: boolean }) {
   const textColor = isDark ? 'text-white' : 'text-[#232D4F]'
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-4 pb-8">
       <div className={`skeleton-shimmer h-5 w-40 rounded-full ${barColor}`} />
       <div className={`rounded-2xl border p-5 shadow-sm ${cardBg}`}>
         <div className={`skeleton-shimmer h-4 w-1/3 rounded-full ${barColor}`} />
@@ -494,7 +501,11 @@ function PageSkeleton({ isDark }: { isDark: boolean }) {
       </div>
       <div className={`pt-1 text-center ${textColor}`}>
         <div className="flex justify-center">
-          <AppLoadingSpinner size={54} />
+          <AppLoadingSpinner
+            size={54}
+            cutoutColor={isDark ? '#3E5A7E' : '#FFFFFF'}
+            middleColor={isDark ? '#88A0BF' : '#3E5A7E'}
+          />
         </div>
         <p className="mt-2 text-[13px] font-semibold">Cargando tu información</p>
       </div>
