@@ -31,6 +31,8 @@ import { useAppTheme } from '../../ui/ThemeContext'
 
 type FormState = {
   catalogo_actividad: string
+  responsable_actividad: string
+  vigencia_actividad_meses: string
 }
 
 type ScheduleRow = {
@@ -46,6 +48,8 @@ type PickerOption = {
 
 const EMPTY_FORM: FormState = {
   catalogo_actividad: '',
+  responsable_actividad: '',
+  vigencia_actividad_meses: '',
 }
 
 const EMPTY_SCHEDULE_ROW: ScheduleRow = {
@@ -491,6 +495,10 @@ export function SpaceActivitiesPage() {
     setEditingId(item.id)
     setFormData({
       catalogo_actividad: String(item.catalogo_actividad),
+      responsable_actividad: item.responsable_actividad || '',
+      vigencia_actividad_meses: item.vigencia_actividad_meses
+        ? String(item.vigencia_actividad_meses)
+        : '',
     })
     setScheduleRows([
       {
@@ -520,6 +528,12 @@ export function SpaceActivitiesPage() {
   function validateForm(): string {
     if (!formData.catalogo_actividad) {
       return 'Selecciona una actividad.'
+    }
+    if (
+      formData.vigencia_actividad_meses
+      && Number(formData.vigencia_actividad_meses) < 1
+    ) {
+      return 'La vigencia debe ser mayor a 0 meses.'
     }
     if (scheduleRows.length === 0) {
       return 'Agrega al menos un día y horario.'
@@ -587,6 +601,10 @@ export function SpaceActivitiesPage() {
     try {
       const basePayload = {
         catalogo_actividad: Number(formData.catalogo_actividad),
+        responsable_actividad: formData.responsable_actividad.trim(),
+        vigencia_actividad_meses: formData.vigencia_actividad_meses
+          ? Number(formData.vigencia_actividad_meses)
+          : null,
       }
       const normalizedSchedules = scheduleRows.map((row) => ({
         dia_actividad: Number(row.dia_actividad),
@@ -815,6 +833,55 @@ export function SpaceActivitiesPage() {
                 })}
               </div>
             )}
+          </div>
+
+          <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2">
+            <label className="grid min-w-0 gap-1">
+              <span className={`text-[11px] font-semibold ${textClass}`}>
+                Responsable de actividad
+              </span>
+              <input
+                type="text"
+                value={formData.responsable_actividad}
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    responsable_actividad: event.target.value,
+                  }))
+                }
+                placeholder="Nombre y apellido"
+                className={joinClasses(
+                  'min-h-[42px] rounded-lg border px-3 py-2 text-sm outline-none',
+                  isDark
+                    ? 'border-white/30 bg-[#1E2846] text-white placeholder:text-white/45'
+                    : 'border-slate-300 bg-white text-slate-700 placeholder:text-slate-400',
+                )}
+              />
+            </label>
+            <label className="grid min-w-0 gap-1">
+              <span className={`text-[11px] font-semibold ${textClass}`}>
+                Vigencia de actividad
+              </span>
+              <input
+                type="number"
+                min={1}
+                inputMode="numeric"
+                value={formData.vigencia_actividad_meses}
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    vigencia_actividad_meses: event.target.value,
+                  }))
+                }
+                placeholder="Meses"
+                className={joinClasses(
+                  'min-h-[42px] rounded-lg border px-3 py-2 text-sm outline-none',
+                  isDark
+                    ? 'border-white/30 bg-[#1E2846] text-white placeholder:text-white/45'
+                    : 'border-slate-300 bg-white text-slate-700 placeholder:text-slate-400',
+                )}
+              />
+            </label>
           </div>
 
           <div className="grid min-w-0 gap-2">
@@ -1138,6 +1205,11 @@ export function SpaceActivitiesPage() {
                                       <p className={`text-[12px] ${detailTextClass}`}>
                                         <span className={`font-semibold ${textClass}`}>Horario:</span>{' '}
                                         {activity.horario_actividad}
+                                        {!activity.activo ? (
+                                          <span className="ml-2 rounded-full bg-[#7A1C1C]/80 px-2 py-0.5 text-[10px] font-semibold text-white">
+                                            Inactiva
+                                          </span>
+                                        ) : null}
                                       </p>
                                       <div className="ml-auto flex items-center gap-2">
                                         <span className={`px-1 text-[11px] font-semibold ${textClass}`}>
@@ -1165,7 +1237,17 @@ export function SpaceActivitiesPage() {
                                           <span className={`font-semibold ${textClass}`}>Duración:</span>{' '}
                                           {formatDurationLabel(activity.hora_inicio, activity.hora_fin)}
                                         </p>
-                                        <p className={`text-[12px] font-semibold ${textClass}`}>Listado de inscriptos</p>
+                                        <p className={`text-[12px] ${detailTextClass}`}>
+                                          <span className={`font-semibold ${textClass}`}>Responsable:</span>{' '}
+                                          {activity.responsable_actividad || 'Sin dato'}
+                                        </p>
+                                        <p className={`text-[12px] ${detailTextClass}`}>
+                                          <span className={`font-semibold ${textClass}`}>Vigencia:</span>{' '}
+                                          {activity.vigencia_actividad_meses
+                                            ? `${activity.vigencia_actividad_meses} meses`
+                                            : 'Sin dato'}
+                                        </p>
+                                        <p className={`text-[12px] font-semibold ${textClass}`}>Historial de personas asociadas</p>
                                         {loadingEnrolleesIds[activity.id] ? (
                                           <p className={`text-[12px] ${detailTextClass}`}>Cargando...</p>
                                         ) : (
@@ -1177,6 +1259,7 @@ export function SpaceActivitiesPage() {
                                                 <p key={item.id} className={`text-[12px] ${detailTextClass}`}>
                                                   {item.apellido}, {item.nombre} - DNI {item.dni || '-'} -{' '}
                                                   {item.genero || '-'} - Nacimiento {item.fecha_nacimiento || '-'}
+                                                  {!item.activo ? ' - Baja histórica' : ''}
                                                 </p>
                                               ))
                                             )}
@@ -1184,31 +1267,33 @@ export function SpaceActivitiesPage() {
                                         )}
                                       </div>
 
-                                      <div className="mt-3 flex justify-end gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={() => openEditForm(activity)}
-                                          className={joinClasses(
-                                            appButtonClass({
-                                              variant: 'outline-secondary',
-                                              size: 'sm',
-                                            }),
-                                            isDark
-                                              ? 'border-white/40 bg-white text-[#232D4F]'
-                                              : 'border-[#232D4F] text-[#232D4F]',
-                                          )}
-                                        >
-                                          Editar
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => setActivityPendingDelete(activity)}
-                                          disabled={deletingActivityId === activity.id}
-                                          className={appButtonClass({ variant: 'danger', size: 'sm' })}
-                                        >
-                                          {deletingActivityId === activity.id ? 'Eliminando...' : 'Eliminar'}
-                                        </button>
-                                      </div>
+                                      {activity.activo ? (
+                                        <div className="mt-3 flex justify-end gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => openEditForm(activity)}
+                                            className={joinClasses(
+                                              appButtonClass({
+                                                variant: 'outline-secondary',
+                                                size: 'sm',
+                                              }),
+                                              isDark
+                                                ? 'border-white/40 bg-white text-[#232D4F]'
+                                                : 'border-[#232D4F] text-[#232D4F]',
+                                            )}
+                                          >
+                                            Editar
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => setActivityPendingDelete(activity)}
+                                            disabled={deletingActivityId === activity.id}
+                                            className={appButtonClass({ variant: 'danger', size: 'sm' })}
+                                          >
+                                            {deletingActivityId === activity.id ? 'Inactivando...' : 'Inactivar'}
+                                          </button>
+                                        </div>
+                                      ) : null}
                                     </div>
                                   </div>
                                 ))}
@@ -1229,13 +1314,13 @@ export function SpaceActivitiesPage() {
 
       <ConfirmActionModal
         open={Boolean(activityPendingDelete)}
-        title="Confirmar baja de actividad"
+        title="Confirmar inactivación"
         message={
           activityPendingDelete
-            ? `Se va a dar de baja la actividad "${activityPendingDelete.actividad}".`
+            ? `Se va a inactivar la actividad "${activityPendingDelete.actividad}". El historial de personas asociadas queda disponible.`
             : ''
         }
-        confirmLabel="Dar de baja"
+        confirmLabel="Inactivar"
         loading={Boolean(activityPendingDelete && deletingActivityId === activityPendingDelete.id)}
         onCancel={() => setActivityPendingDelete(null)}
         onConfirm={() =>

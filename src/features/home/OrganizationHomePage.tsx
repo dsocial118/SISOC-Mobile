@@ -391,28 +391,22 @@ export function OrganizationHomePage() {
         </div>
       ) : null}
 
-      {!loading && !errorMessage && filteredSpaces.length > 0 ? (
-        <section
-          className={`rounded-[18px] border p-4 ${
-            isDark ? 'border-white/15 bg-[#232D4F] text-white' : 'border-[#E0E0E0] bg-[#F5F5F5] text-[#232D4F]'
-          }`}
-          style={{ boxShadow: '4px 4px 4px rgba(0, 0, 0, 0.16)' }}
-        >
-          <div className="mb-4">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#E7BA61]">
-              Organizaciones
-            </p>
+      {!loading && !errorMessage && filteredAccessSummary.organizationGroups.length > 0 ? (
+        <section className={`grid gap-4 ${isDark ? 'text-white' : 'text-[#232D4F]'}`}>
+          <div>
+            <p className="text-[18px] font-bold text-[#E7BA61]">Organizaciones</p>
+            <div className="mt-2 h-px w-full bg-[#E7BA61]" />
           </div>
 
-          <div className="grid gap-3">
+          <div className="grid gap-5">
             {filteredAccessSummary.organizationGroups.map((group) => {
               const groupOpenValue = openOrganizations[group.organizationId]
               const isOpen = groupOpenValue === undefined ? true : groupOpenValue
               return (
                 <div
                   key={group.organizationId}
-                  className={`overflow-hidden rounded-[16px] border ${
-                    isDark ? 'border-white/15 bg-[#1E2A47]' : 'border-[#D9D9D9] bg-white'
+                  className={`border-b pb-4 last:border-b-0 ${
+                    isDark ? 'border-white/15' : 'border-[#D8DCE5]'
                   }`}
                 >
                   <button
@@ -423,7 +417,7 @@ export function OrganizationHomePage() {
                         [group.organizationId]: !isOpen,
                       }))
                     }
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                    className="flex w-full items-center justify-between gap-3 py-1 text-left"
                   >
                     <div>
                       <p className="text-[15px] font-semibold">{group.organizationName}</p>
@@ -439,7 +433,7 @@ export function OrganizationHomePage() {
                   </button>
 
                   {isOpen ? (
-                    <div className="grid gap-3 border-t border-black/10 px-3 py-3">
+                    <div className="mt-3 grid gap-3">
                       {group.spaces.map((space, index) => (
                         <SpaceCard
                           key={space.id}
@@ -471,16 +465,10 @@ export function OrganizationHomePage() {
       ) : null}
 
       {!loading && !errorMessage && filteredAccessSummary.extraDirectSpaces.length > 0 ? (
-        <section
-          className={`rounded-[18px] border p-4 ${
-            isDark ? 'border-white/15 bg-[#232D4F] text-white' : 'border-[#E0E0E0] bg-[#F5F5F5] text-[#232D4F]'
-          }`}
-          style={{ boxShadow: '4px 4px 4px rgba(0, 0, 0, 0.16)' }}
-        >
-          <div className="mb-4">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#E7BA61]">
-              Espacios
-            </p>
+        <section className={`grid gap-4 ${isDark ? 'text-white' : 'text-[#232D4F]'}`}>
+          <div>
+            <p className="text-[18px] font-bold text-[#E7BA61]">Espacios</p>
+            <div className="mt-2 h-px w-full bg-[#E7BA61]" />
           </div>
 
           <div className="grid gap-3">

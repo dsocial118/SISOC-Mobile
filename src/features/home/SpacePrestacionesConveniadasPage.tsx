@@ -124,6 +124,7 @@ export function SpacePrestacionesConveniadasPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [negativeMode, setNegativeMode] = useState(false)
   const [observaciones, setObservaciones] = useState('')
+  const [selectedPeriod, setSelectedPeriod] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [toast, setToast] = useState<{ tone: 'success' | 'error'; message: string } | null>(null)
 
@@ -131,6 +132,7 @@ export function SpacePrestacionesConveniadasPage() {
   const detailTextClass = isDark ? 'text-white/85' : 'text-slate-700'
   const mutedTextClass = isDark ? 'text-white/65' : 'text-slate-500'
   const tableBorderClass = isDark ? 'border-white/15' : 'border-slate-200'
+  const selectOptionClass = isDark ? 'bg-[#1E2846] text-white' : 'bg-white text-slate-900'
   const cardStyle = isDark
     ? {
         backgroundColor: '#232D4F',
@@ -208,8 +210,22 @@ export function SpacePrestacionesConveniadasPage() {
     }))
   }, [data])
 
+  useEffect(() => {
+    if (!data) {
+      return
+    }
+    setSelectedPeriod((current) => current || data.periodo_pendiente || data.periodo_actual)
+  }, [data])
+
+  const selectedConformidad = useMemo(() => {
+    if (!data || !selectedPeriod) {
+      return null
+    }
+    return data.historial_conformidad.find((item) => item.periodo === selectedPeriod) ?? null
+  }, [data, selectedPeriod])
+
   async function submitConformidad(conforme: boolean) {
-    if (!spaceId || !data || submitting || data.conformidad_actual) {
+    if (!spaceId || !data || submitting || selectedConformidad || !selectedPeriod) {
       return
     }
     const trimmedObservaciones = observaciones.trim()
@@ -221,12 +237,19 @@ export function SpacePrestacionesConveniadasPage() {
     setSubmitting(true)
     try {
       const conformidad = await registrarPrestacionConformidad(spaceId, {
+        periodo: selectedPeriod,
         conforme,
         observaciones: conforme ? '' : trimmedObservaciones,
       })
       setData({
         ...data,
-        conformidad_actual: conformidad,
+        conformidad_actual:
+          conformidad.periodo === data.periodo_pendiente ? conformidad : data.conformidad_actual,
+        conformidad_pendiente:
+          conformidad.periodo === data.periodo_pendiente ? false : data.conformidad_pendiente,
+        periodos_disponibles: data.periodos_disponibles?.map((item) =>
+          item.periodo === conformidad.periodo ? { ...item, registrada: true } : item,
+        ),
         historial_conformidad: [conformidad, ...data.historial_conformidad],
       })
       setNegativeMode(false)
@@ -267,49 +290,78 @@ export function SpacePrestacionesConveniadasPage() {
 
       <div>
         <h2 className={`text-[16px] font-semibold ${textClass}`}>Prestaciones conveniadas</h2>
-        <p className={`mt-1 text-sm ${detailTextClass}`}>
-          {routeState?.spaceName ? `${routeState.spaceName} · ` : ''}
-          Alimentar Comunidad
-        </p>
       </div>
 
       {data ? (
         <>
+          {data.conformidad_pendiente ? (
+            <div className="rounded-xl border border-[#E7BA61] bg-[#E7BA61]/15 p-3 text-[13px] font-semibold text-[#E7BA61]">
+              Tenés pendiente la conformidad del periodo {formatMonthPeriod(data.periodo_pendiente || data.periodo_actual)}.
+            </div>
+          ) : null}
+
           <article className="rounded-[15px] border p-4" style={cardStyle}>
             <div className="flex items-start gap-3">
               <FontAwesomeIcon icon={faUserCheck} aria-hidden="true" className={textClass} />
               <div className="min-w-0 flex-1">
                 <p className={`text-[14px] font-semibold ${textClass}`}>
-                  Conformidad del mes
+                  Periodo de conformidad
                 </p>
-                {data.conformidad_actual ? (
+                <label className={`mt-3 block text-[12px] font-semibold ${textClass}`} htmlFor="periodo-conformidad">
+                  Mes a conformar
+                </label>
+                <select
+                  id="periodo-conformidad"
+                  value={selectedPeriod}
+                  onChange={(event) => {
+                    setSelectedPeriod(event.target.value)
+                    setNegativeMode(false)
+                    setObservaciones('')
+                  }}
+                  className={joinClasses(
+                    'mt-1 w-full rounded-xl border px-3 py-2 text-sm outline-none',
+                    isDark
+                      ? 'border-white/20 bg-[#1E2846] text-white'
+                      : 'border-slate-300 bg-white text-slate-900',
+                  )}
+                >
+                  {(data.periodos_disponibles || []).map((item) => (
+                    <option key={item.periodo} value={item.periodo} className={selectOptionClass}>
+                      {formatMonthPeriod(item.periodo)}{item.registrada ? ' - registrada' : ''}
+                    </option>
+                  ))}
+                </select>
+                {selectedConformidad ? (
                   <div className="mt-2 grid gap-2">
                     <span
                       className={`w-fit rounded-full px-2 py-1 text-[11px] font-semibold ${statusClass(
-                        data.conformidad_actual,
+                        selectedConformidad,
                         isDark,
                       )}`}
                     >
-                      {data.conformidad_actual.conforme ? 'Conforme' : 'No conforme'}
+                      {selectedConformidad.conforme ? 'Conforme' : 'No conforme'}
                     </span>
                     <p className={`text-[12px] ${detailTextClass}`}>
-                      Registrado el {formatDateTime(data.conformidad_actual.creado)} por{' '}
-                      {data.conformidad_actual.usuario_nombre || 'usuario no disponible'}.
+                      Registrado el {formatDateTime(selectedConformidad.creado)} por{' '}
+                      {selectedConformidad.usuario_nombre || 'usuario no disponible'}.
                     </p>
-                    {data.conformidad_actual.observaciones ? (
+                    {selectedConformidad.observaciones ? (
                       <p className="text-[12px] text-[#C62828]">
-                        Observaciones: {data.conformidad_actual.observaciones}
+                        Observaciones: {selectedConformidad.observaciones}
                       </p>
                     ) : null}
                   </div>
                 ) : (
                   <div className="mt-3 grid gap-2">
-                    <div className="grid grid-cols-[7fr_3fr] gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         disabled={submitting}
                         onClick={() => void submitConformidad(true)}
-                        className={appButtonClass({ variant: 'success', size: 'md', fullWidth: true })}
+                        className={joinClasses(
+                          'order-2',
+                          appButtonClass({ variant: 'success', size: 'md', fullWidth: true }),
+                        )}
                       >
                         <FontAwesomeIcon icon={faCheckCircle} aria-hidden="true" />
                         Sí
@@ -318,7 +370,10 @@ export function SpacePrestacionesConveniadasPage() {
                         type="button"
                         disabled={submitting}
                         onClick={() => setNegativeMode(true)}
-                        className={appButtonClass({ variant: 'danger', size: 'md', fullWidth: true })}
+                        className={joinClasses(
+                          'order-1',
+                          appButtonClass({ variant: 'danger', size: 'md', fullWidth: true }),
+                        )}
                       >
                         <FontAwesomeIcon icon={faXmarkCircle} aria-hidden="true" />
                         No

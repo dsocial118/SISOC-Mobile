@@ -14,6 +14,7 @@ const STORAGE_KEY_PREFIX = 'sisoc:unread-messages:'
 interface SpaceUnreadMessagesDetail {
   spaceId: string
   unreadCount: number
+  organizationUnreadDelta?: number
 }
 
 interface UnreadMessagesState {
@@ -78,6 +79,7 @@ function syncInMemoryCache(unreadBySpaceId: Record<string, number>): void {
 export function notifySpaceUnreadMessagesUpdated(
   spaceId: string | number,
   unreadCount: number,
+  options: { organizationUnreadDelta?: number } = {},
 ) {
   unreadMessagesCacheBySpaceId[String(spaceId)] = unreadCount
   if (typeof window === 'undefined') {
@@ -88,6 +90,7 @@ export function notifySpaceUnreadMessagesUpdated(
       detail: {
         spaceId: String(spaceId),
         unreadCount,
+        organizationUnreadDelta: options.organizationUnreadDelta,
       },
     }),
   )
@@ -422,6 +425,12 @@ export function useOrganizationUnreadMessages(username?: string | null) {
         writeUnreadCountsToStorage(cacheKey, nextState)
         return nextState
       })
+      const organizationUnreadDelta = customEvent.detail?.organizationUnreadDelta
+      if (organizationUnreadDelta) {
+        setOrganizationUnreadCount((current) =>
+          Math.max(0, current + organizationUnreadDelta),
+        )
+      }
       setRefreshVersion((current) => current + 1)
     }
 

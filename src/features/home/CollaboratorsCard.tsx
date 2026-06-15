@@ -141,6 +141,8 @@ export function CollaboratorsCard({
   const infoLabelClass = isDark ? 'text-[10px] font-normal text-white/75' : 'text-[10px] font-normal text-[#232D4F]'
   const infoValueClass = isDark ? 'text-[14px] font-medium text-white' : 'text-[14px] font-medium text-[#232D4F]'
   const inputBaseClass = `w-full rounded-lg border px-3 py-2 text-sm outline-none ${isDark ? 'border-white/30 bg-white/10 text-white placeholder:text-white/60' : 'border-slate-300 bg-white text-slate-700 placeholder:text-slate-400'}`
+  const selectBaseClass = `w-full rounded-lg border px-3 py-2 text-sm outline-none ${isDark ? 'border-white/30 bg-[#1E2846] text-white' : 'border-slate-300 bg-white text-slate-700'}`
+  const selectOptionClass = isDark ? 'bg-[#1E2846] text-white' : 'bg-white text-slate-700'
 
   async function refreshLocalRows() {
     const rows = await listLocalSpaceCollaborators(spaceId)
@@ -474,10 +476,10 @@ export function CollaboratorsCard({
               <select
                 value={formData.genero}
                 onChange={(event) => setFormData((current) => ({ ...current, genero: event.target.value }))}
-                className={inputBaseClass}
+                className={selectBaseClass}
               >
                 {genderOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
+                  <option key={option.id} value={option.id} className={selectOptionClass}>
                     {option.label}
                   </option>
                 ))}

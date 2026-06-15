@@ -5,6 +5,7 @@ import {
   faCalendarDays,
   faChevronLeft,
   faCircleInfo,
+  faClipboardCheck,
   faComments,
   faGraduationCap,
   faUtensils,
@@ -64,6 +65,18 @@ function HubModulesSkeleton({ isDark }: { isDark: boolean }) {
       </div>
     </section>
   )
+}
+
+function formatMonthPeriod(value?: string | null): string {
+  if (!value) {
+    return 'mes pendiente'
+  }
+  const match = value.match(/^(\d{4})-(\d{2})/)
+  if (!match) {
+    return value
+  }
+  const [, year, month] = match
+  return `${Number(month)}/${String(year).slice(-2)}`
 }
 
 function normalizeProgramName(value: string | null | undefined): string {
@@ -267,6 +280,12 @@ export function SpaceHubPage() {
       }
       modulesForProgram.push(
         {
+          id: 'prestaciones-conveniadas',
+          title: 'Prestaciones conveniadas',
+          route: `/app-org/espacios/${spaceId}/prestaciones-conveniadas`,
+          icon: faClipboardCheck,
+        },
+        {
           id: 'nomina',
           title: 'Beneficiarios',
           route: `/app-org/espacios/${spaceId}/nomina`,
@@ -308,6 +327,12 @@ export function SpaceHubPage() {
           title: 'Capacitaciones Obligatorias',
           route: `/app-org/espacios/${spaceId}/informacion/capacitaciones`,
           icon: faCircleInfo,
+        },
+        {
+          id: 'prestaciones-conveniadas',
+          title: 'Prestaciones conveniadas',
+          route: `/app-org/espacios/${spaceId}/prestaciones-conveniadas`,
+          icon: faClipboardCheck,
         },
         {
           id: 'nomina-alimentaria',
@@ -456,6 +481,13 @@ export function SpaceHubPage() {
           <p className="text-[16px]">
             ¡Hola <strong>{userDisplayName}</strong>!
           </p>
+        </div>
+      ) : null}
+
+      {spaceDetail?.conformidad_prestacion_pendiente?.pendiente ? (
+        <div className="mb-4 rounded-xl border border-[#E7BA61] bg-[#E7BA61]/15 p-3 text-[13px] font-semibold text-[#E7BA61]">
+          Pendiente la conformidad de prestaciones del periodo{' '}
+          {formatMonthPeriod(spaceDetail.conformidad_prestacion_pendiente.periodo)}.
         </div>
       ) : null}
 

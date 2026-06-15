@@ -95,6 +95,12 @@ export function SpaceCollaboratorFormPage() {
       ? 'border-white/30 bg-white/10 text-white placeholder:text-white/60'
       : 'border-slate-300 bg-white text-slate-700 placeholder:text-slate-400'
   }`
+  const selectBaseClass = `w-full rounded-lg border px-3 py-2 text-sm outline-none ${
+    isDark
+      ? 'border-white/30 bg-[#1E2846] text-white'
+      : 'border-slate-300 bg-white text-slate-700'
+  }`
+  const selectOptionClass = isDark ? 'bg-[#1E2846] text-white' : 'bg-white text-slate-700'
 
   const title = isReactivateMode
     ? 'Reactivar colaborador'
@@ -395,10 +401,10 @@ export function SpaceCollaboratorFormPage() {
                 <select
                   value={formData.genero}
                   onChange={(event) => setFormData((current) => ({ ...current, genero: event.target.value }))}
-                  className={inputBaseClass}
+                  className={selectBaseClass}
                 >
                   {genderOptions.map((option) => (
-                    <option key={option.id} value={option.id}>{option.label}</option>
+                    <option key={option.id} value={option.id} className={selectOptionClass}>{option.label}</option>
                   ))}
                 </select>
               </div>

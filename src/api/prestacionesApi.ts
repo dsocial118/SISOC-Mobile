@@ -34,12 +34,24 @@ export interface PrestacionAlimentariaResponse {
   modificado: string | null
   fecha_finalizacion: string | null
   periodo_actual: string
+  periodo_pendiente?: string
+  conformidad_pendiente?: boolean
+  periodos_disponibles?: Array<{
+    periodo: string
+    label: string
+    registrada: boolean
+  }>
   conformidad_actual: PrestacionConformidad | null
   historial_conformidad: PrestacionConformidad[]
-  [key: string]: number | string | boolean | null | PrestacionConformidad | PrestacionConformidad[]
+  [key: string]: number | string | boolean | null | PrestacionConformidad | PrestacionConformidad[] | Array<{
+    periodo: string
+    label: string
+    registrada: boolean
+  }> | undefined
 }
 
 export interface RegistrarConformidadPayload {
+  periodo: string
   conforme: boolean
   observaciones?: string
 }

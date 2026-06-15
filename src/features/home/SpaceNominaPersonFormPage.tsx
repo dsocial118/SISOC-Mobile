@@ -88,6 +88,7 @@ export function SpaceNominaPersonFormPage() {
   const isAlimentariaRoute = location.pathname.includes('/nomina-alimentaria/')
   const isActivitiesMode = isEditing && location.pathname.endsWith('/actividades')
   const isPersonEditMode = isEditing && !isActivitiesMode
+  const shouldLoadActivities = !isPersonEditMode
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [formError, setFormError] = useState('')
@@ -191,7 +192,7 @@ export function SpaceNominaPersonFormPage() {
       try {
         const [gendersResult, activitiesResult, detailResult] = await Promise.all([
           listNominaGenders(spaceId),
-          listSpaceActivities(spaceId),
+          shouldLoadActivities ? listSpaceActivities(spaceId) : Promise.resolve([]),
           isEditing && nominaId ? getNominaPersonDetail(spaceId, nominaId) : Promise.resolve(null),
         ])
         if (!isMounted) {
@@ -240,7 +241,7 @@ export function SpaceNominaPersonFormPage() {
       isMounted = false
       setPageLoading(false)
     }
-  }, [isActivitiesMode, isEditing, nominaId, setPageLoading, spaceId])
+  }, [isActivitiesMode, isEditing, nominaId, setPageLoading, shouldLoadActivities, spaceId])
 
   function toggleActivitySlot(slotId: number) {
     setFormData((current) => {
@@ -337,7 +338,9 @@ export function SpaceNominaPersonFormPage() {
         payload.nombre = formData.nombre.trim()
         payload.apellido = formData.apellido.trim()
         payload.sexo_id = Number(formData.sexo_id)
-        payload.fecha_nacimiento = formData.fecha_nacimiento
+        if (formData.fecha_nacimiento) {
+          payload.fecha_nacimiento = formData.fecha_nacimiento
+        }
       } else if (!isEditing) {
         payload.dni = normalizedDni
       }
@@ -514,7 +517,7 @@ export function SpaceNominaPersonFormPage() {
             </div>
             <div className="grid gap-1">
               <label className={`text-[12px] font-semibold ${isDark ? 'text-white' : 'text-slate-700'}`}>
-                Fecha de nacimiento
+                Fecha de nacimiento (opcional)
               </label>
               <input
                 type="date"

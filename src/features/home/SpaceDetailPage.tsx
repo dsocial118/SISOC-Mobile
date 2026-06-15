@@ -149,6 +149,17 @@ export function SpaceDetailPage() {
     return date.toLocaleDateString('es-AR')
   }
 
+  function formatMonthPeriod(value: string | null | undefined): string {
+    if (!value) {
+      return 'pendiente'
+    }
+    const [year, month] = String(value).split('-')
+    if (!year || !month) {
+      return String(value)
+    }
+    return `${month}/${year}`
+  }
+
   function formatAddress(detail: SpaceDetail | null): string {
     if (!detail) {
       return 'Sin dato'
@@ -169,8 +180,22 @@ export function SpaceDetailPage() {
   const organizacion = spaceDetail?.organizacion
   const referente = spaceDetail?.referente
   const relevamientoActual = spaceDetail?.relevamiento_actual_mobile
-  const isAlimentarComunidad =
-    (spaceDetail?.programa?.nombre || '').trim().toLowerCase() === 'alimentar comunidad'
+  const normalizedProgramName = (spaceDetail?.programa?.nombre || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+  const hasPrestacionConformidad =
+    normalizedProgramName === 'alimentar comunidad'
+    || normalizedProgramName.includes('abordaje comunitario')
+  const allowCollaboratorsModule = !(
+    normalizedProgramName.includes('abordaje comunitario')
+    && normalizedProgramName.includes('linea secos')
+  )
+  const showSpaceReferenteModule = normalizedProgramName !== 'alimentar comunidad'
+  const hasPendingPrestacionConformidad = Boolean(
+    spaceDetail?.conformidad_prestacion_pendiente?.pendiente,
+  )
   const hasOrganizationData = Boolean(
     organizacion?.nombre
     || organizacion?.cuit
@@ -417,37 +442,39 @@ export function SpaceDetailPage() {
             )}
           </article>
 
-          <article
-            className="progressive-card rounded-[15px] border p-5"
-            style={{ ...cardStyle, ['--card-delay' as string]: '210ms' }}
-          >
-            <h2 className={`text-[16px] font-semibold ${textClass}`}>Datos del Referente del Espacio</h2>
+          {showSpaceReferenteModule ? (
+            <article
+              className="progressive-card rounded-[15px] border p-5"
+              style={{ ...cardStyle, ['--card-delay' as string]: '210ms' }}
+            >
+              <h2 className={`text-[16px] font-semibold ${textClass}`}>Datos del Referente del Espacio</h2>
 
-            <div className={`mt-3 space-y-1.5 text-sm ${detailTextClass}`}>
-              <p>
-                <span className={`font-semibold ${textClass}`}>Nombre:</span>{' '}
-                {displayValue(referente?.nombre)}
-              </p>
-              <p>
-                <span className={`font-semibold ${textClass}`}>Apellido:</span>{' '}
-                {displayValue(referente?.apellido)}
-              </p>
-              <p>
-                <span className={`font-semibold ${textClass}`}>DNI:</span>{' '}
-                {displayValue(referente?.documento ? String(referente.documento) : null)}
-              </p>
-              <p>
-                <span className={`font-semibold ${textClass}`}>Mail:</span>{' '}
-                {displayValue(referente?.mail)}
-              </p>
-              <p>
-                <span className={`font-semibold ${textClass}`}>Celular:</span>{' '}
-                {displayValue(referente?.celular ? String(referente.celular) : null)}
-              </p>
-            </div>
-          </article>
+              <div className={`mt-3 space-y-1.5 text-sm ${detailTextClass}`}>
+                <p>
+                  <span className={`font-semibold ${textClass}`}>Nombre:</span>{' '}
+                  {displayValue(referente?.nombre)}
+                </p>
+                <p>
+                  <span className={`font-semibold ${textClass}`}>Apellido:</span>{' '}
+                  {displayValue(referente?.apellido)}
+                </p>
+                <p>
+                  <span className={`font-semibold ${textClass}`}>DNI:</span>{' '}
+                  {displayValue(referente?.documento ? String(referente.documento) : null)}
+                </p>
+                <p>
+                  <span className={`font-semibold ${textClass}`}>Mail:</span>{' '}
+                  {displayValue(referente?.mail)}
+                </p>
+                <p>
+                  <span className={`font-semibold ${textClass}`}>Celular:</span>{' '}
+                  {displayValue(referente?.celular ? String(referente.celular) : null)}
+                </p>
+              </div>
+            </article>
+          ) : null}
 
-          {spaceId ? (
+          {spaceId && allowCollaboratorsModule ? (
             <CollaboratorsCard
               spaceId={spaceId}
               isDark={isDark}
@@ -551,7 +578,7 @@ export function SpaceDetailPage() {
             ) : null}
           </article>
 
-          {isAlimentarComunidad ? (
+          {hasPrestacionConformidad ? (
             <article
               className="progressive-card rounded-[15px] border p-5"
               style={{ ...cardStyle, ['--card-delay' as string]: '385ms' }}
@@ -588,7 +615,7 @@ export function SpaceDetailPage() {
             </article>
           ) : null}
 
-          {isAlimentarComunidad ? (
+          {hasPrestacionConformidad ? (
             <article
               className="progressive-card rounded-[15px] border p-5"
               style={{ ...cardStyle, ['--card-delay' as string]: '405ms' }}
@@ -620,6 +647,12 @@ export function SpaceDetailPage() {
                     <p className={`mt-1 text-xs ${detailTextClass}`}>
                       Consulta de prestaciones aprobadas y conformidad mensual.
                     </p>
+                    {hasPendingPrestacionConformidad ? (
+                      <div className="mt-3 rounded-xl border border-[#E7BA61] bg-[#E7BA61]/15 px-3 py-2 text-[12px] font-semibold text-[#E7BA61]">
+                        Falta conformar el periodo{' '}
+                        {formatMonthPeriod(spaceDetail?.conformidad_prestacion_pendiente?.periodo)}.
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 <span

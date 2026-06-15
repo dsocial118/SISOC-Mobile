@@ -99,10 +99,18 @@ export function SpaceMessageDetailPage() {
         if (detail.seccion === 'general') {
           markGeneralMessageReadInSpace(userProfile?.username, spaceId, detail.id)
           if (!detail.visto) {
-            notifySpaceUnreadMessagesUpdated(spaceId, Math.max(0, unreadCountRef.current - 1))
+            nextMessage = await markSpaceMessageAsSeen(spaceId, messageId)
+            if (!isMounted) {
+              return
+            }
+            notifySpaceUnreadMessagesUpdated(
+              spaceId,
+              Math.max(0, unreadCountRef.current - 1),
+              { organizationUnreadDelta: -1 },
+            )
           }
           setMessage({
-            ...detail,
+            ...nextMessage,
             visto: true,
           })
           return
@@ -112,7 +120,11 @@ export function SpaceMessageDetailPage() {
           if (!isMounted) {
             return
           }
-          notifySpaceUnreadMessagesUpdated(spaceId, Math.max(0, unreadCountRef.current - 1))
+          notifySpaceUnreadMessagesUpdated(
+            spaceId,
+            Math.max(0, unreadCountRef.current - 1),
+            { organizationUnreadDelta: -1 },
+          )
         }
 
         setMessage(nextMessage)

@@ -16,7 +16,7 @@ import {
 } from '../../api/activitiesApi'
 import { parseApiError } from '../../api/errorUtils'
 import { listSpaceNomina, updateNominaPerson, type NominaPerson } from '../../api/nominaApi'
-import { appButtonClass } from '../../ui/buttons'
+import { appButtonClass, joinClasses } from '../../ui/buttons'
 import { ConfirmActionModal } from '../../ui/ConfirmActionModal'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
@@ -201,6 +201,8 @@ export function SpaceActivityDetailPage() {
     dia_actividad: '',
     hora_inicio: '',
     hora_fin: '',
+    responsable_actividad: '',
+    vigencia_actividad_meses: '',
   })
 
   const cardStyle = isDark
@@ -219,7 +221,10 @@ export function SpaceActivityDetailPage() {
   const subCardClass = isDark ? 'border-white/20 bg-white/5' : 'border-slate-200 bg-white'
 
   const nominaById = useMemo(() => new Map(nominaRows.map((row) => [row.id, row])), [nominaRows])
-  const enrolledNominaSet = useMemo(() => new Set(enrollees.map((item) => item.nomina)), [enrollees])
+  const enrolledNominaSet = useMemo(
+    () => new Set(enrollees.filter((item) => item.activo).map((item) => item.nomina)),
+    [enrollees],
+  )
   const filteredNominaRows = useMemo(() => {
     const query = normalizeSearchValue(nominaSearchTerm)
     const numericQuery = nominaSearchTerm.replace(/\D/g, '')
@@ -278,6 +283,10 @@ export function SpaceActivityDetailPage() {
         dia_actividad: String(selected.dia_actividad),
         hora_inicio: normalizeTimeValue(selected.hora_inicio),
         hora_fin: normalizeTimeValue(selected.hora_fin),
+        responsable_actividad: selected.responsable_actividad || '',
+        vigencia_actividad_meses: selected.vigencia_actividad_meses
+          ? String(selected.vigencia_actividad_meses)
+          : '',
       })
     }
   }
@@ -400,6 +409,13 @@ export function SpaceActivityDetailPage() {
       setFormError('La hora de fin debe ser posterior a la hora de inicio.')
       return
     }
+    if (
+      editForm.vigencia_actividad_meses
+      && Number(editForm.vigencia_actividad_meses) < 1
+    ) {
+      setFormError('La vigencia debe ser mayor a 0 meses.')
+      return
+    }
     setSavingEdit(true)
     setFormError('')
     setErrorMessage('')
@@ -409,6 +425,10 @@ export function SpaceActivityDetailPage() {
         dia_actividad: Number(editForm.dia_actividad),
         hora_inicio: editForm.hora_inicio,
         hora_fin: editForm.hora_fin,
+        responsable_actividad: editForm.responsable_actividad.trim(),
+        vigencia_actividad_meses: editForm.vigencia_actividad_meses
+          ? Number(editForm.vigencia_actividad_meses)
+          : null,
       })
       await loadAll()
       setIsEditing(false)
@@ -432,7 +452,7 @@ export function SpaceActivityDetailPage() {
         state: routeState || undefined,
       })
     } catch (error) {
-      setErrorMessage(parseApiError(error, 'No se pudo eliminar la actividad.'))
+      setErrorMessage(parseApiError(error, 'No se pudo inactivar la actividad.'))
       setDeleting(false)
     }
   }
@@ -480,9 +500,24 @@ export function SpaceActivityDetailPage() {
             {formatDurationLabel(activity.hora_inicio, activity.hora_fin)}
           </p>
           <p>
+            <span className={`font-semibold ${textClass}`}>Responsable:</span>{' '}
+            {activity.responsable_actividad || 'Sin dato'}
+          </p>
+          <p>
+            <span className={`font-semibold ${textClass}`}>Vigencia:</span>{' '}
+            {activity.vigencia_actividad_meses
+              ? `${activity.vigencia_actividad_meses} meses`
+              : 'Sin dato'}
+          </p>
+          <p>
+            <span className={`font-semibold ${textClass}`}>Estado:</span>{' '}
+            {activity.activo ? 'Activa' : 'Inactiva'}
+          </p>
+          <p>
             <span className={`font-semibold ${textClass}`}>Inscriptos:</span> {enrollees.length}
           </p>
         </div>
+        {activity.activo ? (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -499,12 +534,13 @@ export function SpaceActivityDetailPage() {
             className={appButtonClass({ variant: 'danger', size: 'sm', fullWidth: true })}
             onClick={() => setShowDeleteConfirm(true)}
           >
-            Eliminar actividad
+            Inactivar actividad
           </button>
         </div>
+        ) : null}
       </article>
 
-      {isEditing ? (
+      {isEditing && activity.activo ? (
         <article className="min-w-0 rounded-xl border p-3 sm:p-4" style={cardStyle}>
           <p className={`text-[12px] font-semibold ${textClass}`}>Editar actividad</p>
           <div className="mt-3 grid min-w-0 gap-2">
@@ -544,6 +580,54 @@ export function SpaceActivityDetailPage() {
                 isDark={isDark}
               />
             </div>
+            <div className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-2">
+              <label className="grid min-w-0 gap-1">
+                <span className={`text-[11px] font-semibold ${textClass}`}>
+                  Responsable de actividad
+                </span>
+                <input
+                  type="text"
+                  value={editForm.responsable_actividad}
+                  onChange={(event) =>
+                    setEditForm((current) => ({
+                      ...current,
+                      responsable_actividad: event.target.value,
+                    }))
+                  }
+                  placeholder="Nombre y apellido"
+                  className={joinClasses(
+                    'min-h-[42px] rounded-lg border px-3 py-2 text-sm outline-none',
+                    isDark
+                      ? 'border-white/30 bg-[#1E2846] text-white placeholder:text-white/45'
+                      : 'border-slate-300 bg-white text-slate-700 placeholder:text-slate-400',
+                  )}
+                />
+              </label>
+              <label className="grid min-w-0 gap-1">
+                <span className={`text-[11px] font-semibold ${textClass}`}>
+                  Vigencia de actividad
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  value={editForm.vigencia_actividad_meses}
+                  onChange={(event) =>
+                    setEditForm((current) => ({
+                      ...current,
+                      vigencia_actividad_meses: event.target.value,
+                    }))
+                  }
+                  placeholder="Meses"
+                  className={joinClasses(
+                    'min-h-[42px] rounded-lg border px-3 py-2 text-sm outline-none',
+                    isDark
+                      ? 'border-white/30 bg-[#1E2846] text-white placeholder:text-white/45'
+                      : 'border-slate-300 bg-white text-slate-700 placeholder:text-slate-400',
+                  )}
+                />
+              </label>
+            </div>
             {formError ? (
               <div className="rounded-lg border border-[#F2B8B5] bg-[#7A1C1C]/50 p-2 text-xs text-white">
                 {formError}
@@ -565,7 +649,7 @@ export function SpaceActivityDetailPage() {
         <div className="flex items-center justify-between gap-2">
           <p className={`text-[12px] font-semibold ${textClass}`}>
             <FontAwesomeIcon icon={faUsers} aria-hidden="true" className="mr-2" />
-            Inscriptos
+            Historial de personas asociadas
           </p>
         </div>
         {enrollees.length === 0 ? (
@@ -582,15 +666,22 @@ export function SpaceActivityDetailPage() {
                     <p className={`mt-1 text-[12px] ${detailTextClass}`}>
                       DNI {item.dni || '-'} · {item.genero || '-'}
                     </p>
+                    {!item.activo ? (
+                      <p className="mt-1 text-[11px] font-semibold text-[#7A1C1C]">
+                        Baja histórica
+                      </p>
+                    ) : null}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void handleRemoveEnrollee(item.nomina)}
-                    disabled={savingBulk}
-                    className={appButtonClass({ variant: 'danger', size: 'sm' })}
-                  >
-                    Quitar
-                  </button>
+                  {activity.activo && item.activo ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleRemoveEnrollee(item.nomina)}
+                      disabled={savingBulk}
+                      className={appButtonClass({ variant: 'danger', size: 'sm' })}
+                    >
+                      Quitar
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -598,6 +689,7 @@ export function SpaceActivityDetailPage() {
         )}
       </article>
 
+      {activity.activo ? (
       <article className="rounded-xl border p-4" style={cardStyle}>
         <p className={`text-[12px] font-semibold ${textClass}`}>Agregar desde nómina</p>
         <label className="sr-only" htmlFor="nomina-activity-search">
@@ -675,12 +767,13 @@ export function SpaceActivityDetailPage() {
           {savingBulk ? 'Guardando...' : 'Guardar selección'}
         </button>
       </article>
+      ) : null}
 
       <ConfirmActionModal
         open={showDeleteConfirm}
-        title="Confirmar eliminación"
-        message={`Se va a eliminar la actividad "${activity.actividad}".`}
-        confirmLabel="Eliminar actividad"
+        title="Confirmar inactivacion"
+        message={`Se va a inactivar la actividad "${activity.actividad}". El historial de personas asociadas queda disponible.`}
+        confirmLabel="Inactivar actividad"
         loading={deleting}
         onCancel={() => setShowDeleteConfirm(false)}
         onConfirm={() => void handleDeleteActivity()}

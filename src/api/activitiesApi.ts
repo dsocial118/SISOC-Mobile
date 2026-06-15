@@ -22,6 +22,8 @@ export interface SpaceActivityItem {
   hora_inicio: string | null
   hora_fin: string | null
   horario_actividad: string
+  responsable_actividad: string
+  vigencia_actividad_meses: number | null
   cantidad_inscriptos: number
   activo: boolean
   fecha_alta: string
@@ -34,6 +36,8 @@ export interface SpaceActivityPayload {
   dia_actividad: number
   hora_inicio: string
   hora_fin: string
+  responsable_actividad?: string
+  vigencia_actividad_meses?: number | null
 }
 
 export interface SpaceActivityEnrollee {
@@ -44,6 +48,8 @@ export interface SpaceActivityEnrollee {
   dni: string
   genero: string
   fecha_nacimiento: string | null
+  activo: boolean
+  fecha_baja: string | null
 }
 
 export async function listActivityCatalog(spaceId: string | number): Promise<ActivityCatalogItem[]> {

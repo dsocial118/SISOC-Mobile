@@ -65,6 +65,7 @@ export function AppLayout({
   const isNominaRoute = /^\/app-org\/espacios\/\d+\/nomina\/?$/.test(location.pathname)
   const isActivitiesRoute = /^\/app-org\/espacios\/\d+\/actividades(?:\/nueva|\/\d+)?\/?$/.test(location.pathname)
   const isCursosRoute = /^\/app-org\/espacios\/\d+\/cursos\/?$/.test(location.pathname)
+  const isPrestacionesConveniadasRoute = /^\/app-org\/espacios\/\d+\/prestaciones-conveniadas\/?$/.test(location.pathname)
   const isOrgSpacesHomeRoute = roleLabel === 'Organización' && /^\/app-org\/?$/.test(location.pathname)
   const isOrgMessagesHomeRoute =
     roleLabel === 'Organización' && /^\/app-org\/mensajes\/?$/.test(location.pathname)
@@ -135,6 +136,7 @@ export function AppLayout({
           ? headerState?.spaceName || 'Espacio'
         : isOrgSpaceScopedRoute
           ? isInstitutionalRoute
+            || isPrestacionesConveniadasRoute
             ? headerState?.programName || 'Programa sin definir'
               : ''
             : isSyncRoute

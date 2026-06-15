@@ -124,6 +124,10 @@ export interface SpaceDetail {
     personas_conveniadas?: number | null
     cantidad_modulos?: number | null
   } | null
+  conformidad_prestacion_pendiente?: {
+    pendiente: boolean
+    periodo: string | null
+  } | null
   _source?: 'network' | 'cache'
 }
 
