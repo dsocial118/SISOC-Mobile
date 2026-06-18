@@ -132,6 +132,13 @@ export function SpaceDetailPage() {
     return new Intl.NumberFormat('es-AR').format(value)
   }
 
+  function displayWeeklyFromMonthly(value: number | null | undefined): string {
+    if (value === null || value === undefined) {
+      return 'Sin dato'
+    }
+    return displayNumber(Math.ceil(value / 4))
+  }
+
   function formatDate(value: string | number | null | undefined): string {
     if (!value) {
       return 'Sin dato'
@@ -514,8 +521,8 @@ export function SpaceDetailPage() {
                   {spaceDetail.datos_convenio_mobile.vigencia_convenio_meses || 6} meses
                 </p>
                 <p>
-                  <span className={`font-semibold ${textClass}`}>Prestaciones GESCOM:</span>{' '}
-                  {displayNumber(
+                  <span className={`font-semibold ${textClass}`}>Prestaciones semanales:</span>{' '}
+                  {displayWeeklyFromMonthly(
                     spaceDetail.datos_convenio_mobile.prestaciones_mensuales
                     ?? spaceDetail.datos_convenio_mobile.prestaciones_gescom_total_mensual
                     ?? null,
