@@ -1,17 +1,5 @@
 import axios, { type AxiosError } from 'axios'
-
-function fixMojibake(value: string): string {
-  if (!/[\u00C3\u00C2][\u0080-\u00FF]/.test(value)) {
-    return value
-  }
-  try {
-    const bytes = Uint8Array.from(value, (char) => char.charCodeAt(0) & 0xff)
-    const decoded = new TextDecoder('utf-8', { fatal: false }).decode(bytes)
-    return decoded || value
-  } catch {
-    return value
-  }
-}
+import { fixMojibake } from './mojibake'
 
 function looksLikeHtmlDocument(value: string): boolean {
   const normalized = value.trim().toLowerCase()
