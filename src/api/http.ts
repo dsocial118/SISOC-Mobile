@@ -6,6 +6,7 @@ import axios, {
 } from 'axios'
 import { clearSession, getSession } from '../auth/session'
 import { db } from '../db/database'
+import { fixMojibake } from './mojibake'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
@@ -57,26 +58,9 @@ export const http = axios.create({
   timeout: 15000,
 })
 
-function looksLikeMojibake(value: string): boolean {
-  return /[ÃÂ][\u0080-\u00FF]/.test(value)
-}
-
-function tryFixMojibake(value: string): string {
-  if (!looksLikeMojibake(value)) {
-    return value
-  }
-  try {
-    const bytes = Uint8Array.from(value, (char) => char.charCodeAt(0) & 0xff)
-    const decoded = new TextDecoder('utf-8', { fatal: false }).decode(bytes)
-    return decoded || value
-  } catch {
-    return value
-  }
-}
-
 function sanitizeMojibake<T>(value: T): T {
   if (typeof value === 'string') {
-    return tryFixMojibake(value) as T
+    return fixMojibake(value) as T
   }
   if (
     value instanceof Blob
