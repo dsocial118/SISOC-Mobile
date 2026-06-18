@@ -529,11 +529,9 @@ export function SpaceDetailPage() {
                   )}
                 </p>
                 <p>
-                  <span className={`font-semibold ${textClass}`}>Monto total del convenio:</span>{' '}
+                  <span className={`font-semibold ${textClass}`}>Monto mensual de prestaciones:</span>{' '}
                   {displayNumber(
-                    spaceDetail.datos_convenio_mobile.monto_prestacion_mensual
-                    ?? spaceDetail.datos_convenio_mobile.monto_total_convenio
-                    ?? null,
+                    spaceDetail.datos_convenio_mobile.monto_prestacion_mensual ?? null,
                   )}
                 </p>
               </div>
