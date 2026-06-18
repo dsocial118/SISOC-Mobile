@@ -139,6 +139,20 @@ export function SpaceDetailPage() {
     return displayNumber(Math.ceil(value / 4))
   }
 
+  function displayMonthlyAmount(
+    monthly: number | null | undefined,
+    total: number | null | undefined,
+  ): string {
+    if (monthly !== null && monthly !== undefined) {
+      return displayNumber(monthly)
+    }
+    if (total !== null && total !== undefined) {
+      // Respaldo: no hay monto mensual, se muestra el total aclarándolo.
+      return `${displayNumber(total)} (total del convenio)`
+    }
+    return 'Sin dato'
+  }
+
   function formatDate(value: string | number | null | undefined): string {
     if (!value) {
       return 'Sin dato'
@@ -529,11 +543,10 @@ export function SpaceDetailPage() {
                   )}
                 </p>
                 <p>
-                  <span className={`font-semibold ${textClass}`}>Monto total del convenio:</span>{' '}
-                  {displayNumber(
-                    spaceDetail.datos_convenio_mobile.monto_prestacion_mensual
-                    ?? spaceDetail.datos_convenio_mobile.monto_total_convenio
-                    ?? null,
+                  <span className={`font-semibold ${textClass}`}>Monto mensual de prestaciones:</span>{' '}
+                  {displayMonthlyAmount(
+                    spaceDetail.datos_convenio_mobile.monto_prestacion_mensual,
+                    spaceDetail.datos_convenio_mobile.monto_total_convenio,
                   )}
                 </p>
               </div>
