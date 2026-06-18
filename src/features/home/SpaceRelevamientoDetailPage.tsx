@@ -36,7 +36,7 @@ export function SpaceRelevamientoDetailPage() {
     async function loadDetail() {
       setPageLoading(true)
       if (!spaceId) {
-        setErrorMessage('No se encontr? el espacio.')
+        setErrorMessage('No se encontró el espacio.')
         setLoading(false)
         setPageLoading(false)
         return
