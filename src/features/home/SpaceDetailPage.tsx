@@ -7,6 +7,7 @@ import {
   faClipboardCheck,
   faSpinner,
   faTrash,
+  faUserPlus,
 } from '@fortawesome/free-solid-svg-icons'
 import {
   deleteSpaceImage,
@@ -22,6 +23,11 @@ import { CollaboratorsCard } from './CollaboratorsCard'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
 import { joinClasses } from '../../ui/buttons'
+import { useAuth } from '../../auth/useAuth'
+import {
+  PWA_COLABORADORES_PERMISSION,
+  PWA_USUARIOS_PERMISSION,
+} from '../../auth/permissionCodes'
 
 export function SpaceDetailPage() {
   const { spaceId } = useParams<{ spaceId: string }>()
@@ -29,6 +35,7 @@ export function SpaceDetailPage() {
   const location = useLocation()
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
+  const { userProfile } = useAuth()
   const [spaceDetail, setSpaceDetail] = useState<SpaceDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
@@ -217,6 +224,10 @@ export function SpaceDetailPage() {
   const imageItems = rawImageItems.filter((item) => String(item.origen || '').toLowerCase() === 'mobile')
   const visibleImageCount = Math.min(imageItems.length, 3)
   const canUploadMorePhotos = visibleImageCount < 3
+  const canManageCollaborators = Boolean(
+    userProfile?.permissions?.includes(PWA_COLABORADORES_PERMISSION),
+  )
+  const canManageUsers = Boolean(userProfile?.permissions?.includes(PWA_USUARIOS_PERMISSION))
 
   async function handlePhotoSelection(picker: () => Promise<SelectedPhoto | null>) {
     if (!spaceId || uploadingPhoto || !canUploadMorePhotos) {
@@ -482,7 +493,50 @@ export function SpaceDetailPage() {
               textClass={textClass}
               detailTextClass={detailTextClass}
               subCardClass={subCardClass}
+              canManage={canManageCollaborators}
             />
+          ) : null}
+
+          {spaceId && canManageUsers ? (
+            <article
+              className="progressive-card rounded-[15px] border p-5"
+              style={{ ...cardStyle, ['--card-delay' as string]: '260ms' }}
+              role="button"
+              tabIndex={0}
+              onClick={() =>
+                navigate(`/app-org/espacios/${spaceId}/informacion/usuarios`, {
+                  state: location.state,
+                })
+              }
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  navigate(`/app-org/espacios/${spaceId}/informacion/usuarios`, {
+                    state: location.state,
+                  })
+                }
+              }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className={`mt-0.5 ${isDark ? 'text-white/85' : 'text-slate-700'}`}>
+                    <FontAwesomeIcon icon={faUserPlus} aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className={`text-[16px] font-semibold ${textClass}`}>Usuarios PWA</h2>
+                    <p className={`mt-1 text-xs ${detailTextClass}`}>
+                      Alta y baja de subusuarios asignados al espacio.
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className={`inline-flex items-center justify-center ${isDark ? 'text-white/85' : 'text-slate-700'}`}
+                  aria-hidden="true"
+                >
+                  <FontAwesomeIcon icon={faChevronRight} aria-hidden="true" />
+                </span>
+              </div>
+            </article>
           ) : null}
 
           <article

@@ -278,7 +278,7 @@ export function OrganizationNotificationsPage() {
         }
 
         const rejectedRows = certificateResponses.flatMap(({ space, rows }) =>
-          rows
+          rows.results
             .filter((row) => row.estado === 'rechazado')
             .map((row) => ({
               id: `cert-${space.id}-${row.id}`,

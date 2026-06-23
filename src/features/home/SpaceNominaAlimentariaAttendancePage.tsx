@@ -135,7 +135,9 @@ export function SpaceNominaAlimentariaAttendancePage() {
           spaceName: routeState?.spaceName,
           attendanceToast: {
             tone: 'success',
-            message: `Se guardó la asistencia de beneficiarios del período ${result.periodo_label}.`,
+            message: result.nomina_destinatarios_documento
+              ? `Se guardó la asistencia del período ${result.periodo_label} y se generó el PDF de nómina.`
+              : `Se guardó la asistencia de beneficiarios del período ${result.periodo_label}.`,
           },
         },
       })

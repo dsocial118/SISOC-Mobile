@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
+  faArrowUpRightFromSquare,
   faCamera,
   faFileArrowUp,
   faFilePdf,
@@ -13,6 +14,7 @@ import {
   deleteSpaceCapacitacionCertificado,
   listSpaceCapacitaciones,
   uploadSpaceCapacitacionCertificado,
+  type CapacitacionesResponse,
   type CapacitacionCertificadoItem,
 } from '../../api/capacitacionesApi'
 import { parseApiError } from '../../api/errorUtils'
@@ -63,6 +65,8 @@ export function SpaceCapacitacionesPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [enabled, setEnabled] = useState(true)
   const [items, setItems] = useState<CapacitacionCertificadoItem[]>([])
+  const [formandoCapitalHumano, setFormandoCapitalHumano] =
+    useState<CapacitacionesResponse['formando_capital_humano']>(null)
   const [selectedFiles, setSelectedFiles] = useState<Record<number, SelectedCertificateDraft | null>>({})
   const [uploadingId, setUploadingId] = useState<number | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -111,14 +115,16 @@ export function SpaceCapacitacionesPage() {
           }
           setEnabled(false)
           setItems([])
+          setFormandoCapitalHumano(null)
           return
         }
         setEnabled(true)
-        const rows = await listSpaceCapacitaciones(spaceId)
+        const response = await listSpaceCapacitaciones(spaceId)
         if (!isMounted) {
           return
         }
-        setItems(rows)
+        setItems(response.results)
+        setFormandoCapitalHumano(response.formando_capital_humano)
       } catch (error) {
         if (!isMounted) {
           return
@@ -291,6 +297,22 @@ export function SpaceCapacitacionesPage() {
           {routeState?.spaceName ? `${routeState.spaceName} · ` : ''}
           Carga de certificados por capacitacion.
         </p>
+        {formandoCapitalHumano ? (
+          <a
+            href={formandoCapitalHumano.url}
+            target="_blank"
+            rel="noreferrer"
+            className={joinClasses(
+              'mt-3 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold',
+              isDark
+                ? 'bg-white/10 text-white hover:bg-white/15'
+                : 'bg-[#232D4F] text-white hover:bg-[#1E2846]',
+            )}
+          >
+            <FontAwesomeIcon icon={faArrowUpRightFromSquare} aria-hidden="true" />
+            {formandoCapitalHumano.label}
+          </a>
+        ) : null}
       </article>
 
       {!enabled ? (

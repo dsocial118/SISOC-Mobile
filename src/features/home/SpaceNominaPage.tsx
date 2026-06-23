@@ -26,6 +26,8 @@ import { AppToast } from '../../ui/AppToast'
 import { appButtonClass } from '../../ui/buttons'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
+import { useAuth } from '../../auth/useAuth'
+import { PWA_NOMINA_PERMISSION } from '../../auth/permissionCodes'
 
 const EMPTY_STATS: NominaStats = {
   total_nomina: 0,
@@ -57,6 +59,7 @@ export function SpaceNominaPage() {
   const { spaceId } = useParams<{ spaceId: string }>()
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
+  const { userProfile } = useAuth()
   const routeState =
     (location.state as {
       spaceName?: string
@@ -94,6 +97,9 @@ export function SpaceNominaPage() {
         boxShadow: '4px 4px 4px rgba(0, 0, 0, 0.25)',
       }
   const filteredRows = useMemo(() => rows, [rows])
+  const canManageNomina = Boolean(
+    userProfile?.permissions?.includes(PWA_NOMINA_PERMISSION),
+  )
 
   useEffect(() => {
     const incomingToast = routeState?.successToast
@@ -238,37 +244,41 @@ export function SpaceNominaPage() {
         ) : null}
       </div>
 
-      <button
-        type="button"
-        onClick={() =>
-          navigate(`/app-org/espacios/${spaceId}/nomina/nueva`, {
-            state: {
-              spaceName: routeState?.spaceName,
-              defaultMode: tab === 'formacion' ? 'formacion' : 'alimentaria',
-            },
-          })
-        }
-        className={appButtonClass({ variant: 'success', size: 'md', fullWidth: true })}
-      >
-        <FontAwesomeIcon icon={faUserPlus} aria-hidden="true" />
-        Agregar persona
-      </button>
-
-      <div className="grid grid-cols-2 gap-2">
+      {canManageNomina ? (
         <button
           type="button"
           onClick={() =>
-            navigate(`/app-org/espacios/${spaceId}/nomina-alimentaria/asistencia`, {
+            navigate(`/app-org/espacios/${spaceId}/nomina/nueva`, {
               state: {
                 spaceName: routeState?.spaceName,
+                defaultMode: tab === 'formacion' ? 'formacion' : 'alimentaria',
               },
             })
           }
-          className={appButtonClass({ variant: 'outline-secondary', size: 'md' })}
+          className={appButtonClass({ variant: 'success', size: 'md', fullWidth: true })}
         >
-          <FontAwesomeIcon icon={faSquareCheck} aria-hidden="true" />
-          Asistencia
+          <FontAwesomeIcon icon={faUserPlus} aria-hidden="true" />
+          Agregar persona
         </button>
+      ) : null}
+
+      <div className={canManageNomina ? 'grid grid-cols-2 gap-2' : 'grid gap-2'}>
+        {canManageNomina ? (
+          <button
+            type="button"
+            onClick={() =>
+              navigate(`/app-org/espacios/${spaceId}/nomina-alimentaria/asistencia`, {
+                state: {
+                  spaceName: routeState?.spaceName,
+                },
+              })
+            }
+            className={appButtonClass({ variant: 'outline-secondary', size: 'md' })}
+          >
+            <FontAwesomeIcon icon={faSquareCheck} aria-hidden="true" />
+            Asistencia
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() =>

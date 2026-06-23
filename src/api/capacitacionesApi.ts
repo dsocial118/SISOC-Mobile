@@ -16,20 +16,40 @@ export interface CapacitacionCertificadoItem {
   fecha_revision: string | null
   presentado_por: string | null
   revisado_por: string | null
+  origen?: 'capacitacion' | 'intervencion'
+  intervencion_id?: number | null
+  fecha_origen?: string | null
+}
+
+export interface CapacitacionesResponse {
+  formando_capital_humano: {
+    label: string
+    url: string
+  } | null
+  results: CapacitacionCertificadoItem[]
 }
 
 export async function listSpaceCapacitaciones(
   spaceId: string | number,
-): Promise<CapacitacionCertificadoItem[]> {
+): Promise<CapacitacionesResponse> {
   try {
-    const { data } = await http.get<CapacitacionCertificadoItem[]>(
+    const { data } = await http.get<CapacitacionCertificadoItem[] | CapacitacionesResponse>(
       `/comedores/${spaceId}/capacitaciones/`,
       { timeout: 60000 },
     )
+    if (Array.isArray(data)) {
+      return {
+        formando_capital_humano: null,
+        results: data,
+      }
+    }
     return data
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) {
-      return []
+      return {
+        formando_capital_humano: null,
+        results: [],
+      }
     }
     throw error
   }

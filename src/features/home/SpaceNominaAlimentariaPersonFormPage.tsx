@@ -25,6 +25,7 @@ type FormState = {
   es_indocumentado: boolean
   pertenece_comunidad_indigena: boolean
   situacion_calle: boolean
+  persona_con_celiaquia: boolean
 }
 
 const EMPTY_FORM: FormState = {
@@ -36,6 +37,7 @@ const EMPTY_FORM: FormState = {
   es_indocumentado: false,
   pertenece_comunidad_indigena: false,
   situacion_calle: false,
+  persona_con_celiaquia: false,
 }
 
 function formatLatinDate(rawDate: string | null | undefined): string {
@@ -169,6 +171,7 @@ export function SpaceNominaAlimentariaPersonFormPage() {
         es_indocumentado: formData.es_indocumentado,
         pertenece_comunidad_indigena: formData.pertenece_comunidad_indigena,
         situacion_calle: formData.situacion_calle,
+        persona_con_celiaquia: formData.persona_con_celiaquia,
       }
 
       if (formData.es_indocumentado) {
@@ -396,6 +399,19 @@ export function SpaceNominaAlimentariaPersonFormPage() {
                 }
               />
               Está en situación de calle
+            </label>
+            <label className={`flex items-start gap-2 text-xs ${detailTextClass}`}>
+              <input
+                type="checkbox"
+                checked={formData.persona_con_celiaquia}
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    persona_con_celiaquia: event.target.checked,
+                  }))
+                }
+              />
+              Persona con Celiaquía
             </label>
           </div>
         ) : null}

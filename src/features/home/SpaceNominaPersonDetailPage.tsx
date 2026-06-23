@@ -24,6 +24,8 @@ import { AppToast } from '../../ui/AppToast'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
 import { getNominaAttendancePeriod } from './attendancePeriod'
+import { useAuth } from '../../auth/useAuth'
+import { PWA_NOMINA_PERMISSION } from '../../auth/permissionCodes'
 
 function formatLatinDate(rawDate: string | null | undefined): string {
   const value = (rawDate || '').trim()
@@ -118,6 +120,7 @@ export function SpaceNominaPersonDetailPage() {
   const location = useLocation()
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
+  const { userProfile } = useAuth()
   const routeState =
     (location.state as { spaceName?: string; personName?: string } | null) ?? null
 
@@ -132,6 +135,9 @@ export function SpaceNominaPersonDetailPage() {
   const attendancePeriod = getNominaAttendancePeriod()
   const [showAttendanceNotice, setShowAttendanceNotice] = useState(attendancePeriod.isOpeningDay)
   const currentPeriodLabel = attendancePeriod.periodLabel || getCurrentPeriodLabel()
+  const canManageNomina = Boolean(
+    userProfile?.permissions?.includes(PWA_NOMINA_PERMISSION),
+  )
 
   useEffect(() => {
     let isMounted = true
@@ -184,7 +190,7 @@ export function SpaceNominaPersonDetailPage() {
   }, [nominaId, setPageLoading, spaceId])
 
   async function handleRegisterAttendance() {
-    if (!spaceId || !nominaId || !person) {
+    if (!canManageNomina || !spaceId || !nominaId || !person) {
       return
     }
     setSavingAttendance(true)
@@ -205,7 +211,7 @@ export function SpaceNominaPersonDetailPage() {
   }
 
   async function handleDeletePerson() {
-    if (!spaceId || !nominaId || !person || deletingPerson) {
+    if (!canManageNomina || !spaceId || !nominaId || !person || deletingPerson) {
       return
     }
 
@@ -309,22 +315,28 @@ export function SpaceNominaPersonDetailPage() {
           <p>
             Situación de calle: <span className="font-semibold">{person.situacion_calle ? 'Sí' : 'No'}</span>
           </p>
+          <p>
+            Persona con Celiaquía:{' '}
+            <span className="font-semibold">{person.persona_con_celiaquia ? 'Sí' : 'No'}</span>
+          </p>
         </div>
-        <div className="mt-3 flex justify-end">
-          <button
-            type="button"
-            onClick={() =>
-              navigate(`/app-org/espacios/${spaceId}/nomina/${nominaId}/editar`, {
-                state: {
-                  spaceName: routeState?.spaceName,
-                },
-              })
-            }
-            className={appButtonClass({ variant: 'outline-secondary', size: 'sm' })}
-          >
-            Editar datos sociales
-          </button>
-        </div>
+        {canManageNomina ? (
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={() =>
+                navigate(`/app-org/espacios/${spaceId}/nomina/${nominaId}/editar`, {
+                  state: {
+                    spaceName: routeState?.spaceName,
+                  },
+                })
+              }
+              className={appButtonClass({ variant: 'outline-secondary', size: 'sm' })}
+            >
+              Editar datos sociales
+            </button>
+          </div>
+        ) : null}
       </article>
 
       <article className="rounded-xl border p-4" style={cardStyle}>
@@ -353,38 +365,40 @@ export function SpaceNominaPersonDetailPage() {
               </p>
             )}
           </div>
-          <button
-            type="button"
-            disabled={
-              Boolean(person.asistencia_mes_actual)
-              || savingAttendance
-              || !attendancePeriod.isEnabled
-            }
-            onClick={() => void handleRegisterAttendance()}
-            aria-label={
-              !attendancePeriod.isEnabled
-                ? 'Asistencia mensual no habilitada'
-                : person.asistencia_mes_actual
-                ? 'Asistencia mensual ya tomada'
-                : 'Tomar asistencia'
-            }
-            className={joinClasses(
-              person.asistencia_mes_actual
-                ? appButtonClass({ variant: 'success', size: 'sm' })
-                : appButtonClass({ variant: 'primary', size: 'sm' }),
-              person.asistencia_mes_actual ? 'h-9 w-9 rounded-full p-0' : undefined,
-            )}
-          >
-            {savingAttendance ? (
-              'Guardando...'
-            ) : !attendancePeriod.isEnabled ? (
-              'No habilitada'
-            ) : person.asistencia_mes_actual ? (
-              <FontAwesomeIcon icon={faCheck} aria-hidden="true" />
-            ) : (
-              'Tomar asistencia'
-            )}
-          </button>
+          {canManageNomina ? (
+            <button
+              type="button"
+              disabled={
+                Boolean(person.asistencia_mes_actual)
+                || savingAttendance
+                || !attendancePeriod.isEnabled
+              }
+              onClick={() => void handleRegisterAttendance()}
+              aria-label={
+                !attendancePeriod.isEnabled
+                  ? 'Asistencia mensual no habilitada'
+                  : person.asistencia_mes_actual
+                  ? 'Asistencia mensual ya tomada'
+                  : 'Tomar asistencia'
+              }
+              className={joinClasses(
+                person.asistencia_mes_actual
+                  ? appButtonClass({ variant: 'success', size: 'sm' })
+                  : appButtonClass({ variant: 'primary', size: 'sm' }),
+                person.asistencia_mes_actual ? 'h-9 w-9 rounded-full p-0' : undefined,
+              )}
+            >
+              {savingAttendance ? (
+                'Guardando...'
+              ) : !attendancePeriod.isEnabled ? (
+                'No habilitada'
+              ) : person.asistencia_mes_actual ? (
+                <FontAwesomeIcon icon={faCheck} aria-hidden="true" />
+              ) : (
+                'Tomar asistencia'
+              )}
+            </button>
+          ) : null}
         </div>
       </article>
 
@@ -409,19 +423,21 @@ export function SpaceNominaPersonDetailPage() {
       <article className="rounded-xl border p-4" style={cardStyle}>
         <div className="flex items-start justify-between gap-3">
           <p className={`text-[12px] font-semibold ${textClass}`}>Actividades vinculadas</p>
-          <button
-            type="button"
-            onClick={() =>
-              navigate(`/app-org/espacios/${spaceId}/nomina/${nominaId}/actividades`, {
-                state: {
-                  spaceName: routeState?.spaceName,
-                },
-              })
-            }
-            className={appButtonClass({ variant: 'outline-secondary', size: 'sm' })}
-          >
-            Editar actividades
-          </button>
+          {canManageNomina ? (
+            <button
+              type="button"
+              onClick={() =>
+                navigate(`/app-org/espacios/${spaceId}/nomina/${nominaId}/actividades`, {
+                  state: {
+                    spaceName: routeState?.spaceName,
+                  },
+                })
+              }
+              className={appButtonClass({ variant: 'outline-secondary', size: 'sm' })}
+            >
+              Editar actividades
+            </button>
+          ) : null}
         </div>
         {person.actividades.length === 0 ? (
           <p className={`mt-2 text-[12px] ${detailTextClass}`}>Sin actividades vinculadas.</p>
@@ -530,29 +546,33 @@ export function SpaceNominaPersonDetailPage() {
         ) : null}
       </article>
 
-      <button
-        type="button"
-        onClick={() => setShowDeleteConfirm(true)}
-        disabled={deletingPerson}
-        className={joinClasses(
-          appButtonClass({ variant: 'danger', size: 'lg', fullWidth: true }),
-          'mt-1',
-        )}
-      >
-        <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
-        {deletingPerson ? 'Dando de baja...' : 'Dar de baja de beneficiarios'}
-      </button>
-      <ConfirmActionModal
-        open={showDeleteConfirm}
-        title="Confirmar baja de beneficiarios"
-        message={
-          person ? `Se va a dar de baja a ${person.apellido}, ${person.nombre} de beneficiarios.` : ''
-        }
-        confirmLabel="Dar de baja"
-        loading={deletingPerson}
-        onCancel={() => setShowDeleteConfirm(false)}
-        onConfirm={() => void handleDeletePerson()}
-      />
+      {canManageNomina ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={deletingPerson}
+            className={joinClasses(
+              appButtonClass({ variant: 'danger', size: 'lg', fullWidth: true }),
+              'mt-1',
+            )}
+          >
+            <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
+            {deletingPerson ? 'Dando de baja...' : 'Dar de baja de beneficiarios'}
+          </button>
+          <ConfirmActionModal
+            open={showDeleteConfirm}
+            title="Confirmar baja de beneficiarios"
+            message={
+              person ? `Se va a dar de baja a ${person.apellido}, ${person.nombre} de beneficiarios.` : ''
+            }
+            confirmLabel="Dar de baja"
+            loading={deletingPerson}
+            onCancel={() => setShowDeleteConfirm(false)}
+            onConfirm={() => void handleDeletePerson()}
+          />
+        </>
+      ) : null}
     </section>
   )
 }

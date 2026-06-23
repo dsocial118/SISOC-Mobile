@@ -16,6 +16,8 @@ import { AppToast } from '../../ui/AppToast'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
 import { appButtonClass, joinClasses } from '../../ui/buttons'
+import { useAuth } from '../../auth/useAuth'
+import { PWA_NOMINA_PERMISSION } from '../../auth/permissionCodes'
 
 function formatLatinDate(rawDate: string | null | undefined): string {
   const value = (rawDate || '').trim()
@@ -54,6 +56,7 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
   const location = useLocation()
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
+  const { userProfile } = useAuth()
   const routeState =
     (location.state as { spaceName?: string; personName?: string } | null) ?? null
 
@@ -68,6 +71,9 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
   const [showAllAsistencias, setShowAllAsistencias] = useState(false)
   const [showAllObservaciones, setShowAllObservaciones] = useState(false)
   const [toast, setToast] = useState<{ tone: 'success' | 'error'; message: string } | null>(null)
+  const canManageNomina = Boolean(
+    userProfile?.permissions?.includes(PWA_NOMINA_PERMISSION),
+  )
 
   useEffect(() => {
     let isMounted = true
@@ -122,7 +128,7 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
   }, [nominaId, setPageLoading, spaceId])
 
   async function handleDeletePerson() {
-    if (!spaceId || !nominaId || !person || deletingPerson) {
+    if (!canManageNomina || !spaceId || !nominaId || !person || deletingPerson) {
       return
     }
 
@@ -144,7 +150,7 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
   }
 
   async function handleSaveObservaciones() {
-    if (!spaceId || !nominaId || !person || savingObservaciones) {
+    if (!canManageNomina || !spaceId || !nominaId || !person || savingObservaciones) {
       return
     }
     const nextObservacion = observacionesDraft.trim()
@@ -248,22 +254,28 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
           <p>
             Situación de calle: <span className="font-semibold">{person.situacion_calle ? 'Sí' : 'No'}</span>
           </p>
+          <p>
+            Persona con Celiaquía:{' '}
+            <span className="font-semibold">{person.persona_con_celiaquia ? 'Sí' : 'No'}</span>
+          </p>
         </div>
-        <div className="mt-3 flex justify-end">
-          <button
-            type="button"
-            onClick={() =>
-              navigate(`/app-org/espacios/${spaceId}/nomina-alimentaria/${nominaId}/editar`, {
-                state: {
-                  spaceName: routeState?.spaceName,
-                },
-              })
-            }
-            className={appButtonClass({ variant: 'outline-secondary', size: 'sm' })}
-          >
-            Editar datos sociales
-          </button>
-        </div>
+        {canManageNomina ? (
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={() =>
+                navigate(`/app-org/espacios/${spaceId}/nomina-alimentaria/${nominaId}/editar`, {
+                  state: {
+                    spaceName: routeState?.spaceName,
+                  },
+                })
+              }
+              className={appButtonClass({ variant: 'outline-secondary', size: 'sm' })}
+            >
+              Editar datos sociales
+            </button>
+          </div>
+        ) : null}
       </article>
 
       <article className="rounded-xl border p-4" style={cardStyle}>
@@ -307,30 +319,34 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
 
       <article className="rounded-xl border p-4" style={cardStyle}>
         <p className={`text-[12px] font-semibold ${textClass}`}>Observaciones</p>
-        <textarea
-          value={observacionesDraft}
-          onChange={(event) => setObservacionesDraft(event.target.value)}
-          rows={4}
-          className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
-            isDark
-              ? 'border-white/20 bg-white/10 text-white placeholder:text-white/60'
-              : 'border-slate-300 bg-white text-slate-700 placeholder:text-slate-400'
-          }`}
-          placeholder="Agregar nueva observación"
-        />
-        <div className="mt-3 flex justify-end">
-          <button
-            type="button"
-            onClick={() => void handleSaveObservaciones()}
-            disabled={savingObservaciones || !observacionesDraft.trim()}
-            className={joinClasses(
-              appButtonClass({ variant: 'success', size: 'sm' }),
-              savingObservaciones ? 'cursor-not-allowed opacity-60' : undefined,
-            )}
-          >
-            {savingObservaciones ? 'Guardando...' : 'Agregar observación'}
-          </button>
-        </div>
+        {canManageNomina ? (
+          <>
+            <textarea
+              value={observacionesDraft}
+              onChange={(event) => setObservacionesDraft(event.target.value)}
+              rows={4}
+              className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
+                isDark
+                  ? 'border-white/20 bg-white/10 text-white placeholder:text-white/60'
+                  : 'border-slate-300 bg-white text-slate-700 placeholder:text-slate-400'
+              }`}
+              placeholder="Agregar nueva observación"
+            />
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => void handleSaveObservaciones()}
+                disabled={savingObservaciones || !observacionesDraft.trim()}
+                className={joinClasses(
+                  appButtonClass({ variant: 'success', size: 'sm' }),
+                  savingObservaciones ? 'cursor-not-allowed opacity-60' : undefined,
+                )}
+              >
+                {savingObservaciones ? 'Guardando...' : 'Agregar observación'}
+              </button>
+            </div>
+          </>
+        ) : null}
 
         {observacionesHistorial.length > 0 ? (
           <div className={`mt-3 grid gap-2 ${showAllObservaciones ? 'max-h-52 overflow-y-auto pr-1' : ''}`}>
@@ -364,29 +380,33 @@ export function SpaceNominaAlimentariaPersonDetailPage() {
         ) : null}
       </article>
 
-      <button
-        type="button"
-        onClick={() => setShowDeleteConfirm(true)}
-        disabled={deletingPerson}
-        className={joinClasses(
-          'mt-1',
-          appButtonClass({ variant: 'danger', size: 'lg', fullWidth: true }),
-        )}
-      >
-        <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
-        {deletingPerson ? 'Dando de baja...' : 'Dar de baja de beneficiarios'}
-      </button>
-      <ConfirmActionModal
-        open={showDeleteConfirm}
-        title="Confirmar baja de beneficiarios"
-        message={
-          person ? `Se va a dar de baja a ${person.apellido}, ${person.nombre} de beneficiarios.` : ''
-        }
-        confirmLabel="Dar de baja"
-        loading={deletingPerson}
-        onCancel={() => setShowDeleteConfirm(false)}
-        onConfirm={() => void handleDeletePerson()}
-      />
+      {canManageNomina ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={deletingPerson}
+            className={joinClasses(
+              'mt-1',
+              appButtonClass({ variant: 'danger', size: 'lg', fullWidth: true }),
+            )}
+          >
+            <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
+            {deletingPerson ? 'Dando de baja...' : 'Dar de baja de beneficiarios'}
+          </button>
+          <ConfirmActionModal
+            open={showDeleteConfirm}
+            title="Confirmar baja de beneficiarios"
+            message={
+              person ? `Se va a dar de baja a ${person.apellido}, ${person.nombre} de beneficiarios.` : ''
+            }
+            confirmLabel="Dar de baja"
+            loading={deletingPerson}
+            onCancel={() => setShowDeleteConfirm(false)}
+            onConfirm={() => void handleDeletePerson()}
+          />
+        </>
+      ) : null}
     </section>
   )
 }

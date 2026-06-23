@@ -28,6 +28,7 @@ type FormState = {
   es_indocumentado: boolean
   pertenece_comunidad_indigena: boolean
   situacion_calle: boolean
+  persona_con_celiaquia: boolean
   asistencia_alimentaria: boolean
   asistencia_actividades: boolean
   actividad_ids: number[]
@@ -50,6 +51,7 @@ const EMPTY_FORM: FormState = {
   es_indocumentado: false,
   pertenece_comunidad_indigena: false,
   situacion_calle: false,
+  persona_con_celiaquia: false,
   asistencia_alimentaria: true,
   asistencia_actividades: false,
   actividad_ids: [],
@@ -211,6 +213,7 @@ export function SpaceNominaPersonFormPage() {
             es_indocumentado: detailResult.es_indocumentado,
             pertenece_comunidad_indigena: detailResult.pertenece_comunidad_indigena,
             situacion_calle: detailResult.situacion_calle,
+            persona_con_celiaquia: detailResult.persona_con_celiaquia,
             asistencia_alimentaria: detailResult.badges.includes('Alimentación'),
             asistencia_actividades: detailResult.badges.includes('Actividades'),
             actividad_ids: detailResult.actividades.map((item) => item.actividad_id),
@@ -326,6 +329,7 @@ export function SpaceNominaPersonFormPage() {
       if (!isActivitiesMode) {
         payload.pertenece_comunidad_indigena = formData.pertenece_comunidad_indigena
         payload.situacion_calle = formData.situacion_calle
+        payload.persona_con_celiaquia = formData.persona_con_celiaquia
       }
 
       if (isActivitiesMode) {
@@ -603,6 +607,19 @@ export function SpaceNominaPersonFormPage() {
                 }
               />
               Está en situación de calle
+            </label>
+            <label className={`flex items-start gap-2 text-xs ${detailTextClass}`}>
+              <input
+                type="checkbox"
+                checked={formData.persona_con_celiaquia}
+                onChange={(event) =>
+                  setFormData((current) => ({
+                    ...current,
+                    persona_con_celiaquia: event.target.checked,
+                  }))
+                }
+              />
+              Persona con Celiaquía
             </label>
           </div>
         ) : null}

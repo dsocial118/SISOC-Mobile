@@ -51,6 +51,7 @@ export interface NominaPerson {
   es_indocumentado: boolean
   pertenece_comunidad_indigena: boolean
   situacion_calle: boolean
+  persona_con_celiaquia: boolean
   identificador_interno: string | null
   asistencia_mes_actual: NominaAttendanceRecord | null
   historial_asistencias: NominaAttendanceRecord[]
@@ -88,6 +89,7 @@ export interface CreateNominaPayload {
   es_indocumentado?: boolean
   pertenece_comunidad_indigena?: boolean
   situacion_calle?: boolean
+  persona_con_celiaquia?: boolean
   identificador_interno?: string
   asistencia_alimentaria: boolean
   asistencia_actividades: boolean
@@ -101,6 +103,16 @@ export interface BulkNominaAttendanceResponse {
   selected_nomina_ids: number[]
   created_count: number
   deleted_count: number
+  nomina_destinatarios_documento?: {
+    id: number
+    periodo_referencia: string
+    periodo_label: string
+    version: number
+    cantidad_destinatarios: number
+    fecha_generacion: string
+    archivo_url: string
+    archivo_nombre: string
+  } | null
 }
 
 export interface NominaAttendancePeriodItem {

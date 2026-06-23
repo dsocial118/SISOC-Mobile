@@ -97,6 +97,7 @@ export function CollaboratorsCard({
   textClass,
   detailTextClass,
   subCardClass,
+  canManage,
 }: {
   spaceId: string
   isDark: boolean
@@ -104,6 +105,7 @@ export function CollaboratorsCard({
   textClass: string
   detailTextClass: string
   subCardClass: string
+  canManage: boolean
 }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -241,6 +243,10 @@ export function CollaboratorsCard({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!canManage) {
+      setFormError('No tenés permiso para gestionar colaboradores.')
+      return
+    }
     const normalized: FormState = {
       dni: formData.dni.replace(/\D/g, ''),
       genero: formData.genero,
@@ -329,7 +335,7 @@ export function CollaboratorsCard({
   }
 
   async function handleDelete(item: SpaceCollaboratorRecord) {
-    if (deletingCollaboratorId === item.id) {
+    if (!canManage || deletingCollaboratorId === item.id) {
       return
     }
 
@@ -391,17 +397,19 @@ export function CollaboratorsCard({
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className={`text-[16px] font-semibold ${textClass}`}>Colaboradores del espacio</h2>
-        <button
-          type="button"
-          onClick={() =>
-            navigate(`/app-org/espacios/${spaceId}/informacion/colaboradores/nuevo`, {
-              state: location.state,
-            })
-          }
-          className="rounded-full bg-[#2E7D33] px-3 py-1 text-xs font-semibold text-white"
-        >
-          + Agregar
-        </button>
+        {canManage ? (
+          <button
+            type="button"
+            onClick={() =>
+              navigate(`/app-org/espacios/${spaceId}/informacion/colaboradores/nuevo`, {
+                state: location.state,
+              })
+            }
+            className="rounded-full bg-[#2E7D33] px-3 py-1 text-xs font-semibold text-white"
+          >
+            + Agregar
+          </button>
+        ) : null}
       </div>
 
       {formOpen ? (
@@ -591,7 +599,7 @@ export function CollaboratorsCard({
             const isDeletingRow =
               deletingCollaboratorId === collaborator.id
               || collaborator.pending_action === 'delete'
-            const canEditCollaborator = collaborator.activo && !isDeletingRow
+            const canEditCollaborator = canManage && collaborator.activo && !isDeletingRow
             return (
               <div
                 key={collaborator.id}
@@ -627,7 +635,7 @@ export function CollaboratorsCard({
                     >
                       Editar
                     </button>
-                  ) : !isDeletingRow ? (
+                  ) : canManage && !isDeletingRow ? (
                     <button
                       type="button"
                       onClick={() =>
@@ -681,20 +689,22 @@ export function CollaboratorsCard({
                   ) : null}
                 </div>
 
-                <div className="mt-3 flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCollaboratorPendingDelete(collaborator)}
-                    disabled={!canEditCollaborator}
-                    className="rounded-full bg-[#C62828] px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
-                  >
-                    {isDeletingRow
-                      ? 'Dando de baja...'
-                      : canEditCollaborator
-                        ? 'Eliminar'
-                        : 'Dado de baja'}
-                  </button>
-                </div>
+                {canManage ? (
+                  <div className="mt-3 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCollaboratorPendingDelete(collaborator)}
+                      disabled={!canEditCollaborator}
+                      className="rounded-full bg-[#C62828] px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      {isDeletingRow
+                        ? 'Dando de baja...'
+                        : canEditCollaborator
+                          ? 'Eliminar'
+                          : 'Dado de baja'}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
             )

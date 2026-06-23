@@ -3,7 +3,12 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { LoginFormPage } from '../auth/LoginFormPage'
 import { PasswordChangeRequiredPage } from '../auth/PasswordChangeRequiredPage'
 import { PasswordResetRequestPage } from '../auth/PasswordResetRequestPage'
-import { MOBILE_RENDICION_PERMISSION } from '../auth/permissionCodes'
+import {
+  MOBILE_RENDICION_PERMISSION,
+  PWA_COLABORADORES_PERMISSION,
+  PWA_NOMINA_PERMISSION,
+  PWA_USUARIOS_PERMISSION,
+} from '../auth/permissionCodes'
 import { ProtectedRoute } from '../auth/ProtectedRoute'
 import { AppLayout } from '../ui/AppLayout'
 import { FullScreenPageLoader } from '../ui/FullScreenPageLoader'
@@ -39,6 +44,11 @@ const SpaceDetailPage = lazy(() =>
 const SpaceCollaboratorFormPage = lazy(() =>
   import('../features/home/SpaceCollaboratorFormPage').then((module) => ({
     default: module.SpaceCollaboratorFormPage,
+  })),
+)
+const SpaceUsersPage = lazy(() =>
+  import('../features/home/SpaceUsersPage').then((module) => ({
+    default: module.SpaceUsersPage,
   })),
 )
 const SpaceRelevamientoDetailPage = lazy(() =>
@@ -191,21 +201,43 @@ export function AppRouter() {
               <Route path="espacios/:spaceId/hub" element={<SpaceHubPage />} />
               <Route path="espacios/:spaceId/informacion" element={<SpaceDetailPage />} />
               <Route
-                path="espacios/:spaceId/informacion/colaboradores/nuevo"
-                element={<SpaceCollaboratorFormPage />}
-              />
-              <Route
-                path="espacios/:spaceId/informacion/colaboradores/:collaboratorId/editar"
-                element={<SpaceCollaboratorFormPage />}
-              />
-              <Route
-                path="espacios/:spaceId/informacion/colaboradores/:collaboratorId/reactivar"
-                element={<SpaceCollaboratorFormPage />}
-              />
+                element={
+                  <ProtectedRoute
+                    allowed={['org']}
+                    requiredPermissions={[PWA_COLABORADORES_PERMISSION]}
+                  />
+                }
+              >
+                <Route
+                  path="espacios/:spaceId/informacion/colaboradores/nuevo"
+                  element={<SpaceCollaboratorFormPage />}
+                />
+                <Route
+                  path="espacios/:spaceId/informacion/colaboradores/:collaboratorId/editar"
+                  element={<SpaceCollaboratorFormPage />}
+                />
+                <Route
+                  path="espacios/:spaceId/informacion/colaboradores/:collaboratorId/reactivar"
+                  element={<SpaceCollaboratorFormPage />}
+                />
+              </Route>
               <Route
                 path="espacios/:spaceId/informacion/relevamiento"
                 element={<SpaceRelevamientoDetailPage />}
               />
+              <Route
+                element={
+                  <ProtectedRoute
+                    allowed={['org']}
+                    requiredPermissions={[PWA_USUARIOS_PERMISSION]}
+                  />
+                }
+              >
+                <Route
+                  path="espacios/:spaceId/informacion/usuarios"
+                  element={<SpaceUsersPage />}
+                />
+              </Route>
               <Route
                 path="espacios/:spaceId/informacion/capacitaciones"
                 element={<SpaceCapacitacionesPage />}
@@ -230,13 +262,22 @@ export function AppRouter() {
                 element={<SpaceNominaAlimentariaPage />}
               />
               <Route
-                path="espacios/:spaceId/nomina-alimentaria/nueva"
-                element={<SpaceNominaAlimentariaPersonFormPage />}
-              />
-              <Route
-                path="espacios/:spaceId/nomina-alimentaria/asistencia"
-                element={<SpaceNominaAlimentariaAttendancePage />}
-              />
+                element={
+                  <ProtectedRoute
+                    allowed={['org']}
+                    requiredPermissions={[PWA_NOMINA_PERMISSION]}
+                  />
+                }
+              >
+                <Route
+                  path="espacios/:spaceId/nomina-alimentaria/nueva"
+                  element={<SpaceNominaAlimentariaPersonFormPage />}
+                />
+                <Route
+                  path="espacios/:spaceId/nomina-alimentaria/asistencia"
+                  element={<SpaceNominaAlimentariaAttendancePage />}
+                />
+              </Route>
               <Route
                 path="espacios/:spaceId/nomina/asistencias"
                 element={<SpaceNominaAttendancePeriodsPage />}
@@ -250,25 +291,43 @@ export function AppRouter() {
                 element={<SpaceNominaAlimentariaPersonDetailPage />}
               />
               <Route
-                path="espacios/:spaceId/nomina-alimentaria/:nominaId/editar"
-                element={<SpaceNominaPersonFormPage />}
-              />
-              <Route
-                path="espacios/:spaceId/nomina/nueva"
-                element={<SpaceNominaPersonFormPage />}
-              />
+                element={
+                  <ProtectedRoute
+                    allowed={['org']}
+                    requiredPermissions={[PWA_NOMINA_PERMISSION]}
+                  />
+                }
+              >
+                <Route
+                  path="espacios/:spaceId/nomina-alimentaria/:nominaId/editar"
+                  element={<SpaceNominaPersonFormPage />}
+                />
+                <Route
+                  path="espacios/:spaceId/nomina/nueva"
+                  element={<SpaceNominaPersonFormPage />}
+                />
+              </Route>
               <Route
                 path="espacios/:spaceId/nomina/:nominaId"
                 element={<SpaceNominaPersonDetailPage />}
               />
               <Route
-                path="espacios/:spaceId/nomina/:nominaId/editar"
-                element={<SpaceNominaPersonFormPage />}
-              />
-              <Route
-                path="espacios/:spaceId/nomina/:nominaId/actividades"
-                element={<SpaceNominaPersonFormPage />}
-              />
+                element={
+                  <ProtectedRoute
+                    allowed={['org']}
+                    requiredPermissions={[PWA_NOMINA_PERMISSION]}
+                  />
+                }
+              >
+                <Route
+                  path="espacios/:spaceId/nomina/:nominaId/editar"
+                  element={<SpaceNominaPersonFormPage />}
+                />
+                <Route
+                  path="espacios/:spaceId/nomina/:nominaId/actividades"
+                  element={<SpaceNominaPersonFormPage />}
+                />
+              </Route>
               <Route path="mensajes" element={<OrganizationMessagesPage />} />
               <Route path="sincronizacion" element={<SyncCenterPage />} />
               <Route

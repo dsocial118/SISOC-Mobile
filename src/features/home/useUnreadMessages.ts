@@ -380,8 +380,8 @@ export function useOrganizationUnreadMessages(username?: string | null) {
           const batch = spacesWithCapacitaciones.slice(start, start + UNREAD_BATCH_SIZE)
           const batchResults = await Promise.allSettled(
             batch.map(async (space) => {
-              const rows = await listSpaceCapacitaciones(space.id)
-              return rows.filter((row) => row.estado === 'rechazado').length
+              const response = await listSpaceCapacitaciones(space.id)
+              return response.results.filter((row) => row.estado === 'rechazado').length
             }),
           )
           if (!isMounted) {

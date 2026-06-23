@@ -24,6 +24,8 @@ import { AppToast } from '../../ui/AppToast'
 import { appButtonClass, joinClasses } from '../../ui/buttons'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
+import { useAuth } from '../../auth/useAuth'
+import { PWA_PRESTACIONES_MENSUALES_PERMISSION } from '../../auth/permissionCodes'
 
 const TIPO_LABELS: Record<PrestacionTipo, string> = {
   desayuno: 'Desayuno',
@@ -116,6 +118,7 @@ export function SpacePrestacionesConveniadasPage() {
   const location = useLocation()
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
+  const { userProfile } = useAuth()
   const routeState =
     (location.state as { spaceName?: string; programName?: string } | null) ?? null
 
@@ -139,6 +142,9 @@ export function SpacePrestacionesConveniadasPage() {
         borderColor: '#E0E0E0',
         boxShadow: '4px 4px 4px rgba(0, 0, 0, 0.25)',
       }
+  const canManagePrestaciones = Boolean(
+    userProfile?.permissions?.includes(PWA_PRESTACIONES_MENSUALES_PERMISSION),
+  )
     : {
         backgroundColor: '#F5F5F5',
         borderColor: '#E0E0E0',
@@ -225,7 +231,14 @@ export function SpacePrestacionesConveniadasPage() {
   }, [data, selectedPeriod])
 
   async function submitConformidad(conforme: boolean) {
-    if (!spaceId || !data || submitting || selectedConformidad || !selectedPeriod) {
+    if (
+      !canManagePrestaciones
+      || !spaceId
+      || !data
+      || submitting
+      || selectedConformidad
+      || !selectedPeriod
+    ) {
       return
     }
     const trimmedObservaciones = observaciones.trim()
@@ -351,7 +364,7 @@ export function SpacePrestacionesConveniadasPage() {
                       </p>
                     ) : null}
                   </div>
-                ) : (
+                ) : canManagePrestaciones ? (
                   <div className="mt-3 grid gap-2">
                     <div className="grid grid-cols-2 gap-2">
                       <button
@@ -422,6 +435,10 @@ export function SpacePrestacionesConveniadasPage() {
                       </div>
                     ) : null}
                   </div>
+                ) : (
+                  <p className={`mt-3 text-[12px] ${detailTextClass}`}>
+                    Podés consultar las prestaciones conveniadas. No tenés permiso para registrar la conformidad mensual.
+                  </p>
                 )}
               </div>
             </div>

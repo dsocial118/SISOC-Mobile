@@ -5,7 +5,6 @@ import {
   faCalendarDays,
   faChevronLeft,
   faCircleInfo,
-  faClipboardCheck,
   faComments,
   faGraduationCap,
   faUtensils,
@@ -280,12 +279,6 @@ export function SpaceHubPage() {
       }
       modulesForProgram.push(
         {
-          id: 'prestaciones-conveniadas',
-          title: 'Prestaciones conveniadas',
-          route: `/app-org/espacios/${spaceId}/prestaciones-conveniadas`,
-          icon: faClipboardCheck,
-        },
-        {
           id: 'nomina',
           title: 'Beneficiarios',
           route: `/app-org/espacios/${spaceId}/nomina`,
@@ -327,12 +320,6 @@ export function SpaceHubPage() {
           title: 'Capacitaciones Obligatorias',
           route: `/app-org/espacios/${spaceId}/informacion/capacitaciones`,
           icon: faCircleInfo,
-        },
-        {
-          id: 'prestaciones-conveniadas',
-          title: 'Prestaciones conveniadas',
-          route: `/app-org/espacios/${spaceId}/prestaciones-conveniadas`,
-          icon: faClipboardCheck,
         },
         {
           id: 'nomina-alimentaria',
