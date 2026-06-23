@@ -310,7 +310,7 @@ export function OrganizationMessagesPage() {
               : 'border-slate-200 bg-white text-slate-700'
           }`}
         >
-          <p className="text-sm">Todav?a no hay mensajes en los espacios asignados.</p>
+          <p className="text-sm">Todavía no hay mensajes en los espacios asignados.</p>
         </div>
       </section>
     )

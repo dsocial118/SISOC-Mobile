@@ -317,7 +317,7 @@ export function SpaceHubPage() {
       modulesForProgram.push(
         {
           id: 'capacitaciones-obligatorias',
-          title: 'Capacitaciones Obligatorias',
+          title: 'Capacitaciones',
           route: `/app-org/espacios/${spaceId}/informacion/capacitaciones`,
           icon: faCircleInfo,
         },

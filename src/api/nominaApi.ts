@@ -1,4 +1,5 @@
 import { http } from './http'
+import { fixMojibake } from './mojibake'
 
 export type NominaTab = 'consolidada' | 'alimentaria' | 'formacion'
 
@@ -145,34 +146,24 @@ export interface NominaAttendancePeriodDetail {
   asistentes: NominaAttendanceAttendee[]
 }
 
+// Per-field mojibake recovery for nomina records. Generic UTF-8/Latin-1
+// repair is handled centrally by the http response interceptor (see
+// mojibake.ts); this layer only adds known fixes for cases that already lost
+// a byte to the replacement character (U+FFFD) and cannot be recovered
+// generically.
 function normalizeMojibake(value: string | null | undefined): string {
-  const input = (value ?? '').trim()
-  if (!input) {
-    return value ?? ''
+  const input = value ?? ''
+  if (!input.trim()) {
+    return input
   }
   const knownFixes: Array<[RegExp, string]> = [
-    [/\bAgla\uFFFD\b/giu, 'Agla\u00E9'],
+    [/\bAgla�\b/giu, 'Aglaé'],
   ]
+  let result = input
   for (const [pattern, replacement] of knownFixes) {
-    if (pattern.test(input)) {
-      return input.replace(pattern, replacement)
-    }
+    result = result.replace(pattern, replacement)
   }
-  if (input.includes('\uFFFD')) {
-    return value ?? ''
-  }
-  // Typical UTF-8 interpreted as Latin-1 artifacts: "AglaÃ©", "MuÃ±oz", etc.
-  if (!/[ÃÂãâ]/.test(input)) {
-    return value ?? ''
-  }
-  try {
-    const decoded = new TextDecoder('utf-8', { fatal: false }).decode(
-      new Uint8Array(Array.from(input, (char) => char.charCodeAt(0))),
-    )
-    return decoded || (value ?? '')
-  } catch {
-    return value ?? ''
-  }
+  return fixMojibake(result)
 }
 
 function normalizeNominaPerson(person: NominaPerson): NominaPerson {

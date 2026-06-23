@@ -86,7 +86,7 @@ export function SpaceMessagesPage() {
       setErrorMessage('')
 
       if (!spaceId) {
-        setErrorMessage('No se encontr? el espacio seleccionado.')
+        setErrorMessage('No se encontró el espacio seleccionado.')
         setLoading(false)
         setPageLoading(false)
         return
@@ -198,8 +198,8 @@ export function SpaceMessagesPage() {
             {unreadCount === 0
               ? 'No hay mensajes sin leer.'
               : unreadCount === 1
-                ? 'Ten?s 1 mensaje sin leer.'
-                : `Ten?s ${unreadCount} mensajes sin leer.`}
+                ? 'Tenés 1 mensaje sin leer.'
+                : `Tenés ${unreadCount} mensajes sin leer.`}
           </p>
         </div>
         <div
@@ -222,7 +222,7 @@ export function SpaceMessagesPage() {
             isDark ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-white text-slate-700'
           }`}
         >
-          <p className="text-sm">Todav?a no hay mensajes para este espacio.</p>
+          <p className="text-sm">Todavía no hay mensajes para este espacio.</p>
         </div>
       ) : (
         <div className="mt-4 grid gap-5">
@@ -230,7 +230,7 @@ export function SpaceMessagesPage() {
             title="Notificaciones Generales"
             unreadCount={unreadGeneralCount}
             messages={generalMessages}
-            emptyMessage="Todav?a no hay notificaciones generales."
+            emptyMessage="Todavía no hay notificaciones generales."
             spaceId={spaceId}
             spaceName={routeState?.spaceName}
             navigate={navigate}
@@ -243,7 +243,7 @@ export function SpaceMessagesPage() {
             title="Comunicaciones a Espacios"
             unreadCount={unreadSpaceCount}
             messages={spaceMessages}
-            emptyMessage="Todav?a no hay comunicaciones para este espacio."
+            emptyMessage="Todavía no hay comunicaciones para este espacio."
             spaceId={spaceId}
             spaceName={routeState?.spaceName}
             navigate={navigate}

@@ -400,7 +400,7 @@ export function OrganizationNotificationsPage() {
               </div>
               <p className={`mt-2 text-[13px] ${detailTextClass}`}>{item.capacitacionLabel}</p>
               <p className={`mt-1 text-[12px] ${detailTextClass}`}>
-                {item.observacion || 'Certificado rechazado. Revisar observaci?n.'}
+                {item.observacion || 'Certificado rechazado. Revisar observación.'}
               </p>
               <p className={`mt-2 text-[12px] ${detailTextClass}`}>
                 {formatDate(item.fechaRevision)}

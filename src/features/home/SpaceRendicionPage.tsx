@@ -78,7 +78,7 @@ export function SpaceRendicionPage() {
 
     async function loadData() {
       if (!spaceId) {
-        setErrorMessage('No se encontr? el espacio seleccionado.')
+        setErrorMessage('No se encontró el espacio seleccionado.')
         setLoading(false)
         return
       }
@@ -104,7 +104,7 @@ export function SpaceRendicionPage() {
         setErrorMessage(
           parseApiError(error, 'No se pudo cargar la rendicion de cuentas.', {
             timeoutMessage:
-              'La rendicion est? demorando m?s de lo esperado. Prob? nuevamente en unos segundos.',
+              'La rendicion está demorando más de lo esperado. Probá nuevamente en unos segundos.',
           }),
         )
       } finally {
@@ -169,7 +169,7 @@ export function SpaceRendicionPage() {
             style={{ fontSize: 24 }}
           />
           <p className={`mt-3 text-sm ${subtitleClass}`}>
-            Todav?a no hay rendiciones cargadas para este contexto.
+            Todavía no hay rendiciones cargadas para este contexto.
           </p>
         </article>
       ) : (

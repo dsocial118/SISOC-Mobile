@@ -139,6 +139,27 @@ export function SpaceDetailPage() {
     return new Intl.NumberFormat('es-AR').format(value)
   }
 
+  function displayWeeklyFromMonthly(value: number | null | undefined): string {
+    if (value === null || value === undefined) {
+      return 'Sin dato'
+    }
+    return displayNumber(Math.ceil(value / 4))
+  }
+
+  function displayMonthlyAmount(
+    monthly: number | null | undefined,
+    total: number | null | undefined,
+  ): string {
+    if (monthly !== null && monthly !== undefined) {
+      return displayNumber(monthly)
+    }
+    if (total !== null && total !== undefined) {
+      // Respaldo: no hay monto mensual, se muestra el total aclarándolo.
+      return `${displayNumber(total)} (total del convenio)`
+    }
+    return 'Sin dato'
+  }
+
   function formatDate(value: string | number | null | undefined): string {
     if (!value) {
       return 'Sin dato'
@@ -568,19 +589,18 @@ export function SpaceDetailPage() {
                   {spaceDetail.datos_convenio_mobile.vigencia_convenio_meses || 6} meses
                 </p>
                 <p>
-                  <span className={`font-semibold ${textClass}`}>Prestaciones GESCOM:</span>{' '}
-                  {displayNumber(
+                  <span className={`font-semibold ${textClass}`}>Prestaciones semanales:</span>{' '}
+                  {displayWeeklyFromMonthly(
                     spaceDetail.datos_convenio_mobile.prestaciones_mensuales
                     ?? spaceDetail.datos_convenio_mobile.prestaciones_gescom_total_mensual
                     ?? null,
                   )}
                 </p>
                 <p>
-                  <span className={`font-semibold ${textClass}`}>Monto total del convenio:</span>{' '}
-                  {displayNumber(
-                    spaceDetail.datos_convenio_mobile.monto_prestacion_mensual
-                    ?? spaceDetail.datos_convenio_mobile.monto_total_convenio
-                    ?? null,
+                  <span className={`font-semibold ${textClass}`}>Monto mensual de prestaciones:</span>{' '}
+                  {displayMonthlyAmount(
+                    spaceDetail.datos_convenio_mobile.monto_prestacion_mensual,
+                    spaceDetail.datos_convenio_mobile.monto_total_convenio,
                   )}
                 </p>
               </div>
