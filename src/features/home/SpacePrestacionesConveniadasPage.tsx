@@ -142,14 +142,14 @@ export function SpacePrestacionesConveniadasPage() {
         borderColor: '#E0E0E0',
         boxShadow: '4px 4px 4px rgba(0, 0, 0, 0.25)',
       }
-  const canManagePrestaciones = Boolean(
-    userProfile?.permissions?.includes(PWA_PRESTACIONES_MENSUALES_PERMISSION),
-  )
     : {
         backgroundColor: '#F5F5F5',
         borderColor: '#E0E0E0',
         boxShadow: '4px 4px 4px rgba(0, 0, 0, 0.25)',
       }
+  const canManagePrestaciones = Boolean(
+    userProfile?.permissions?.includes(PWA_PRESTACIONES_MENSUALES_PERMISSION),
+  )
 
   useEffect(() => {
     let isMounted = true
