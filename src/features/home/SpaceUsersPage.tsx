@@ -6,6 +6,7 @@ import {
   createSpaceUser,
   deactivateSpaceUser,
   listSpaceUsers,
+  updateSpaceUserPermissions,
   type AssignableSpaceUserSpace,
   type SpaceUserItem,
 } from '../../api/spaceUsersApi'
@@ -15,6 +16,7 @@ import { ConfirmActionModal } from '../../ui/ConfirmActionModal'
 import { appButtonClass, joinClasses } from '../../ui/buttons'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
+import { useAuth } from '../../auth/useAuth'
 
 const PERMISSION_LABELS: Record<string, string> = {
   'rendicioncuentasmensual.manage_mobile_rendicion': 'Rendiciones',
@@ -44,6 +46,7 @@ export function SpaceUsersPage() {
   const location = useLocation()
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
+  const { userProfile } = useAuth()
   const routeState = (location.state as { spaceName?: string } | null) ?? null
 
   const [loading, setLoading] = useState(true)
@@ -55,6 +58,9 @@ export function SpaceUsersPage() {
   const [assignableSpaces, setAssignableSpaces] = useState<AssignableSpaceUserSpace[]>([])
   const [toast, setToast] = useState<{ tone: 'success' | 'error'; message: string } | null>(null)
   const [pendingDeactivate, setPendingDeactivate] = useState<SpaceUserItem | null>(null)
+  const [editingUserId, setEditingUserId] = useState<number | null>(null)
+  const [editingPermissions, setEditingPermissions] = useState<string[]>([])
+  const [savingPermissions, setSavingPermissions] = useState(false)
 
   const textClass = isDark ? 'text-white' : 'text-[#232D4F]'
   const detailTextClass = isDark ? 'text-white/85' : 'text-slate-700'
@@ -125,6 +131,14 @@ export function SpaceUsersPage() {
     }))
   }
 
+  function toggleEditingPermission(code: string) {
+    setEditingPermissions((current) => (
+      current.includes(code)
+        ? current.filter((item) => item !== code)
+        : [...current, code]
+    ))
+  }
+
   function formatUserSpaces(user: SpaceUserItem): string {
     const names = user.comedor_ids
       .map((comedorId) => assignableSpaces.find((item) => item.id === comedorId)?.nombre || `#${comedorId}`)
@@ -164,6 +178,24 @@ export function SpaceUsersPage() {
       await loadUsers()
     } catch (error) {
       setToast({ tone: 'error', message: parseApiError(error, 'No se pudo desactivar el usuario.') })
+    }
+  }
+
+  async function handleSavePermissions(user: SpaceUserItem) {
+    if (!spaceId || savingPermissions) {
+      return
+    }
+    setSavingPermissions(true)
+    try {
+      await updateSpaceUserPermissions(spaceId, user.id, editingPermissions)
+      setEditingUserId(null)
+      setEditingPermissions([])
+      setToast({ tone: 'success', message: 'Permisos actualizados.' })
+      await loadUsers()
+    } catch (error) {
+      setToast({ tone: 'error', message: parseApiError(error, 'No se pudieron actualizar permisos.') })
+    } finally {
+      setSavingPermissions(false)
     }
   }
 
@@ -300,6 +332,58 @@ export function SpaceUsersPage() {
                   <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
                 </button>
               </div>
+              {assignablePermissions.length > 0 && user.creado_por_username === userProfile?.username ? (
+                <div className="mt-3 grid gap-2 border-t border-black/10 pt-3">
+                  {editingUserId === user.id ? (
+                    <>
+                      <p className={`text-[12px] font-semibold ${textClass}`}>Editar permisos</p>
+                      {assignablePermissions.map((code) => (
+                        <label key={code} className={`flex items-center gap-2 text-[12px] ${detailTextClass}`}>
+                          <input
+                            type="checkbox"
+                            checked={editingPermissions.includes(code)}
+                            onChange={() => toggleEditingPermission(code)}
+                          />
+                          <span>{PERMISSION_LABELS[code] || code}</span>
+                        </label>
+                      ))}
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          disabled={savingPermissions}
+                          className={appButtonClass({ variant: 'success', size: 'sm' })}
+                          onClick={() => void handleSavePermissions(user)}
+                        >
+                          {savingPermissions ? 'Guardando...' : 'Guardar'}
+                        </button>
+                        <button
+                          type="button"
+                          className={appButtonClass({ variant: 'outline-secondary', size: 'sm' })}
+                          onClick={() => {
+                            setEditingUserId(null)
+                            setEditingPermissions([])
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className={appButtonClass({ variant: 'outline-secondary', size: 'sm' })}
+                      onClick={() => {
+                        setEditingUserId(user.id)
+                        setEditingPermissions(
+                          user.permission_codes.filter((code) => assignablePermissions.includes(code)),
+                        )
+                      }}
+                    >
+                      Editar permisos
+                    </button>
+                  )}
+                </div>
+              ) : null}
             </article>
           ))}
         </div>

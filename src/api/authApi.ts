@@ -116,7 +116,7 @@ function mapRoleFromMe(meData: MeResponse): UserRole {
     return 'org'
   }
   if (roles.includes('operador')) {
-    return 'user'
+    return 'org'
   }
   throw new Error('El usuario autenticado no tiene roles PWA activos.')
 }

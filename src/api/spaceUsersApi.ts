@@ -47,6 +47,18 @@ export async function createSpaceUser(
   return data
 }
 
+export async function updateSpaceUserPermissions(
+  spaceId: string | number,
+  userId: string | number,
+  permissionCodes: string[],
+): Promise<SpaceUserItem> {
+  const { data } = await http.patch<SpaceUserItem>(
+    `/comedores/${spaceId}/usuarios/${userId}/permisos/`,
+    { permission_codes: permissionCodes },
+  )
+  return data
+}
+
 export async function deactivateSpaceUser(
   spaceId: string | number,
   userId: string | number,
