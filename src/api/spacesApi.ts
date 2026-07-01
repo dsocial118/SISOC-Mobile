@@ -119,7 +119,8 @@ export interface SpaceDetail {
     nombre_espacio_comunitario?: string | null
     id_externo?: string | number | null
     domicilio_completo_espacio?: string | null
-    monto_total_convenio_por_espacio?: number | null
+    monto_convenio_prestaciones_alimentarias?: number | null
+    monto_convenio_siph?: number | null
     prestaciones_financiadas_mensuales?: number | null
     personas_conveniadas?: number | null
     cantidad_modulos?: number | null

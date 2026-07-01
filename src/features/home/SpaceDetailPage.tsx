@@ -577,7 +577,8 @@ export function SpaceDetailPage() {
                 <p><span className={`font-semibold ${textClass}`}>Nombre del espacio comunitario:</span> {displayValue(spaceDetail.datos_convenio_mobile.nombre_espacio_comunitario || null)}</p>
                 <p><span className={`font-semibold ${textClass}`}>ID externo:</span> {displayValue(spaceDetail.datos_convenio_mobile.id_externo ? String(spaceDetail.datos_convenio_mobile.id_externo) : null)}</p>
                 <p><span className={`font-semibold ${textClass}`}>Domicilio completo del espacio:</span> {displayValue(spaceDetail.datos_convenio_mobile.domicilio_completo_espacio || null)}</p>
-                <p><span className={`font-semibold ${textClass}`}>Monto total de convenio por espacio:</span> {displayNumber(spaceDetail.datos_convenio_mobile.monto_total_convenio_por_espacio ?? null)}</p>
+                <p><span className={`font-semibold ${textClass}`}>Monto total de convenio por Espacio - Prestaciones Alimentarias:</span> {displayNumber(spaceDetail.datos_convenio_mobile.monto_convenio_prestaciones_alimentarias ?? null)}</p>
+                <p><span className={`font-semibold ${textClass}`}>Monto total de convenio por Espacio - Servicio Integral de Promoción Humana:</span> {displayNumber(spaceDetail.datos_convenio_mobile.monto_convenio_siph ?? null)}</p>
                 <p><span className={`font-semibold ${textClass}`}>Prestaciones financiadas mensuales:</span> {displayNumber(spaceDetail.datos_convenio_mobile.prestaciones_financiadas_mensuales ?? null)}</p>
                 <p><span className={`font-semibold ${textClass}`}>Personas conveniadas:</span> {displayNumber(spaceDetail.datos_convenio_mobile.personas_conveniadas ?? null)}</p>
                 <p><span className={`font-semibold ${textClass}`}>Cantidad módulos:</span> {displayNumber(spaceDetail.datos_convenio_mobile.cantidad_modulos ?? null)}</p>
