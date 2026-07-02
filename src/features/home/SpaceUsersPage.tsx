@@ -91,15 +91,18 @@ export function SpaceUsersPage() {
     try {
       const response = await listSpaceUsers(spaceId)
       setUsers(response.results)
-      setAssignablePermissions(response.assignable_permission_codes)
+      const nextAssignablePermissions = response.assignable_permission_codes
+      setAssignablePermissions(nextAssignablePermissions)
       setAssignableSpaces(response.assignable_comedores)
       const currentSpaceId = Number(spaceId)
       const defaultSpaceIds = response.assignable_comedores.some((item) => item.id === currentSpaceId)
         ? [currentSpaceId]
         : response.assignable_comedores.slice(0, 1).map((item) => item.id)
-      setForm((current) => (
-        current.comedor_ids.length > 0 ? current : { ...current, comedor_ids: defaultSpaceIds }
-      ))
+      setForm((current) => ({
+        ...current,
+        comedor_ids: current.comedor_ids.length > 0 ? current.comedor_ids : defaultSpaceIds,
+        permission_codes: current.permission_codes.filter((code) => nextAssignablePermissions.includes(code)),
+      }))
     } catch (error) {
       setToast({ tone: 'error', message: parseApiError(error, 'No se pudieron cargar usuarios.') })
     } finally {
@@ -215,7 +218,7 @@ export function SpaceUsersPage() {
       <article className="rounded-[15px] border p-5" style={cardStyle}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className={`text-[16px] font-semibold ${textClass}`}>Usuarios PWA</h2>
+            <h2 className={`text-[16px] font-semibold ${textClass}`}>Usuarios responsables del Espacio Comunitario</h2>
             <p className={`mt-1 text-xs ${detailTextClass}`}>
               {routeState?.spaceName ? `${routeState.spaceName} · ` : ''}
               Subusuarios asignados a este espacio.
@@ -243,7 +246,7 @@ export function SpaceUsersPage() {
               className={inputClass}
               value={form.email}
               onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-              placeholder="Email"
+              placeholder="Email (opcional)"
               type="email"
             />
             <input
@@ -303,7 +306,9 @@ export function SpaceUsersPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className={`truncate text-[15px] font-semibold ${textClass}`}>{user.username}</p>
-                  <p className={`mt-1 truncate text-[12px] ${detailTextClass}`}>{user.email}</p>
+                  <p className={`mt-1 truncate text-[12px] ${detailTextClass}`}>
+                    {user.email || 'Sin email'}
+                  </p>
                   <p className={`mt-1 text-[11px] ${detailTextClass}`}>
                     Creado por {user.creado_por_username || '-'}
                   </p>

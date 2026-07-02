@@ -44,6 +44,21 @@ const DIA_LABELS: Record<PrestacionDia, string> = {
   domingo: 'Domingo',
 }
 
+const MONTH_OPTIONS = [
+  { value: '01', label: 'Enero' },
+  { value: '02', label: 'Febrero' },
+  { value: '03', label: 'Marzo' },
+  { value: '04', label: 'Abril' },
+  { value: '05', label: 'Mayo' },
+  { value: '06', label: 'Junio' },
+  { value: '07', label: 'Julio' },
+  { value: '08', label: 'Agosto' },
+  { value: '09', label: 'Septiembre' },
+  { value: '10', label: 'Octubre' },
+  { value: '11', label: 'Noviembre' },
+  { value: '12', label: 'Diciembre' },
+]
+
 function formatDate(value: string | null | undefined): string {
   if (!value) {
     return 'Sin fecha'
@@ -72,12 +87,27 @@ function formatMonthPeriod(value: string | null | undefined): string {
   if (!value) {
     return 'Sin período'
   }
-  const match = value.match(/^(\d{4})-(\d{2})-\d{2}$/)
+  const match = value.match(/^(\d{4})-(\d{2})(?:-\d{2})?$/)
   if (!match) {
     return formatDate(value)
   }
   const [, year, month] = match
   return `Mes ${Number(month)}/${String(year).slice(-2)}`
+}
+
+function periodToMonthValue(value: string | null | undefined): string {
+  if (!value) {
+    return ''
+  }
+  const match = value.match(/^(\d{4})-(\d{2})(?:-\d{2})?$/)
+  return match ? `${match[1]}-${match[2]}` : ''
+}
+
+function buildPeriodValue(year: string, month: string): string {
+  if (!year || !month) {
+    return ''
+  }
+  return `${year.padStart(4, '0')}-${month}`
 }
 
 function formatDateTime(value: string | null | undefined): string {
@@ -135,7 +165,6 @@ export function SpacePrestacionesConveniadasPage() {
   const detailTextClass = isDark ? 'text-white/85' : 'text-slate-700'
   const mutedTextClass = isDark ? 'text-white/65' : 'text-slate-500'
   const tableBorderClass = isDark ? 'border-white/15' : 'border-slate-200'
-  const selectOptionClass = isDark ? 'bg-[#1E2846] text-white' : 'bg-white text-slate-900'
   const cardStyle = isDark
     ? {
         backgroundColor: '#232D4F',
@@ -150,6 +179,19 @@ export function SpacePrestacionesConveniadasPage() {
   const canManagePrestaciones = Boolean(
     userProfile?.permissions?.includes(PWA_PRESTACIONES_MENSUALES_PERMISSION),
   )
+  const yearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear()
+    return Array.from({ length: 8 }, (_, index) => String(currentYear - 3 + index))
+  }, [])
+  const selectedYear = selectedPeriod.slice(0, 4)
+  const selectedMonth = selectedPeriod.slice(5, 7)
+  const periodControlClass = joinClasses(
+    'mt-1 w-full rounded-xl border px-3 py-2 text-sm outline-none',
+    isDark
+      ? 'border-white/20 bg-[#1E2846] text-white'
+      : 'border-slate-300 bg-white text-slate-900',
+  )
+  const optionClass = isDark ? 'bg-[#1E2846] text-white' : 'bg-white text-slate-900'
 
   useEffect(() => {
     let isMounted = true
@@ -220,14 +262,20 @@ export function SpacePrestacionesConveniadasPage() {
     if (!data) {
       return
     }
-    setSelectedPeriod((current) => current || data.periodo_pendiente || data.periodo_actual)
+    setSelectedPeriod(
+      (current) => current || periodToMonthValue(data.periodo_pendiente || data.periodo_actual),
+    )
   }, [data])
 
   const selectedConformidad = useMemo(() => {
     if (!data || !selectedPeriod) {
       return null
     }
-    return data.historial_conformidad.find((item) => item.periodo === selectedPeriod) ?? null
+    return (
+      data.historial_conformidad.find(
+        (item) => periodToMonthValue(item.periodo) === selectedPeriod,
+      ) ?? null
+    )
   }, [data, selectedPeriod])
 
   async function submitConformidad(conforme: boolean) {
@@ -254,15 +302,14 @@ export function SpacePrestacionesConveniadasPage() {
         conforme,
         observaciones: conforme ? '' : trimmedObservaciones,
       })
+      const conformidadPeriod = periodToMonthValue(conformidad.periodo)
+      const pendingPeriod = periodToMonthValue(data.periodo_pendiente)
       setData({
         ...data,
         conformidad_actual:
-          conformidad.periodo === data.periodo_pendiente ? conformidad : data.conformidad_actual,
+          conformidadPeriod === pendingPeriod ? conformidad : data.conformidad_actual,
         conformidad_pendiente:
-          conformidad.periodo === data.periodo_pendiente ? false : data.conformidad_pendiente,
-        periodos_disponibles: data.periodos_disponibles?.map((item) =>
-          item.periodo === conformidad.periodo ? { ...item, registrada: true } : item,
-        ),
+          conformidadPeriod === pendingPeriod ? false : data.conformidad_pendiente,
         historial_conformidad: [conformidad, ...data.historial_conformidad],
       })
       setNegativeMode(false)
@@ -320,30 +367,50 @@ export function SpacePrestacionesConveniadasPage() {
                 <p className={`text-[14px] font-semibold ${textClass}`}>
                   Periodo de conformidad
                 </p>
-                <label className={`mt-3 block text-[12px] font-semibold ${textClass}`} htmlFor="periodo-conformidad">
-                  Mes a conformar
-                </label>
-                <select
-                  id="periodo-conformidad"
-                  value={selectedPeriod}
-                  onChange={(event) => {
-                    setSelectedPeriod(event.target.value)
-                    setNegativeMode(false)
-                    setObservaciones('')
-                  }}
-                  className={joinClasses(
-                    'mt-1 w-full rounded-xl border px-3 py-2 text-sm outline-none',
-                    isDark
-                      ? 'border-white/20 bg-[#1E2846] text-white'
-                      : 'border-slate-300 bg-white text-slate-900',
-                  )}
-                >
-                  {(data.periodos_disponibles || []).map((item) => (
-                    <option key={item.periodo} value={item.periodo} className={selectOptionClass}>
-                      {formatMonthPeriod(item.periodo)}{item.registrada ? ' - registrada' : ''}
-                    </option>
-                  ))}
-                </select>
+                <div className="mt-3 grid grid-cols-[minmax(0,1fr)_112px] gap-2">
+                  <div>
+                    <label className={`block text-[12px] font-semibold ${textClass}`} htmlFor="periodo-conformidad-mes">
+                      Mes
+                    </label>
+                    <select
+                      id="periodo-conformidad-mes"
+                      value={selectedMonth}
+                      onChange={(event) => {
+                        setSelectedPeriod(buildPeriodValue(selectedYear, event.target.value))
+                        setNegativeMode(false)
+                        setObservaciones('')
+                      }}
+                      className={periodControlClass}
+                    >
+                      {MONTH_OPTIONS.map((item) => (
+                        <option key={item.value} value={item.value} className={optionClass}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={`block text-[12px] font-semibold ${textClass}`} htmlFor="periodo-conformidad-anio">
+                      Año
+                    </label>
+                    <select
+                      id="periodo-conformidad-anio"
+                      value={selectedYear}
+                      onChange={(event) => {
+                        setSelectedPeriod(buildPeriodValue(event.target.value, selectedMonth))
+                        setNegativeMode(false)
+                        setObservaciones('')
+                      }}
+                      className={periodControlClass}
+                    >
+                      {yearOptions.map((year) => (
+                        <option key={year} value={year} className={optionClass}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 {selectedConformidad ? (
                   <div className="mt-2 grid gap-2">
                     <span

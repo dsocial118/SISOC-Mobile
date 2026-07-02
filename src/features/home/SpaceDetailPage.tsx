@@ -213,7 +213,7 @@ export function SpaceDetailPage() {
     .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .toLowerCase()
-  const hasPrestacionConformidad =
+  const showCapacitacionesModule =
     normalizedProgramName === 'alimentar comunidad'
     || normalizedProgramName.includes('abordaje comunitario')
   const allowCollaboratorsModule = !(
@@ -544,7 +544,7 @@ export function SpaceDetailPage() {
                     <FontAwesomeIcon icon={faUserPlus} aria-hidden="true" />
                   </span>
                   <div className="min-w-0">
-                    <h2 className={`text-[16px] font-semibold ${textClass}`}>Usuarios PWA</h2>
+                    <h2 className={`text-[16px] font-semibold ${textClass}`}>Usuarios responsables del Espacio Comunitario</h2>
                     <p className={`mt-1 text-xs ${detailTextClass}`}>
                       Alta y baja de subusuarios asignados al espacio.
                     </p>
@@ -570,7 +570,9 @@ export function SpaceDetailPage() {
               <div className={`mt-3 space-y-1.5 text-sm ${detailTextClass}`}>
                 <p><span className={`font-semibold ${textClass}`}>Organización solicitante:</span> {displayValue(spaceDetail.datos_convenio_mobile.organizacion_solicitante || null)}</p>
                 <p><span className={`font-semibold ${textClass}`}>Código del proyecto:</span> {displayValue(spaceDetail.datos_convenio_mobile.codigo_proyecto || null)}</p>
-                <p><span className={`font-semibold ${textClass}`}>Monto total conveniado:</span> {displayNumber(spaceDetail.datos_convenio_mobile.monto_total_conveniado ?? null)}</p>
+                {'monto_total_conveniado' in spaceDetail.datos_convenio_mobile ? (
+                  <p><span className={`font-semibold ${textClass}`}>Monto total conveniado:</span> {displayNumber(spaceDetail.datos_convenio_mobile.monto_total_conveniado ?? null)}</p>
+                ) : null}
                 <p><span className={`font-semibold ${textClass}`}>Nro convenio:</span> {displayValue(spaceDetail.datos_convenio_mobile.nro_convenio || null)}</p>
                 <p><span className={`font-semibold ${textClass}`}>Estado general:</span> {displayValue(spaceDetail.datos_convenio_mobile.estado_general || null)}</p>
                 <p><span className={`font-semibold ${textClass}`}>Subestado:</span> {displayValue(spaceDetail.datos_convenio_mobile.subestado || null)}</p>
@@ -581,7 +583,7 @@ export function SpaceDetailPage() {
                 <p><span className={`font-semibold ${textClass}`}>Monto total de convenio por Espacio - Servicio Integral de Promoción Humana:</span> {displayNumber(spaceDetail.datos_convenio_mobile.monto_convenio_siph ?? null)}</p>
                 <p><span className={`font-semibold ${textClass}`}>Prestaciones financiadas mensuales:</span> {displayNumber(spaceDetail.datos_convenio_mobile.prestaciones_financiadas_mensuales ?? null)}</p>
                 <p><span className={`font-semibold ${textClass}`}>Personas conveniadas:</span> {displayNumber(spaceDetail.datos_convenio_mobile.personas_conveniadas ?? null)}</p>
-                <p><span className={`font-semibold ${textClass}`}>Cantidad módulos:</span> {displayNumber(spaceDetail.datos_convenio_mobile.cantidad_modulos ?? null)}</p>
+                <p><span className={`font-semibold ${textClass}`}>Cantidad módulos mensuales:</span> {displayNumber(spaceDetail.datos_convenio_mobile.cantidad_modulos ?? null)}</p>
               </div>
             ) : spaceDetail?.datos_convenio_mobile?.tipo === 'alimentar_comunidad' ? (
               <div className={`mt-3 space-y-1.5 text-sm ${detailTextClass}`}>
@@ -653,7 +655,7 @@ export function SpaceDetailPage() {
             ) : null}
           </article>
 
-          {hasPrestacionConformidad ? (
+          {showCapacitacionesModule ? (
             <article
               className="progressive-card rounded-[15px] border p-5"
               style={{ ...cardStyle, ['--card-delay' as string]: '385ms' }}
@@ -690,7 +692,7 @@ export function SpaceDetailPage() {
             </article>
           ) : null}
 
-          {hasPrestacionConformidad ? (
+          {spaceId ? (
             <article
               className="progressive-card rounded-[15px] border p-5"
               style={{ ...cardStyle, ['--card-delay' as string]: '405ms' }}

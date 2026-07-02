@@ -28,7 +28,7 @@ export interface SpaceUsersResponse {
 
 export interface CreateSpaceUserPayload {
   username: string
-  email: string
+  email?: string
   password: string
   comedor_ids: number[]
   permission_codes: string[]
