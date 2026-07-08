@@ -73,6 +73,7 @@ export function SpaceMessagesPage() {
   const [messages, setMessages] = useState<SpaceMessageItem[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [unreadGeneralCount, setUnreadGeneralCount] = useState(0)
+  const [unreadOrganizationCount, setUnreadOrganizationCount] = useState(0)
   const [unreadSpaceCount, setUnreadSpaceCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
@@ -115,6 +116,9 @@ export function SpaceMessagesPage() {
         const nextUnreadGeneralCount = normalizedMessages.filter(
           (message) => message.seccion === 'general' && !message.visto,
         ).length
+        const nextUnreadOrganizationCount = normalizedMessages.filter(
+          (message) => message.seccion === 'organizacion' && !message.visto,
+        ).length
         const nextUnreadSpaceCount = normalizedMessages.filter(
           (message) => message.seccion === 'espacio' && !message.visto,
         ).length
@@ -122,6 +126,7 @@ export function SpaceMessagesPage() {
         setMessages(normalizedMessages)
         setUnreadCount(nextUnreadCount)
         setUnreadGeneralCount(nextUnreadGeneralCount)
+        setUnreadOrganizationCount(nextUnreadOrganizationCount)
         setUnreadSpaceCount(nextUnreadSpaceCount)
         notifySpaceUnreadMessagesUpdated(spaceId, nextUnreadCount)
       } catch (error) {
@@ -172,6 +177,10 @@ export function SpaceMessagesPage() {
   )
   const spaceMessages = useMemo(
     () => groupMessages(sortedMessages.filter((message) => message.seccion === 'espacio')),
+    [sortedMessages],
+  )
+  const organizationMessages = useMemo(
+    () => groupMessages(sortedMessages.filter((message) => message.seccion === 'organizacion')),
     [sortedMessages],
   )
 
@@ -231,6 +240,19 @@ export function SpaceMessagesPage() {
             unreadCount={unreadGeneralCount}
             messages={generalMessages}
             emptyMessage="Todavía no hay notificaciones generales."
+            spaceId={spaceId}
+            spaceName={routeState?.spaceName}
+            navigate={navigate}
+            cardStyle={cardStyle}
+            textClass={textClass}
+            detailTextClass={detailTextClass}
+            isDark={isDark}
+          />
+          <MessageSection
+            title="Comunicaciones a Organizaciones"
+            unreadCount={unreadOrganizationCount}
+            messages={organizationMessages}
+            emptyMessage="Todavía no hay comunicaciones para la organización."
             spaceId={spaceId}
             spaceName={routeState?.spaceName}
             navigate={navigate}

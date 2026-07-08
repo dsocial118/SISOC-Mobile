@@ -88,13 +88,16 @@ function groupNotifications(
 
   messages.forEach((item) => {
     const rendicionId = item.message.accion?.rendicion_id
+    const isGlobalMessage =
+      item.message.seccion === 'general' || item.message.seccion === 'organizacion'
     const groupKey =
-      item.message.seccion === 'general'
-        ? `general:${item.message.id}`
+      isGlobalMessage
+        ? `${item.message.seccion}:${item.message.id}`
         : rendicionId
           ? `rendicion:${rendicionId}`
           : `space:${item.spaceId}:message:${item.message.id}`
     const existing = grouped.get(groupKey)
+    const unreadIncrement = item.message.visto ? 0 : 1
 
     if (!existing) {
       grouped.set(groupKey, {
@@ -103,16 +106,16 @@ function groupNotifications(
         spaceName: item.spaceName,
         message: item.message,
         groupedItems: [item],
-        unreadCount: item.message.visto ? 0 : 1,
+        unreadCount: unreadIncrement,
         isRendicionDetail: item.message.accion?.tipo === 'rendicion_detalle',
       })
       return
     }
 
     existing.groupedItems.push(item)
-    if (item.message.seccion !== 'general') {
-      existing.unreadCount += item.message.visto ? 0 : 1
-    }
+    existing.unreadCount = isGlobalMessage
+      ? Math.max(existing.unreadCount, unreadIncrement)
+      : existing.unreadCount + unreadIncrement
   })
 
   return Array.from(grouped.values())

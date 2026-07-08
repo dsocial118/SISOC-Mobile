@@ -58,6 +58,9 @@ function getMessageContextLabel(
   if (message.seccion === 'general') {
     return 'General'
   }
+  if (message.seccion === 'organizacion') {
+    return 'Organización'
+  }
   return spaceName
 }
 
@@ -67,8 +70,13 @@ function groupOrganizationMessages(
   const grouped = new Map<string, GroupedAggregatedMessageItem>()
 
   messages.forEach((item) => {
-    const groupKey = `space:${item.spaceId}:message:${item.message.id}`
+    const isGlobalMessage =
+      item.message.seccion === 'general' || item.message.seccion === 'organizacion'
+    const groupKey = isGlobalMessage
+      ? `${item.message.seccion}:message:${item.message.id}`
+      : `space:${item.spaceId}:message:${item.message.id}`
     const existing = grouped.get(groupKey)
+    const unreadIncrement = item.message.visto ? 0 : 1
 
     if (!existing) {
       grouped.set(groupKey, {
@@ -78,14 +86,16 @@ function groupOrganizationMessages(
         message: item.message,
         groupedItems: [item],
         groupedCount: 1,
-        unreadCount: item.message.visto ? 0 : 1,
+        unreadCount: unreadIncrement,
       })
       return
     }
 
     existing.groupedItems.push(item)
     existing.groupedCount += 1
-    existing.unreadCount += item.message.visto ? 0 : 1
+    existing.unreadCount = isGlobalMessage
+      ? Math.max(existing.unreadCount, unreadIncrement)
+      : existing.unreadCount + unreadIncrement
   })
 
   return Array.from(grouped.values())
@@ -272,6 +282,13 @@ export function OrganizationMessagesPage() {
       ),
     [sortedMessages],
   )
+  const organizationMessages = useMemo(
+    () =>
+      groupOrganizationMessages(
+        sortedMessages.filter((item) => item.message.seccion === 'organizacion'),
+      ),
+    [sortedMessages],
+  )
   const cardStyle = isDark
     ? {
         backgroundColor: '#232D4F',
@@ -322,6 +339,17 @@ export function OrganizationMessagesPage() {
         <OrganizationMessageSection
           title="Mensajes generales"
           messages={generalMessages}
+          onOpenMessage={handleOpenGroupedMessage}
+          cardStyle={cardStyle}
+          textClass={textClass}
+          detailTextClass={detailTextClass}
+          isDark={isDark}
+        />
+      ) : null}
+      {organizationMessages.length > 0 ? (
+        <OrganizationMessageSection
+          title="Comunicaciones a organizaciones"
+          messages={organizationMessages}
           onOpenMessage={handleOpenGroupedMessage}
           cardStyle={cardStyle}
           textClass={textClass}

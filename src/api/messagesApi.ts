@@ -19,7 +19,7 @@ export interface SpaceMessageItem {
   accion: SpaceMessageAction | null
   destacado: boolean
   subtipo: string
-  seccion: 'general' | 'espacio'
+  seccion: 'general' | 'organizacion' | 'espacio'
   fecha_creacion: string | null
   fecha_publicacion: string | null
   fecha_vencimiento: string | null
@@ -35,12 +35,15 @@ export interface SpaceMessagesResponse {
   unread_count: number
   unread_grouped_count: number
   unread_general_count: number
+  unread_organizacion_count: number
   unread_espacio_count: number
   unread_general_ids: number[]
+  unread_organizacion_ids: number[]
   unread_rendicion_ids: number[]
   unread_espacio_non_rendicion_count: number
   secciones: {
     generales: SpaceMessageItem[]
+    organizaciones: SpaceMessageItem[]
     espacios: SpaceMessageItem[]
   }
   results: SpaceMessageItem[]

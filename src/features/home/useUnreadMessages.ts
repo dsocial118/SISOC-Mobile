@@ -263,6 +263,7 @@ export function useOrganizationUnreadMessages(username?: string | null) {
           spaceId: string
           unreadCount: number
           unreadGeneralIds: number[]
+          unreadOrganizationIds: number[]
           unreadRendicionIds: number[]
           unreadEspacioNonRendicionCount: number
           unreadMessages: Awaited<ReturnType<typeof listSpaceMessages>>['results']
@@ -278,6 +279,7 @@ export function useOrganizationUnreadMessages(username?: string | null) {
                   spaceId: String(space.id),
                   unreadCount: response.unread_count,
                   unreadGeneralIds: response.unread_general_ids || [],
+                  unreadOrganizationIds: response.unread_organizacion_ids || [],
                   unreadRendicionIds: response.unread_rendicion_ids || [],
                   unreadEspacioNonRendicionCount:
                     response.unread_espacio_non_rendicion_count ?? 0,
@@ -288,6 +290,7 @@ export function useOrganizationUnreadMessages(username?: string | null) {
                   spaceId: String(space.id),
                   unreadCount: 0,
                   unreadGeneralIds: [],
+                  unreadOrganizationIds: [],
                   unreadRendicionIds: [],
                   unreadEspacioNonRendicionCount: 0,
                   unreadMessages: [],
@@ -307,11 +310,13 @@ export function useOrganizationUnreadMessages(username?: string | null) {
           results.map((item) => [item.spaceId, item.unreadCount]),
         )
         const seenGeneralMessageIds = new Set<number>()
+        const seenOrganizationMessageIds = new Set<number>()
         const seenRendicionIds = new Set<number>()
         let nextOrganizationUnreadCount = 0
         results.forEach((item) => {
           const hasGroupedFields =
             item.unreadGeneralIds.length > 0
+            || item.unreadOrganizationIds.length > 0
             || item.unreadRendicionIds.length > 0
             || item.unreadEspacioNonRendicionCount > 0
 
@@ -321,6 +326,13 @@ export function useOrganizationUnreadMessages(username?: string | null) {
                 return
               }
               seenGeneralMessageIds.add(messageId)
+              nextOrganizationUnreadCount += 1
+            })
+            item.unreadOrganizationIds.forEach((messageId) => {
+              if (seenOrganizationMessageIds.has(messageId)) {
+                return
+              }
+              seenOrganizationMessageIds.add(messageId)
               nextOrganizationUnreadCount += 1
             })
             item.unreadRendicionIds.forEach((rendicionId) => {
@@ -340,6 +352,15 @@ export function useOrganizationUnreadMessages(username?: string | null) {
                 return
               }
               seenGeneralMessageIds.add(message.id)
+              nextOrganizationUnreadCount += 1
+              return
+            }
+
+            if (message.seccion === 'organizacion') {
+              if (seenOrganizationMessageIds.has(message.id)) {
+                return
+              }
+              seenOrganizationMessageIds.add(message.id)
               nextOrganizationUnreadCount += 1
               return
             }
