@@ -284,7 +284,6 @@ export function SpacePrestacionesConveniadasPage() {
       || !spaceId
       || !data
       || submitting
-      || selectedConformidad
       || !selectedPeriod
     ) {
       return
@@ -413,6 +412,9 @@ export function SpacePrestacionesConveniadasPage() {
                 </div>
                 {selectedConformidad ? (
                   <div className="mt-2 grid gap-2">
+                    <p className={`text-[12px] font-semibold ${textClass}`}>
+                      Última validación del período
+                    </p>
                     <span
                       className={`w-fit rounded-full px-2 py-1 text-[11px] font-semibold ${statusClass(
                         selectedConformidad,
@@ -431,7 +433,8 @@ export function SpacePrestacionesConveniadasPage() {
                       </p>
                     ) : null}
                   </div>
-                ) : canManagePrestaciones ? (
+                ) : null}
+                {canManagePrestaciones ? (
                   <div className="mt-3 grid gap-2">
                     <div className="grid grid-cols-2 gap-2">
                       <button
