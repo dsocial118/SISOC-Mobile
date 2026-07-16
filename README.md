@@ -1,5 +1,10 @@
 # SiSOC Mobil
 
+## Identidad visual
+
+El [Manual de marca](docs/MANUAL_DE_MARCA.md) define el uso del nombre, logotipo,
+paleta, tipografía, componentes, temas y criterios de accesibilidad de la PWA.
+
 Proyecto base para campo con:
 
 - Vite + React + TypeScript
