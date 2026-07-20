@@ -30,6 +30,7 @@ export function SpaceNominaAlimentariaAttendancePage() {
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [lockedIds, setLockedIds] = useState<Set<number>>(new Set())
   const attendancePeriod = getNominaAttendancePeriod()
+  const [periodValue, setPeriodValue] = useState(attendancePeriod.periodValue)
   const [showAttendanceNotice, setShowAttendanceNotice] = useState(attendancePeriod.isOpeningDay)
   const [generatedDocument, setGeneratedDocument] = useState<{
     archivo_url: string
@@ -133,7 +134,7 @@ export function SpaceNominaAlimentariaAttendancePage() {
     setSaving(true)
     setErrorMessage('')
     try {
-      const result = await syncNominaAlimentariaAttendance(spaceId, selectedIds)
+      const result = await syncNominaAlimentariaAttendance(spaceId, selectedIds, periodValue)
       setLockedIds(new Set(selectedIds))
       setGeneratedDocument(result.nomina_destinatarios_documento ?? null)
     } catch (error) {
@@ -178,6 +179,20 @@ export function SpaceNominaAlimentariaAttendancePage() {
             ? `Se tomara asistencia para el periodo ${periodLabel}.`
             : attendancePeriod.disabledMessage}
         </p>
+        <label className={`mt-3 grid max-w-xs gap-1 text-sm font-semibold ${textClass}`}>
+          Período de la nómina
+          <input
+            type="month"
+            value={periodValue}
+            onChange={(event) => {
+              setPeriodValue(event.target.value)
+              setLockedIds(new Set())
+              setGeneratedDocument(null)
+            }}
+            disabled={!attendancePeriod.isEnabled || saving}
+            className="rounded-xl border border-[#E0E0E0] bg-white px-3 py-2 text-[#232D4F]"
+          />
+        </label>
       </div>
       {generatedDocument ? (
         <a

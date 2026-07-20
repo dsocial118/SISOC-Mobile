@@ -377,10 +377,11 @@ export async function listNominaAttendanceHistory(
 export async function syncNominaAlimentariaAttendance(
   spaceId: string | number,
   nominaIds: number[],
+  periodo: string,
 ): Promise<BulkNominaAttendanceResponse> {
   const { data } = await http.post<BulkNominaAttendanceResponse>(
     `/pwa/espacios/${spaceId}/nomina/asistencia-alimentaria/`,
-    { nomina_ids: nominaIds },
+    { nomina_ids: nominaIds, periodo },
   )
   return data
 }

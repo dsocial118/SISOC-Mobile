@@ -1,4 +1,5 @@
 export interface NominaAttendancePeriod {
+  periodValue: string
   periodLabel: string
   windowLabel: string
   isEnabled: boolean
@@ -34,6 +35,7 @@ export function getNominaAttendancePeriod(referenceDate = new Date()): NominaAtt
   const isEnabled = day >= 25 || day <= 10
 
   return {
+    periodValue: `${periodDate.getFullYear()}-${String(periodDate.getMonth() + 1).padStart(2, '0')}`,
     periodLabel,
     windowLabel,
     isEnabled,
