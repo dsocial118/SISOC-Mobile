@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faFilePdf } from '@fortawesome/free-solid-svg-icons'
 import { parseApiError } from '../../api/errorUtils'
 import {
   listSpaceNomina,
@@ -13,7 +15,6 @@ import { appButtonClass, joinClasses } from '../../ui/buttons'
 import { getNominaAttendancePeriod } from './attendancePeriod'
 
 export function SpaceNominaAlimentariaAttendancePage() {
-  const navigate = useNavigate()
   const location = useLocation()
   const { spaceId } = useParams<{ spaceId: string }>()
   const { setPageLoading } = usePageLoading()
@@ -30,6 +31,10 @@ export function SpaceNominaAlimentariaAttendancePage() {
   const [lockedIds, setLockedIds] = useState<Set<number>>(new Set())
   const attendancePeriod = getNominaAttendancePeriod()
   const [showAttendanceNotice, setShowAttendanceNotice] = useState(attendancePeriod.isOpeningDay)
+  const [generatedDocument, setGeneratedDocument] = useState<{
+    archivo_url: string
+    archivo_nombre: string
+  } | null>(null)
 
   const textClass = isDark ? 'text-white' : 'text-[#232D4F]'
   const detailTextClass = isDark ? 'text-white/85' : 'text-slate-700'
@@ -129,18 +134,8 @@ export function SpaceNominaAlimentariaAttendancePage() {
     setErrorMessage('')
     try {
       const result = await syncNominaAlimentariaAttendance(spaceId, selectedIds)
-      navigate(`/app-org/espacios/${spaceId}/nomina-alimentaria`, {
-        replace: true,
-        state: {
-          spaceName: routeState?.spaceName,
-          attendanceToast: {
-            tone: 'success',
-            message: result.nomina_destinatarios_documento
-              ? `Se guardó la asistencia del período ${result.periodo_label} y se generó el PDF de nómina.`
-              : `Se guardó la asistencia de beneficiarios del período ${result.periodo_label}.`,
-          },
-        },
-      })
+      setLockedIds(new Set(selectedIds))
+      setGeneratedDocument(result.nomina_destinatarios_documento ?? null)
     } catch (error) {
       setErrorMessage(parseApiError(error, 'No se pudo guardar la asistencia alimentaria.'))
     } finally {
@@ -184,6 +179,17 @@ export function SpaceNominaAlimentariaAttendancePage() {
             : attendancePeriod.disabledMessage}
         </p>
       </div>
+      {generatedDocument ? (
+        <a
+          href={generatedDocument.archivo_url}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1565C0] px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#0D47A1]"
+        >
+          <FontAwesomeIcon icon={faFilePdf} aria-hidden="true" />
+          Descargar nómina PDF
+        </a>
+      ) : null}
 
       {totalCount > 0 ? (
         <div className="grid gap-1">

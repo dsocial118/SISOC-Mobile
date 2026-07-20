@@ -1,6 +1,6 @@
 import { http } from './http'
 
-export const PRESTACION_TIPOS = ['desayuno', 'almuerzo', 'merienda', 'cena'] as const
+export const PRESTACION_TIPOS = ['desayuno', 'almuerzo', 'merienda', 'merienda_reforzada', 'cena'] as const
 export const PRESTACION_DIAS = [
   'lunes',
   'martes',
@@ -23,6 +23,7 @@ export interface PrestacionConformidad {
   usuario_id: number | null
   usuario_nombre: string | null
   informe_id: number | null
+  certificacion_pdf_url: string | null
 }
 
 export interface PrestacionAlimentariaResponse {
@@ -75,4 +76,21 @@ export async function registrarPrestacionConformidad(
     payload,
   )
   return data
+}
+
+export async function downloadPrestacionCertificacion(
+  url: string,
+  filename: string,
+): Promise<void> {
+  const response = await http.get<Blob>(url.replace(/^\/api/, ''), {
+    responseType: 'blob',
+  })
+  const objectUrl = URL.createObjectURL(response.data)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(objectUrl)
 }

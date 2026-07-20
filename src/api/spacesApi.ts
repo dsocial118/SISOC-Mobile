@@ -122,6 +122,11 @@ export interface SpaceDetail {
     monto_convenio_prestaciones_alimentarias?: number | null
     monto_convenio_siph?: number | null
     prestaciones_financiadas_mensuales?: number | null
+    prestaciones_financiadas_diarias_desayuno?: number | null
+    prestaciones_financiadas_diarias_almuerzo?: number | null
+    prestaciones_financiadas_diarias_merienda?: number | null
+    prestaciones_financiadas_diarias_merienda_reforzada?: number | null
+    prestaciones_financiadas_diarias_cena?: number | null
     personas_conveniadas?: number | null
     cantidad_modulos?: number | null
   } | null

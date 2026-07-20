@@ -8,7 +8,7 @@ import {
   faFolderOpen,
   faLayerGroup,
 } from '@fortawesome/free-solid-svg-icons'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { parseApiError } from '../../api/errorUtils'
 import type { RendicionItem } from '../../api/rendicionApi'
 import { listMySpaces } from '../../api/spacesApi'
@@ -113,6 +113,8 @@ function RendicionesSkeleton({ isDark }: { isDark: boolean }) {
 
 export function RendicionContextPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const routeState = location.state as { selectedOrganizationId?: string } | null
   const { userProfile } = useAuth()
   const { isDark } = useAppTheme()
   const { setPageLoading } = usePageLoading()
@@ -125,7 +127,7 @@ export function RendicionContextPage() {
   const [loading, setLoading] = useState(!hasCachedSpaces)
   const [errorMessage, setErrorMessage] = useState('')
   const [selectedOrganizationId, setSelectedOrganizationId] = useState(
-    hubCache?.selectedOrganizationId ?? '',
+    routeState?.selectedOrganizationId ?? hubCache?.selectedOrganizationId ?? '',
   )
   const [selectedProjectKey, setSelectedProjectKey] = useState(
     hubCache?.selectedProjectKey ?? '',

@@ -101,7 +101,7 @@ function fileStatusClasses(status: string, isDark: boolean): string {
 type PickerMode = 'camera' | 'gallery' | 'file'
 
 const DOCUMENT_UPLOAD_ACCEPT =
-  'image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,application/pdf,application/msword,application/vnd.ms-excel,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.presentationml.presentation'
+  'image/*,.pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 function supportsSubsanacionHistory(categoria: string): boolean {
   return categoria === 'comprobantes' || categoria === 'otros'

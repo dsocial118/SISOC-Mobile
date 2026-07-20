@@ -139,27 +139,6 @@ export function SpaceDetailPage() {
     return new Intl.NumberFormat('es-AR').format(value)
   }
 
-  function displayWeeklyFromMonthly(value: number | null | undefined): string {
-    if (value === null || value === undefined) {
-      return 'Sin dato'
-    }
-    return displayNumber(Math.ceil(value / 4))
-  }
-
-  function displayMonthlyAmount(
-    monthly: number | null | undefined,
-    total: number | null | undefined,
-  ): string {
-    if (monthly !== null && monthly !== undefined) {
-      return displayNumber(monthly)
-    }
-    if (total !== null && total !== undefined) {
-      // Respaldo: no hay monto mensual, se muestra el total aclarándolo.
-      return `${displayNumber(total)} (total del convenio)`
-    }
-    return 'Sin dato'
-  }
-
   function formatDate(value: string | number | null | undefined): string {
     if (!value) {
       return 'Sin dato'
@@ -581,30 +560,28 @@ export function SpaceDetailPage() {
                 <p><span className={`font-semibold ${textClass}`}>Domicilio completo del espacio:</span> {displayValue(spaceDetail.datos_convenio_mobile.domicilio_completo_espacio || null)}</p>
                 <p><span className={`font-semibold ${textClass}`}>Monto total de convenio por Espacio - Prestaciones Alimentarias:</span> {displayNumber(spaceDetail.datos_convenio_mobile.monto_convenio_prestaciones_alimentarias ?? null)}</p>
                 <p><span className={`font-semibold ${textClass}`}>Monto total de convenio por Espacio - Servicio Integral de Promoción Humana:</span> {displayNumber(spaceDetail.datos_convenio_mobile.monto_convenio_siph ?? null)}</p>
-                <p><span className={`font-semibold ${textClass}`}>Prestaciones financiadas mensuales:</span> {displayNumber(spaceDetail.datos_convenio_mobile.prestaciones_financiadas_mensuales ?? null)}</p>
+                {!normalizedProgramName.includes('linea secos') && !normalizedProgramName.includes('linea tradicional') ? (
+                  <p><span className={`font-semibold ${textClass}`}>Prestaciones financiadas mensuales:</span> {displayNumber(spaceDetail.datos_convenio_mobile.prestaciones_financiadas_mensuales ?? null)}</p>
+                ) : null}
+                {normalizedProgramName.includes('linea tradicional') ? (
+                  <>
+                    <p><span className={`font-semibold ${textClass}`}>Prestaciones Financiadas Diarias - Desayuno:</span> {displayNumber(spaceDetail.datos_convenio_mobile.prestaciones_financiadas_diarias_desayuno ?? null)}</p>
+                    <p><span className={`font-semibold ${textClass}`}>Prestaciones Financiadas Diarias - Almuerzo:</span> {displayNumber(spaceDetail.datos_convenio_mobile.prestaciones_financiadas_diarias_almuerzo ?? null)}</p>
+                    <p><span className={`font-semibold ${textClass}`}>Prestaciones Financiadas Diarias - Merienda:</span> {displayNumber(spaceDetail.datos_convenio_mobile.prestaciones_financiadas_diarias_merienda ?? null)}</p>
+                    <p><span className={`font-semibold ${textClass}`}>Prestaciones Financiadas Diarias - Merienda Reforzada:</span> {displayNumber(spaceDetail.datos_convenio_mobile.prestaciones_financiadas_diarias_merienda_reforzada ?? null)}</p>
+                    <p><span className={`font-semibold ${textClass}`}>Prestaciones Financiadas Diarias - Cena:</span> {displayNumber(spaceDetail.datos_convenio_mobile.prestaciones_financiadas_diarias_cena ?? null)}</p>
+                  </>
+                ) : null}
                 <p><span className={`font-semibold ${textClass}`}>Personas conveniadas:</span> {displayNumber(spaceDetail.datos_convenio_mobile.personas_conveniadas ?? null)}</p>
-                <p><span className={`font-semibold ${textClass}`}>Cantidad módulos mensuales:</span> {displayNumber(spaceDetail.datos_convenio_mobile.cantidad_modulos ?? null)}</p>
+                {!normalizedProgramName.includes('linea tradicional') ? (
+                  <p><span className={`font-semibold ${textClass}`}>Cantidad Módulos Mensuales:</span> {displayNumber(spaceDetail.datos_convenio_mobile.cantidad_modulos ?? null)}</p>
+                ) : null}
               </div>
             ) : spaceDetail?.datos_convenio_mobile?.tipo === 'alimentar_comunidad' ? (
               <div className={`mt-3 space-y-1.5 text-sm ${detailTextClass}`}>
                 <p>
                   <span className={`font-semibold ${textClass}`}>Vigencia de Convenio:</span>{' '}
                   {spaceDetail.datos_convenio_mobile.vigencia_convenio_meses || 6} meses
-                </p>
-                <p>
-                  <span className={`font-semibold ${textClass}`}>Prestaciones semanales:</span>{' '}
-                  {displayWeeklyFromMonthly(
-                    spaceDetail.datos_convenio_mobile.prestaciones_mensuales
-                    ?? spaceDetail.datos_convenio_mobile.prestaciones_gescom_total_mensual
-                    ?? null,
-                  )}
-                </p>
-                <p>
-                  <span className={`font-semibold ${textClass}`}>Monto mensual de prestaciones:</span>{' '}
-                  {displayMonthlyAmount(
-                    spaceDetail.datos_convenio_mobile.monto_prestacion_mensual,
-                    spaceDetail.datos_convenio_mobile.monto_total_convenio,
-                  )}
                 </p>
               </div>
             ) : (

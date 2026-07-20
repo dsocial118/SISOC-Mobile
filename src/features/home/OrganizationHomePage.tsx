@@ -4,6 +4,7 @@ import {
   faChevronDown,
   faChevronRight,
   faChevronUp,
+  faCalculator,
   faFilter,
   faMagnifyingGlass,
 } from '@fortawesome/free-solid-svg-icons'
@@ -39,6 +40,18 @@ function normalizeSearchValue(value: string | null | undefined): string {
     .trim()
 }
 
+function hasRendicionPermission(permissions: string[] | undefined): boolean {
+  return Boolean(permissions?.some((permission) =>
+    String(permission || '').trim().toLowerCase().includes('manage_mobile_rendicion'),
+  ))
+}
+
+function isAbordajeCommunitySpace(space: SpaceItem): boolean {
+  const programName = normalizeSearchValue(space.programa__nombre)
+  return programName.includes('abordaje comunitario')
+    && (programName.includes('linea secos') || programName.includes('linea tradicional'))
+}
+
 function buildOptions(items: Array<{ value: string; label: string }>): FilterOption[] {
   return items
     .filter((item) => item.value && item.label)
@@ -63,6 +76,7 @@ export function OrganizationHomePage() {
   const [selectedProjectCode, setSelectedProjectCode] = useState('')
   const [isFiltersOpen, setIsFiltersOpen] = useState(false)
   const [openOrganizations, setOpenOrganizations] = useState<Record<string, boolean>>({})
+  const canManageRendicion = hasRendicionPermission(userProfile?.permissions)
 
   useEffect(() => {
     let isMounted = true
@@ -238,6 +252,9 @@ export function OrganizationHomePage() {
       return
     }
     const singleSpace = accessSummary.autoEnterSpace
+    if (isAbordajeCommunitySpace(singleSpace) && accessSummary.hasOrganizationAssociation) {
+      return
+    }
     setPageLoading(true)
     navigate(`/app-org/espacios/${singleSpace.id}/hub`, {
       replace: true,
@@ -247,7 +264,7 @@ export function OrganizationHomePage() {
         fromSingleSpaceAuto: true,
       },
     })
-  }, [accessSummary.autoEnterSpace, errorMessage, loading, navigate, setPageLoading])
+  }, [accessSummary.autoEnterSpace, accessSummary.hasOrganizationAssociation, errorMessage, loading, navigate, setPageLoading])
 
   return (
     <section className="grid gap-4">
@@ -409,28 +426,54 @@ export function OrganizationHomePage() {
                     isDark ? 'border-white/15' : 'border-[#D8DCE5]'
                   }`}
                 >
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setOpenOrganizations((current) => ({
-                        ...current,
-                        [group.organizationId]: !isOpen,
-                      }))
-                    }
-                    className="flex w-full items-center justify-between gap-3 py-1 text-left"
-                  >
-                    <div>
-                      <p className="text-[15px] font-semibold">{group.organizationName}</p>
-                      <p className={`mt-1 text-[12px] ${isDark ? 'text-white/70' : 'text-slate-500'}`}>
-                        {group.spaces.length} espacio{group.spaces.length === 1 ? '' : 's'}
-                      </p>
-                    </div>
-                    <FontAwesomeIcon
-                      icon={isOpen ? faChevronUp : faChevronDown}
-                      aria-hidden="true"
-                      className={isDark ? 'text-white/75' : 'text-slate-500'}
-                    />
-                  </button>
+                  <div className="flex w-full items-center gap-2 py-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenOrganizations((current) => ({
+                          ...current,
+                          [group.organizationId]: !isOpen,
+                        }))
+                      }
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <div>
+                        <p className="text-[15px] font-semibold">{group.organizationName}</p>
+                        <p className={`mt-1 text-[12px] ${isDark ? 'text-white/70' : 'text-slate-500'}`}>
+                          {group.spaces.length} espacio{group.spaces.length === 1 ? '' : 's'}
+                        </p>
+                      </div>
+                    </button>
+                    {canManageRendicion && group.spaces.some(isAbordajeCommunitySpace) ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/app-org/rendicion', {
+                          state: { selectedOrganizationId: String(group.organizationId) },
+                        })}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#E7BA61] px-2.5 py-2 text-[12px] font-semibold text-[#232D4F]"
+                      >
+                        <FontAwesomeIcon icon={faCalculator} aria-hidden="true" />
+                        Crear Rendición
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenOrganizations((current) => ({
+                          ...current,
+                          [group.organizationId]: !isOpen,
+                        }))
+                      }
+                      className="inline-flex shrink-0 items-center justify-center p-2"
+                      aria-label={isOpen ? 'Contraer Organización' : 'Expandir Organización'}
+                    >
+                      <FontAwesomeIcon
+                        icon={isOpen ? faChevronUp : faChevronDown}
+                        aria-hidden="true"
+                        className={isDark ? 'text-white/75' : 'text-slate-500'}
+                      />
+                    </button>
+                  </div>
 
                   {isOpen ? (
                     <div className="mt-3 grid gap-3">

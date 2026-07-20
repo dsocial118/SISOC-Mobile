@@ -35,7 +35,7 @@ const DOCUMENT_CATEGORIES: DocumentCategoryConfig[] = [
   {
     codigo: 'formulario_i',
     label: 'Formulario I - Certificación de Cuenta Bancaria',
-    required: true,
+    required: false,
     multiple: false,
     order: 1,
   },

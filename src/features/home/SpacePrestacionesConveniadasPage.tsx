@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-  faCalendarDay,
   faCheckCircle,
+  faFilePdf,
   faUtensils,
   faXmark,
   faUserCheck,
@@ -12,6 +12,7 @@ import { useLocation, useParams } from 'react-router-dom'
 import { parseApiError } from '../../api/errorUtils'
 import {
   getPrestacionesConveniadas,
+  downloadPrestacionCertificacion,
   PRESTACION_DIAS,
   PRESTACION_TIPOS,
   registrarPrestacionConformidad,
@@ -31,6 +32,7 @@ const TIPO_LABELS: Record<PrestacionTipo, string> = {
   desayuno: 'Desayuno',
   almuerzo: 'Almuerzo',
   merienda: 'Merienda',
+  merienda_reforzada: 'Merienda Reforzada',
   cena: 'Cena',
 }
 
@@ -179,6 +181,12 @@ export function SpacePrestacionesConveniadasPage() {
   const canManagePrestaciones = Boolean(
     userProfile?.permissions?.includes(PWA_PRESTACIONES_MENSUALES_PERMISSION),
   )
+  const prestacionTipos = useMemo(
+    () => PRESTACION_TIPOS.filter(
+      (tipo) => tipo !== 'merienda_reforzada' || data?.incluye_merienda_reforzada === true,
+    ),
+    [data?.incluye_merienda_reforzada],
+  )
   const yearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear()
     return Array.from({ length: 8 }, (_, index) => String(currentYear - 3 + index))
@@ -236,27 +244,27 @@ export function SpacePrestacionesConveniadasPage() {
       return []
     }
     return PRESTACION_DIAS.map((dia) => {
-      const values = PRESTACION_TIPOS.map((tipo) => getApprovedValue(data, tipo, dia))
+      const values = prestacionTipos.map((tipo) => getApprovedValue(data, tipo, dia))
       return {
         dia,
         values,
         total: values.reduce((sum, value) => sum + value, 0),
       }
     })
-  }, [data])
+  }, [data, prestacionTipos])
 
   const totalsByType = useMemo(() => {
     if (!data) {
-      return PRESTACION_TIPOS.map((tipo) => ({ tipo, total: 0 }))
+      return prestacionTipos.map((tipo) => ({ tipo, total: 0 }))
     }
-    return PRESTACION_TIPOS.map((tipo) => ({
+    return prestacionTipos.map((tipo) => ({
       tipo,
       total: PRESTACION_DIAS.reduce(
         (sum, dia) => sum + getApprovedValue(data, tipo, dia),
         0,
       ),
     }))
-  }, [data])
+  }, [data, prestacionTipos])
 
   useEffect(() => {
     if (!data) {
@@ -427,6 +435,9 @@ export function SpacePrestacionesConveniadasPage() {
                       Registrado el {formatDateTime(selectedConformidad.creado)} por{' '}
                       {selectedConformidad.usuario_nombre || 'usuario no disponible'}.
                     </p>
+                    <p className={`text-[12px] ${detailTextClass}`}>
+                      Podés registrar una nueva validación para este mismo período.
+                    </p>
                     {selectedConformidad.observaciones ? (
                       <p className="text-[12px] text-[#C62828]">
                         Observaciones: {selectedConformidad.observaciones}
@@ -514,18 +525,6 @@ export function SpacePrestacionesConveniadasPage() {
             </div>
           </article>
 
-          <article className="rounded-[15px] border p-4" style={cardStyle}>
-            <div className="flex items-start gap-3">
-              <FontAwesomeIcon icon={faCalendarDay} aria-hidden="true" className={textClass} />
-              <div>
-                <p className={`text-[14px] font-semibold ${textClass}`}>Último informe técnico</p>
-                <p className={`mt-1 text-[12px] ${detailTextClass}`}>
-                  Fecha de finalización: {formatDate(data.fecha_finalizacion || data.modificado || data.creado)}
-                </p>
-              </div>
-            </div>
-          </article>
-
           <div className="grid grid-cols-2 gap-2">
             {totalsByType.map((item) => (
               <article key={item.tipo} className="rounded-xl border p-3" style={cardStyle}>
@@ -554,7 +553,7 @@ export function SpacePrestacionesConveniadasPage() {
                     </p>
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2">
-                    {PRESTACION_TIPOS.map((tipo, index) => (
+                    {prestacionTipos.map((tipo, index) => (
                       <div key={`${row.dia}-${tipo}`} className="flex min-w-0 items-baseline justify-between gap-2">
                         <p className={`truncate text-[12px] ${mutedTextClass}`}>
                           {TIPO_LABELS[tipo]}
@@ -603,6 +602,19 @@ export function SpacePrestacionesConveniadasPage() {
                       <p className="mt-1 text-[12px] text-[#C62828]">
                         {item.observaciones}
                       </p>
+                    ) : null}
+                    {item.certificacion_pdf_url ? (
+                      <button
+                        type="button"
+                        onClick={() => void downloadPrestacionCertificacion(
+                          item.certificacion_pdf_url || '',
+                          `certificacion-prestaciones-${spaceId}-${periodToMonthValue(item.periodo)}.pdf`,
+                        )}
+                        className="mt-3 inline-flex items-center justify-center gap-2 rounded-lg bg-[#1565C0] px-3 py-2 text-[12px] font-semibold text-white shadow-sm transition-colors hover:bg-[#0D47A1]"
+                      >
+                        <FontAwesomeIcon icon={faFilePdf} aria-hidden="true" />
+                        Descargar certificación
+                      </button>
                     ) : null}
                   </div>
                 ))}

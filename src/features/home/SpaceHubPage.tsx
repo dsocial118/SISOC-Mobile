@@ -285,14 +285,6 @@ export function SpaceHubPage() {
           icon: faUsers,
         },
       )
-      if (canManageRendicion && isPnudProgram) {
-        modulesForProgram.push({
-          id: 'rendiciones',
-          title: 'Rendiciones',
-          route: `/app-org/rendicion`,
-          icon: faCalculator,
-        })
-      }
       if (isPnudProgram) {
         modulesForProgram.push({
           id: 'cursos',
@@ -328,7 +320,7 @@ export function SpaceHubPage() {
           icon: faUtensils,
         },
       )
-      if (canManageRendicion && isPnudProgram) {
+      if (canManageRendicion) {
         modulesForProgram.push({
           id: 'rendiciones',
           title: 'Rendiciones',
