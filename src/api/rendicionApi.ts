@@ -23,6 +23,7 @@ export interface RendicionFileItem {
 export interface RendicionDocumentCategory {
   codigo: string
   label: string
+  description?: string | null
   required: boolean
   multiple: boolean
   order: number

@@ -56,7 +56,8 @@ const DOCUMENT_CATEGORIES: DocumentCategoryConfig[] = [
   {
     codigo: 'formulario_iii_siph',
     label: 'Formulario III - Desagregado por Facturas SIPH',
-    required: true,
+    description: 'Este documento es obligatorio si presentó actividades para este Convenio',
+    required: false,
     multiple: false,
     order: 4,
   },
@@ -77,7 +78,8 @@ const DOCUMENT_CATEGORIES: DocumentCategoryConfig[] = [
   {
     codigo: 'formulario_v_siph',
     label: 'Formulario V - Certificación de SIPH',
-    required: true,
+    description: 'Este documento es obligatorio si presentó actividades para este Convenio',
+    required: false,
     multiple: false,
     order: 7,
   },
@@ -220,6 +222,12 @@ const MODELOS_POR_LINEA: Record<
       label: 'Formulario VI - Planilla de Pagos',
       filename: 'FORM.VI.RMC.AF.1.xlsx',
       order: 8,
+    },
+    {
+      codigo: 'planilla_seguros',
+      label: 'Planilla de Seguros',
+      filename: 'Planilla.II.Seguros.Actualizacion.-.Tradicional.docx',
+      order: 9,
     },
   ],
 }

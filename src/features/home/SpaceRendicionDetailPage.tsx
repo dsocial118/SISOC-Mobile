@@ -593,6 +593,11 @@ export function SpaceRendicionDetailPage() {
               <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className={`text-[14px] font-semibold ${titleClass}`}>{categoria.label}</p>
+                  {categoria.description ? (
+                    <p className={`mt-1 text-[12px] ${subtitleClass}`}>
+                      {categoria.description}
+                    </p>
+                  ) : null}
                   <p className={`mt-1 text-[12px] ${subtitleClass}`}>
                     {categoria.required ? 'Obligatorio' : 'Opcional'} -{' '}
                     {categoria.multiple ? 'Múltiples archivos' : 'Un único archivo'}
