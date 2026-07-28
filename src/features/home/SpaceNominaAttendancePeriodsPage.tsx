@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faCalendarDay,
   faChevronRight,
+  faFilePdf,
   faIdCard,
   faUserCheck,
 } from '@fortawesome/free-solid-svg-icons'
@@ -151,21 +152,9 @@ export function SpaceNominaAttendancePeriodsPage() {
       {!isDetail ? (
         <div className="grid gap-2">
           {periods.map((item) => (
-            <button
+            <article
               key={item.periodo_referencia}
-              type="button"
-              onClick={() =>
-                navigate(
-                  `/app-org/espacios/${spaceId}/nomina/asistencias/${item.periodo_referencia}?tab=${tab}`,
-                  {
-                    state: {
-                      spaceName: routeState?.spaceName,
-                      tab,
-                    },
-                  },
-                )
-              }
-              className="rounded-xl border p-4 text-left"
+              className="rounded-xl border p-4"
               style={cardStyle}
             >
               <div className="flex items-center justify-between gap-3">
@@ -177,14 +166,50 @@ export function SpaceNominaAttendancePeriodsPage() {
                     {item.total_asistentes} asistentes registrados
                   </p>
                 </div>
-                <FontAwesomeIcon
-                  icon={faChevronRight}
-                  aria-hidden="true"
-                  className={isDark ? 'text-white/80' : 'text-slate-500'}
-                  style={{ fontSize: 14 }}
-                />
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  {item.nomina_destinatarios_documento ? (
+                    <a
+                      href={item.nomina_destinatarios_documento.archivo_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download={item.nomina_destinatarios_documento.archivo_nombre}
+                      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px] font-semibold ${
+                        isDark
+                          ? 'border-white/40 text-white'
+                          : 'border-[#232D4F]/30 text-[#232D4F]'
+                      }`}
+                    >
+                      <FontAwesomeIcon icon={faFilePdf} aria-hidden="true" />
+                      Descargar PDF
+                    </a>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(
+                        `/app-org/espacios/${spaceId}/nomina/asistencias/${item.periodo_referencia}?tab=${tab}`,
+                        {
+                          state: {
+                            spaceName: routeState?.spaceName,
+                            tab,
+                          },
+                        },
+                      )
+                    }
+                    className={`inline-flex items-center gap-2 text-[12px] font-semibold ${
+                      isDark ? 'text-white/80' : 'text-slate-600'
+                    }`}
+                  >
+                    Ver detalle
+                    <FontAwesomeIcon
+                      icon={faChevronRight}
+                      aria-hidden="true"
+                      style={{ fontSize: 14 }}
+                    />
+                  </button>
+                </div>
               </div>
-            </button>
+            </article>
           ))}
         </div>
       ) : null}

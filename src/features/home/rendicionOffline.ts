@@ -50,7 +50,7 @@ const DOCUMENT_CATEGORIES: DocumentCategoryConfig[] = [
     codigo: 'formulario_iii_alimentario',
     label: 'Formulario III - Desagregado por Facturas Prestación Alimentaria',
     required: true,
-    multiple: false,
+    multiple: true,
     order: 3,
   },
   {
@@ -58,7 +58,7 @@ const DOCUMENT_CATEGORIES: DocumentCategoryConfig[] = [
     label: 'Formulario III - Desagregado por Facturas SIPH',
     description: 'Este documento es obligatorio si presentó actividades para este Convenio',
     required: false,
-    multiple: false,
+    multiple: true,
     order: 4,
   },
   {
@@ -100,7 +100,7 @@ const DOCUMENT_CATEGORIES: DocumentCategoryConfig[] = [
   {
     codigo: 'comprobantes',
     label: 'Comprobante/s',
-    required: true,
+    required: false,
     multiple: true,
     order: 10,
   },

@@ -120,6 +120,16 @@ export interface NominaAttendancePeriodItem {
   periodo_referencia: string
   periodo_label: string
   total_asistentes: number
+  nomina_destinatarios_documento: {
+    id: number
+    periodo_referencia: string
+    periodo_label: string
+    version: number
+    cantidad_destinatarios: number
+    fecha_generacion: string
+    archivo_url: string
+    archivo_nombre: string
+  } | null
 }
 
 export interface NominaAttendancePeriodResponse {
@@ -143,6 +153,7 @@ export interface NominaAttendancePeriodDetail {
   periodo_referencia: string
   periodo_label: string
   total_asistentes: number
+  nomina_destinatarios_documento: NominaAttendancePeriodItem['nomina_destinatarios_documento']
   asistentes: NominaAttendanceAttendee[]
 }
 
