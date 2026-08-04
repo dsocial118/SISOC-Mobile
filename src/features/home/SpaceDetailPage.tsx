@@ -127,21 +127,21 @@ export function SpaceDetailPage() {
 
   function displayValue(value: string | null | undefined): string {
     if (!value) {
-      return 'Sin dato'
+      return '-'
     }
     return value
   }
 
   function displayNumber(value: number | null | undefined): string {
     if (value === null || value === undefined) {
-      return 'Sin dato'
+      return '-'
     }
     return new Intl.NumberFormat('es-AR').format(value)
   }
 
   function formatDate(value: string | number | null | undefined): string {
     if (!value) {
-      return 'Sin dato'
+      return '-'
     }
     if (typeof value === 'number') {
       return String(value)
@@ -169,7 +169,7 @@ export function SpaceDetailPage() {
 
   function formatAddress(detail: SpaceDetail | null): string {
     if (!detail) {
-      return 'Sin dato'
+      return '-'
     }
     const chunks = [
       detail.calle ? `${detail.calle}${detail.numero ? ` ${detail.numero}` : ''}` : '',
@@ -181,7 +181,7 @@ export function SpaceDetailPage() {
       detail.partido ? `Partido ${detail.partido}` : '',
       detail.codigo_postal ? `CP ${detail.codigo_postal}` : '',
     ].filter(Boolean)
-    return chunks.length > 0 ? chunks.join(', ') : 'Sin dato'
+    return chunks.length > 0 ? chunks.join(', ') : '-'
   }
 
   const organizacion = spaceDetail?.organizacion
@@ -192,9 +192,8 @@ export function SpaceDetailPage() {
     .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .toLowerCase()
-  const showCapacitacionesModule =
-    normalizedProgramName === 'alimentar comunidad'
-    || normalizedProgramName.includes('abordaje comunitario')
+  const showCapacitacionesModule = true
+  const showPrestacionesConveniadas = !normalizedProgramName.includes('abordaje comunitario')
   const allowCollaboratorsModule = !(
     normalizedProgramName.includes('abordaje comunitario')
     && normalizedProgramName.includes('linea secos')
@@ -409,7 +408,7 @@ export function SpaceDetailPage() {
               </p>
               <p>
                 <span className={`font-semibold ${textClass}`}>Número:</span>{' '}
-                {spaceDetail?.numero ? String(spaceDetail.numero) : 'Sin dato'}
+                {spaceDetail?.numero ? String(spaceDetail.numero) : '-'}
               </p>
               <p>
                 <span className={`font-semibold ${textClass}`}>Provincia:</span>{' '}
@@ -424,7 +423,7 @@ export function SpaceDetailPage() {
                 {formatAddress(spaceDetail)}
               </p>
               <p>
-                <span className={`font-semibold ${textClass}`}>Correo electrónico:</span> Sin dato
+                <span className={`font-semibold ${textClass}`}>Correo electrónico:</span> -
               </p>
             </div>
 
@@ -549,8 +548,8 @@ export function SpaceDetailPage() {
               <div className={`mt-3 space-y-1.5 text-sm ${detailTextClass}`}>
                 <p><span className={`font-semibold ${textClass}`}>Organización solicitante:</span> {displayValue(spaceDetail.datos_convenio_mobile.organizacion_solicitante || null)}</p>
                 <p><span className={`font-semibold ${textClass}`}>Código del proyecto:</span> {displayValue(spaceDetail.datos_convenio_mobile.codigo_proyecto || null)}</p>
-                {'monto_total_conveniado' in spaceDetail.datos_convenio_mobile ? (
-                  <p><span className={`font-semibold ${textClass}`}>Monto total conveniado:</span> {displayNumber(spaceDetail.datos_convenio_mobile.monto_total_conveniado ?? null)}</p>
+                {'personas_declaradas_siph' in spaceDetail.datos_convenio_mobile ? (
+                  <p><span className={`font-semibold ${textClass}`}>Total de Personas declaradas en Servicio Integral de Promoción Humana:</span> {displayNumber(spaceDetail.datos_convenio_mobile.personas_declaradas_siph ?? null)}</p>
                 ) : null}
                 <p><span className={`font-semibold ${textClass}`}>Nro convenio:</span> {displayValue(spaceDetail.datos_convenio_mobile.nro_convenio || null)}</p>
                 <p><span className={`font-semibold ${textClass}`}>Estado general:</span> {displayValue(spaceDetail.datos_convenio_mobile.estado_general || null)}</p>
@@ -586,7 +585,7 @@ export function SpaceDetailPage() {
               </div>
             ) : (
               <div className={`mt-3 space-y-1.5 text-sm ${detailTextClass}`}>
-                <p>Sin datos de convenio para este programa.</p>
+                <p>-</p>
               </div>
             )}
           </article>
@@ -669,7 +668,7 @@ export function SpaceDetailPage() {
             </article>
           ) : null}
 
-          {spaceId ? (
+          {spaceId && showPrestacionesConveniadas ? (
             <article
               className="progressive-card rounded-[15px] border p-5"
               style={{ ...cardStyle, ['--card-delay' as string]: '405ms' }}

@@ -253,8 +253,20 @@ export function RendicionContextPage() {
       setExistingLoading(true)
       setExistingError('')
       try {
+        const contextsFiltrados = contexts.filter((context) => {
+          if (
+            selectedOrganizationId
+            && String(context.organizationId) !== selectedOrganizationId
+          ) {
+            return false
+          }
+          if (selectedProjectKey && context.projectKey !== selectedProjectKey) {
+            return false
+          }
+          return true
+        })
         const results = await Promise.all(
-          contexts.map(async (context) => ({
+          contextsFiltrados.map(async (context) => ({
             context,
             rendiciones: await loadRendicionesOfflineFirst(context.representativeSpace.id),
           })),

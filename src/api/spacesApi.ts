@@ -113,6 +113,7 @@ export interface SpaceDetail {
     organizacion_solicitante?: string | null
     codigo_proyecto?: string | null
     monto_total_conveniado?: number | null
+    personas_declaradas_siph?: number | null
     nro_convenio?: string | null
     estado_general?: string | null
     subestado?: string | null
