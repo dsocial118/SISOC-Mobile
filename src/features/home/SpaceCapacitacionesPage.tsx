@@ -18,7 +18,6 @@ import {
   type CapacitacionCertificadoItem,
 } from '../../api/capacitacionesApi'
 import { parseApiError } from '../../api/errorUtils'
-import { getSpaceDetail } from '../../api/spacesApi'
 import { pickFromGallery, takePhoto } from '../../device/media'
 import { AppToast } from '../../ui/AppToast'
 import { usePageLoading } from '../../ui/PageLoadingContext'
@@ -63,7 +62,6 @@ export function SpaceCapacitacionesPage() {
 
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-  const [enabled, setEnabled] = useState(true)
   const [items, setItems] = useState<CapacitacionCertificadoItem[]>([])
   const [formandoCapitalHumano, setFormandoCapitalHumano] =
     useState<CapacitacionesResponse['formando_capital_humano']>(null)
@@ -102,23 +100,6 @@ export function SpaceCapacitacionesPage() {
         return
       }
       try {
-        let isAlimentarComunidad =
-          (routeState?.programName || '').trim().toLowerCase() === 'alimentar comunidad'
-        if (!isAlimentarComunidad) {
-          const detail = await getSpaceDetail(spaceId)
-          isAlimentarComunidad =
-            (detail.programa?.nombre || '').trim().toLowerCase() === 'alimentar comunidad'
-        }
-        if (!isAlimentarComunidad) {
-          if (!isMounted) {
-            return
-          }
-          setEnabled(false)
-          setItems([])
-          setFormandoCapitalHumano(null)
-          return
-        }
-        setEnabled(true)
         const response = await listSpaceCapacitaciones(spaceId)
         if (!isMounted) {
           return
@@ -143,7 +124,7 @@ export function SpaceCapacitacionesPage() {
       isMounted = false
       setPageLoading(false)
     }
-  }, [routeState?.programName, setPageLoading, spaceId])
+  }, [setPageLoading, spaceId])
 
   function pickCertificateFile(): Promise<File | null> {
     return new Promise((resolve) => {
@@ -315,14 +296,7 @@ export function SpaceCapacitacionesPage() {
         ) : null}
       </article>
 
-      {!enabled ? (
-        <article className="rounded-[15px] border p-5" style={cardStyle}>
-          <p className={`text-sm ${detailTextClass}`}>
-            Esta seccion aplica solo a espacios del programa Alimentar Comunidad.
-          </p>
-        </article>
-      ) : (
-        <div className="grid gap-3">
+      <div className="grid gap-3">
           {items.map((item) => {
             const selectedFile = selectedFiles[item.id]
             const isUploading = uploadingId === item.id
@@ -523,8 +497,7 @@ export function SpaceCapacitacionesPage() {
               </article>
             )
           })}
-        </div>
-      )}
+      </div>
     </section>
   )
 }
