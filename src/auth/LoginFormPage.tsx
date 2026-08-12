@@ -146,7 +146,7 @@ export function LoginFormPage() {
 
 interface LoginInputFieldProps {
   id: string
-  type: 'text' | 'password'
+  type: 'text' | 'password' | 'email'
   icon: React.ReactNode
   placeholder: string
   value: string
