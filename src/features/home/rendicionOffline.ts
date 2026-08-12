@@ -512,6 +512,8 @@ function toRendicionItem(record: LocalRendicionRecord): RendicionItem {
   const linea = normalizeLineaProgramatica(record.linea_programatica)
   return {
     id: record.remote_id ?? record.id,
+    proyecto: record.proyecto_id,
+    proyecto_codigo: record.proyecto_codigo,
     convenio: record.convenio,
     numero_rendicion: record.numero_rendicion,
     mes: record.mes,
@@ -630,6 +632,8 @@ function toLocalRendicionRecord(
     user_key: userKey,
     space_id: spaceId,
     remote_id: Number(detail.id),
+    proyecto_id: detail.proyecto || null,
+    proyecto_codigo: detail.proyecto_codigo || null,
     convenio: detail.convenio,
     numero_rendicion: detail.numero_rendicion,
     mes: detail.mes,
@@ -846,6 +850,8 @@ export async function createRendicionOffline(
     user_key: userKey,
     space_id: parsedSpaceId,
     remote_id: null,
+    proyecto_id: payload.proyecto_id || null,
+    proyecto_codigo: null,
     convenio: payload.convenio,
     numero_rendicion: payload.numero_rendicion,
     mes: month,
@@ -1019,6 +1025,7 @@ export async function queueRendicionFileUpload(params: {
 
 function buildCreatePayloadFromLocal(record: LocalRendicionRecord): CreateRendicionPayload {
   return {
+    proyecto_id: record.proyecto_id || undefined,
     convenio: record.convenio || '',
     numero_rendicion: record.numero_rendicion || 0,
     periodo_inicio: record.periodo_inicio || '',

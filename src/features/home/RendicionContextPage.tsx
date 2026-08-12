@@ -76,6 +76,8 @@ function buildRouteState(context: RendicionProjectContext, lineaProgramatica: st
   return {
     organizationName: context.organizationName,
     projectName: context.projectLabel,
+    projectId: context.projectId,
+    projectCode: context.projectCode,
     programName: context.representativeSpace.programa__nombre || context.projectLabel,
     spaceName: context.representativeSpace.nombre,
     lineaProgramatica,
@@ -266,10 +268,17 @@ export function RendicionContextPage() {
           return true
         })
         const results = await Promise.all(
-          contextsFiltrados.map(async (context) => ({
-            context,
-            rendiciones: await loadRendicionesOfflineFirst(context.representativeSpace.id),
-          })),
+          contextsFiltrados.map(async (context) => {
+            const rendiciones = await loadRendicionesOfflineFirst(context.representativeSpace.id)
+            return {
+              context,
+              rendiciones: rendiciones.filter((rendicion) =>
+                context.projectId
+                  ? rendicion.proyecto === context.projectId
+                  : !rendicion.proyecto,
+              ),
+            }
+          }),
         )
         if (!isMounted) {
           return

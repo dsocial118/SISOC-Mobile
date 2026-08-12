@@ -28,6 +28,8 @@ export function SpaceRendicionFormPage() {
           spaceName?: string
           programName?: string
           projectName?: string
+          projectId?: number | null
+          projectCode?: string | null
           organizationName?: string
           lineaProgramatica?: string
           lineaProgramaticaLabel?: string
@@ -82,7 +84,9 @@ export function SpaceRendicionFormPage() {
       }
 
       const existingRows = await listOfflineRendiciones(spaceId)
-      const hasOverlappingPeriod = existingRows.some((row) => {
+      const hasOverlappingPeriod = existingRows
+        .filter((row) => routeState?.projectId ? row.proyecto === routeState.projectId : !row.proyecto)
+        .some((row) => {
         const rowInicioTs = toComparableDate(row.periodo_inicio)
         const rowFinTs = toComparableDate(row.periodo_fin)
         if (!rowInicioTs || !rowFinTs) {
@@ -98,6 +102,7 @@ export function SpaceRendicionFormPage() {
       }
 
       const created = await createRendicionOffline(spaceId, {
+        proyecto_id: routeState?.projectId || undefined,
         convenio,
         numero_rendicion: Number(numeroRendicion),
         periodo_inicio: periodoInicio,

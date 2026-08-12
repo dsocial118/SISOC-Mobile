@@ -103,6 +103,8 @@ export interface LocalRendicionRecord {
   user_key?: string | null
   space_id: number
   remote_id?: number | null
+  proyecto_id?: number | null
+  proyecto_codigo?: string | null
   convenio: string | null
   numero_rendicion: number | null
   mes: number

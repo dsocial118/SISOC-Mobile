@@ -98,15 +98,33 @@ export async function changeRequiredPasswordRequest(params: {
 
 export async function requestPasswordResetByUsername(params: {
   username: string
+  email: string
 }): Promise<void> {
   try {
     await axios.post(`${API_BASE_URL}/users/password-reset/request/`, {
       username: params.username,
+      email: params.email,
     })
   } catch (error) {
     throw new Error(
       parseApiError(error, 'No se pudo registrar la solicitud de reseteo.'),
     )
+  }
+}
+
+export async function confirmPasswordResetRequest(params: {
+  uid: string
+  token: string
+  newPassword: string
+}): Promise<void> {
+  try {
+    await axios.post(`${API_BASE_URL}/users/password-reset/confirm/`, {
+      uid: params.uid,
+      token: params.token,
+      new_password: params.newPassword,
+    })
+  } catch (error) {
+    throw new Error(parseApiError(error, 'No se pudo restablecer la contraseña.'))
   }
 }
 

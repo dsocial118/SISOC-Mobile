@@ -15,6 +15,12 @@ export interface SpaceItem {
   programa_id?: number | null
   programa__nombre?: string | null
   codigo_de_proyecto?: string | null
+  proyecto_id?: number | null
+  organizacion_proyectos?: Array<{
+    id: number
+    codigo: string
+    nombre?: string | null
+  }>
   ultimo_estado__estado_general__estado_actividad__estado?: string | null
   ultimo_estado__estado_general__estado_proceso?: string | number | null
   ultimo_estado__estado_general__estado_proceso__estado?: string | null

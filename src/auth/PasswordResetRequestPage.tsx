@@ -1,7 +1,7 @@
 ﻿import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faArrowLeft, faUser } from '@fortawesome/free-solid-svg-icons'
+import { faArrowLeft, faEnvelope, faUser } from '@fortawesome/free-solid-svg-icons'
 import sisocDarkMode from '../assets/images/sisoc_dark_mode.png'
 import sisocLightMode from '../assets/images/sisoc_light_mode.png'
 import { requestPasswordResetByUsername } from '../api/authApi'
@@ -15,6 +15,7 @@ export function PasswordResetRequestPage() {
   const navigate = useNavigate()
   const { isDark } = useAppTheme()
   const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -26,9 +27,9 @@ export function PasswordResetRequestPage() {
     setLoading(true)
 
     try {
-      await requestPasswordResetByUsername({ username })
+      await requestPasswordResetByUsername({ username, email })
       setSuccess(
-        'Si el usuario existe, el pedido quedó registrado para que un administrador genere una nueva contraseña temporal.',
+        'Si los datos son correctos, recibirás un enlace de recuperación al correo registrado.',
       )
     } catch (submitError) {
       setError(
@@ -75,7 +76,7 @@ export function PasswordResetRequestPage() {
           >
             <p className="font-semibold">Recuperación de contraseña</p>
             <p className={`mt-2 ${isDark ? 'text-white/80' : 'text-[#5E6782]'}`}>
-              Ingresá tu nombre de usuario para solicitar una nueva contraseña temporal.
+              Ingresá tu usuario y el correo registrado. Ambos deben coincidir con los datos de tu cuenta.
             </p>
           </div>
 
@@ -91,7 +92,7 @@ export function PasswordResetRequestPage() {
             </div>
           ) : null}
 
-          <div className="mb-8">
+          <div className="mb-4">
             <LoginInputField
               id="reset-username"
               type="text"
@@ -104,9 +105,22 @@ export function PasswordResetRequestPage() {
             />
           </div>
 
+          <div className="mb-8">
+            <LoginInputField
+              id="reset-email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="Ingresá tu correo"
+              disabled={loading}
+              required
+              icon={<FontAwesomeIcon icon={faEnvelope} aria-hidden="true" style={{ fontSize: 17 }} />}
+            />
+          </div>
+
           <div className="mb-6 flex justify-center">
             <LargeBlueButton type="submit" disabled={loading} className="w-full max-w-[292px]">
-              {loading ? 'Enviando...' : 'Pedir reseteo'}
+              {loading ? 'Enviando...' : 'Enviar enlace'}
             </LargeBlueButton>
           </div>
 
@@ -117,7 +131,7 @@ export function PasswordResetRequestPage() {
               }`}
             >
               <AppLoadingSpinner size={44} />
-              <p className="text-[13px] font-semibold">Registrando solicitud</p>
+              <p className="text-[13px] font-semibold">Enviando solicitud</p>
             </div>
           ) : null}
         </form>

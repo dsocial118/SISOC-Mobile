@@ -41,6 +41,8 @@ export interface RendicionModeloItem {
 
 export interface RendicionItem {
   id: number | string
+  proyecto?: number | null
+  proyecto_codigo?: string | null
   convenio: string | null
   numero_rendicion: number | null
   mes: number
@@ -77,6 +79,7 @@ interface PaginatedResponse<T> {
 const inflightListRequests = new Map<string, Promise<PaginatedResponse<RendicionItem>>>()
 
 export interface CreateRendicionPayload {
+  proyecto_id?: number
   convenio: string
   numero_rendicion: number
   periodo_inicio: string

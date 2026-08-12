@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { LoginFormPage } from '../auth/LoginFormPage'
 import { PasswordChangeRequiredPage } from '../auth/PasswordChangeRequiredPage'
 import { PasswordResetRequestPage } from '../auth/PasswordResetRequestPage'
+import { PasswordResetConfirmPage } from '../auth/PasswordResetConfirmPage'
 import {
   MOBILE_RENDICION_PERMISSION,
   PWA_COLABORADORES_PERMISSION,
@@ -173,6 +174,7 @@ export function AppRouter() {
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<LoginFormPage />} />
           <Route path="/password-reset-request" element={<PasswordResetRequestPage />} />
+          <Route path="/password-reset-confirm" element={<PasswordResetConfirmPage />} />
 
           <Route element={<ProtectedRoute allowed={['user', 'org']} />}>
             <Route path="/password-change-required" element={<PasswordChangeRequiredPage />} />
