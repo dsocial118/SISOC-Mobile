@@ -69,8 +69,8 @@ export function buildRendicionProjectContexts(spaces: SpaceItem[]): RendicionPro
     }
 
     grouped.set(groupKey, {
-      organizationId: space.organizacion_id,
-      organizationName: space.organizacion__nombre,
+      organizationId,
+      organizationName: firstSpace.organizacion__nombre || '',
       projectKey,
       projectLabel: projectCode || `Sin proyecto (${space.nombre})`,
       projectCode: projectCode || null,
