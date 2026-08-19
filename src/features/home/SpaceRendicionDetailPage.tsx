@@ -104,7 +104,7 @@ const DOCUMENT_UPLOAD_ACCEPT =
   'image/*,.pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 function supportsSubsanacionHistory(categoria: string): boolean {
-  return categoria === 'comprobantes' || categoria === 'otros'
+  return ['comprobantes', 'comprobantes_alimentario', 'comprobantes_siph', 'otros'].includes(categoria)
 }
 
 function buildCategoryUploadSlotKey(categoria: string): string {
@@ -136,6 +136,7 @@ export function SpaceRendicionDetailPage() {
   const [deletingDocumentId, setDeletingDocumentId] = useState<number | string | null>(null)
   const [deletingRendicion, setDeletingRendicion] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false)
   const [presenting, setPresenting] = useState(false)
   const [presentingStage, setPresentingStage] = useState<RendicionSyncStage | null>(null)
   const [downloadingModeloCodigo, setDownloadingModeloCodigo] = useState<string | null>(null)
@@ -578,8 +579,15 @@ export function SpaceRendicionDetailPage() {
             canUploadDuringSubsanacion
             && !isHistorySubsanacionCategory
             && observedFiles.length > 0
+          const canUploadMissingCategory =
+            canUploadDuringSubsanacion && categoria.archivos.length === 0
+          const canUploadRequestedCategory =
+            canUploadDuringSubsanacion && Boolean(categoria.solicitud_faltante)
           const isExtraCategory = categoria.codigo === 'otros'
-          const showUploader = canReplaceObservedFile || canUploadInCategory
+          const showUploader = canReplaceObservedFile
+            || canUploadMissingCategory
+            || canUploadRequestedCategory
+            || canUploadInCategory
           const selectedFile = selectedFiles[categorySlotKey]
           const selectedFilesBatch = selectedMultipleFiles[categorySlotKey] || []
           const currentLabel = fileLabels[categorySlotKey] || ''
@@ -596,6 +604,12 @@ export function SpaceRendicionDetailPage() {
                   {categoria.description ? (
                     <p className={`mt-1 text-[12px] ${subtitleClass}`}>
                       {categoria.description}
+                    </p>
+                  ) : null}
+                  {categoria.solicitud_faltante ? (
+                    <p className="mt-2 rounded-md border border-[#F3C7C7] bg-[#FFF7F7] px-3 py-2 text-[12px] text-slate-700">
+                      <span className="font-semibold">Documento faltante solicitado:</span>{' '}
+                      {categoria.solicitud_faltante}
                     </p>
                   ) : null}
                   <p className={`mt-1 text-[12px] ${subtitleClass}`}>
@@ -1107,7 +1121,7 @@ export function SpaceRendicionDetailPage() {
 
           <button
             type="button"
-            onClick={() => void handlePresent()}
+            onClick={() => setShowSubmitConfirm(true)}
             disabled={presenting || isSubmissionInFlight}
             className={joinClasses(
               appButtonClass({ variant: 'success', size: 'lg', fullWidth: true }),
@@ -1125,6 +1139,20 @@ export function SpaceRendicionDetailPage() {
         </div>
       ) : null}
 
+      <ConfirmActionModal
+        open={showSubmitConfirm}
+        title="¿Está seguro que desea enviar la presentación a revisión?"
+        message="Revisá la documentación antes de confirmar el envío."
+        details={rendicion.documentacion.filter((item) => item.archivos.length === 0).map((item) => item.label)}
+        cancelLabel="Volver a Rendición"
+        confirmLabel="Confirmar envío de Rendición"
+        loading={presenting}
+        onCancel={() => setShowSubmitConfirm(false)}
+        onConfirm={() => {
+          setShowSubmitConfirm(false)
+          void handlePresent()
+        }}
+      />
       <ConfirmActionModal
         open={showDeleteConfirm}
         title="¿Borrar rendición?"

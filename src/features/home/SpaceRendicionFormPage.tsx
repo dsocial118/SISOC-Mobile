@@ -36,8 +36,9 @@ export function SpaceRendicionFormPage() {
         }
       | null) ?? null
 
-  const [convenio, setConvenio] = useState('')
-  const [numeroRendicion, setNumeroRendicion] = useState('')
+  const [convenio, setConvenio] = useState('P01')
+  const [numeroRendicion, setNumeroRendicion] = useState('1')
+  const [nombre, setNombre] = useState('')
   const [periodoInicio, setPeriodoInicio] = useState('')
   const [periodoFin, setPeriodoFin] = useState('')
   const [observaciones, setObservaciones] = useState('')
@@ -82,6 +83,11 @@ export function SpaceRendicionFormPage() {
         setSaving(false)
         return
       }
+      if (periodoInicio.slice(0, 7) !== periodoFin.slice(0, 7)) {
+        setErrorMessage('La fecha de inicio y la fecha de fin deben pertenecer al mismo mes.')
+        setSaving(false)
+        return
+      }
 
       const existingRows = await listOfflineRendiciones(spaceId)
       const hasOverlappingPeriod = existingRows
@@ -104,6 +110,7 @@ export function SpaceRendicionFormPage() {
       const created = await createRendicionOffline(spaceId, {
         proyecto_id: routeState?.projectId || undefined,
         convenio,
+        nombre,
         numero_rendicion: Number(numeroRendicion),
         periodo_inicio: periodoInicio,
         periodo_fin: periodoFin,
@@ -150,28 +157,28 @@ export function SpaceRendicionFormPage() {
           <div className="grid gap-3">
             <label className="grid gap-1">
               <span className={`text-[12px] font-semibold ${titleClass}`}>Convenio</span>
-              <input
+              <select
                 value={convenio}
                 onChange={(event) => setConvenio(event.target.value)}
                 className={`rounded-xl border px-3 py-3 text-sm outline-none ${inputClass}`}
-                placeholder="Ej. CONV-2026-01"
                 required
-              />
+              >
+                {['P01', 'P02', 'P03'].map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
             </label>
 
             <label className="grid gap-1">
               <span className={`text-[12px] font-semibold ${titleClass}`}>
                 Número de rendición
               </span>
-              <input
+              <select
                 value={numeroRendicion}
                 onChange={(event) => setNumeroRendicion(event.target.value)}
                 className={`rounded-xl border px-3 py-3 text-sm outline-none ${inputClass}`}
-                inputMode="numeric"
-                pattern="[0-9]*"
-                placeholder="Ej. 1"
                 required
-              />
+              >
+                {['1', '2', '3', '4', '5', '6'].map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
             </label>
 
             <div className="grid grid-cols-2 gap-3">
@@ -197,6 +204,16 @@ export function SpaceRendicionFormPage() {
                 />
               </label>
             </div>
+
+            <label className="grid gap-1">
+              <span className={`text-[12px] font-semibold ${titleClass}`}>Nombre de rendición</span>
+              <input
+                value={nombre}
+                onChange={(event) => setNombre(event.target.value)}
+                className={`rounded-xl border px-3 py-3 text-sm outline-none ${inputClass}`}
+                placeholder="Opcional"
+              />
+            </label>
 
             <label className="grid gap-1">
               <span className={`text-[12px] font-semibold ${titleClass}`}>Observaciones</span>

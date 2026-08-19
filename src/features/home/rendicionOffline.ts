@@ -36,7 +36,7 @@ const DOCUMENT_CATEGORIES: DocumentCategoryConfig[] = [
     codigo: 'formulario_i',
     label: 'Formulario I - Certificación de Cuenta Bancaria',
     required: false,
-    multiple: false,
+    multiple: true,
     order: 1,
   },
   {
@@ -72,7 +72,7 @@ const DOCUMENT_CATEGORIES: DocumentCategoryConfig[] = [
     codigo: 'formulario_v_alimentario',
     label: 'Formulario V - Certificación de Prestaciones Alimentarias',
     required: true,
-    multiple: false,
+    multiple: true,
     order: 6,
   },
   {
@@ -80,43 +80,50 @@ const DOCUMENT_CATEGORIES: DocumentCategoryConfig[] = [
     label: 'Formulario V - Certificación de SIPH',
     description: 'Este documento es obligatorio si presentó actividades para este Convenio',
     required: false,
-    multiple: false,
+    multiple: true,
     order: 7,
   },
   {
     codigo: 'formulario_vi',
     label: 'Formulario VI - Planilla de Pagos',
     required: false,
-    multiple: false,
+    multiple: true,
     order: 8,
   },
   {
     codigo: 'extracto_bancario',
     label: 'Extracto Bancario',
     required: true,
-    multiple: false,
+    multiple: true,
     order: 9,
   },
   {
-    codigo: 'comprobantes',
-    label: 'Comprobante/s',
+    codigo: 'comprobantes_alimentario',
+    label: 'Comprobantes Prestación Alimentaria',
     required: false,
     multiple: true,
     order: 10,
+  },
+  {
+    codigo: 'comprobantes_siph',
+    label: 'Comprobantes SIPH',
+    required: false,
+    multiple: true,
+    order: 11,
   },
   {
     codigo: 'planilla_seguros',
     label: 'Planilla de Seguros',
     required: false,
     multiple: false,
-    order: 11,
+    order: 12,
   },
   {
     codigo: 'otros',
     label: 'Documentación Adicional',
     required: false,
     multiple: true,
-    order: 12,
+    order: 13,
   },
 ]
 
@@ -246,7 +253,7 @@ const FILE_STATUS_LABELS: Record<string, string> = {
 }
 
 function supportsSubsanacionHistoryCategory(categoria: string): boolean {
-  return categoria === 'comprobantes' || categoria === 'otros'
+  return ['comprobantes', 'comprobantes_alimentario', 'comprobantes_siph', 'otros'].includes(categoria)
 }
 
 function normalizeLineaProgramatica(value: string | null | undefined): RendicionLineaProgramatica {

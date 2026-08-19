@@ -27,6 +27,7 @@ export interface RendicionDocumentCategory {
   required: boolean
   multiple: boolean
   order: number
+  solicitud_faltante?: string | null
   modelo?: RendicionModeloItem | null
   archivos: RendicionFileItem[]
 }
@@ -44,6 +45,7 @@ export interface RendicionItem {
   proyecto?: number | null
   proyecto_codigo?: string | null
   convenio: string | null
+  nombre?: string | null
   numero_rendicion: number | null
   mes: number
   anio: number
@@ -81,6 +83,7 @@ const inflightListRequests = new Map<string, Promise<PaginatedResponse<Rendicion
 export interface CreateRendicionPayload {
   proyecto_id?: number
   convenio: string
+  nombre?: string
   numero_rendicion: number
   periodo_inicio: string
   periodo_fin: string
