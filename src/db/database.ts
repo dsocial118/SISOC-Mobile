@@ -118,6 +118,7 @@ export interface LocalRendicionRecord {
   estado_label: string
   documento_adjunto: boolean
   observaciones: string | null
+  solicitudes_documentos_faltantes?: Record<string, string>
   sync_status: LocalSyncStatus
   pending_action?: LocalRendicionPendingAction
   last_error?: string | null

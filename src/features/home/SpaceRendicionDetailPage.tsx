@@ -1143,7 +1143,15 @@ export function SpaceRendicionDetailPage() {
         open={showSubmitConfirm}
         title="¿Está seguro que desea enviar la presentación a revisión?"
         message="Revisá la documentación antes de confirmar el envío."
-        details={rendicion.documentacion.filter((item) => item.archivos.length === 0).map((item) => item.label)}
+        details={rendicion.documentacion
+          .filter((item) => {
+            if (rendicion.estado === 'subsanar') {
+              return Boolean(item.solicitud_faltante)
+                || item.archivos.some((archivo) => archivo.estado === 'subsanar')
+            }
+            return item.required && item.archivos.length === 0
+          })
+          .map((item) => item.label)}
         cancelLabel="Volver a Rendición"
         confirmLabel="Confirmar envío de Rendición"
         loading={presenting}

@@ -330,6 +330,8 @@ function buildDetailDocumentacion(
   return DOCUMENT_CATEGORIES.map((category) => ({
     ...category,
     label: category.codigo === 'otros' ? 'Documentación Adicional' : category.label,
+    solicitud_faltante:
+      record.solicitudes_documentos_faltantes?.[category.codigo] || null,
     modelo: modelos.get(category.codigo) || null,
     archivos: (() => {
       const categoryFiles = activeFiles.filter((file) => file.categoria === category.codigo)
@@ -634,6 +636,14 @@ function toLocalRendicionRecord(
   existingId?: string,
 ): LocalRendicionRecord {
   const timestamp = nowIso()
+  const detailDocumentacion = (detail as RendicionDetail).documentacion
+  const solicitudesDocumentosFaltantes = Array.isArray(detailDocumentacion)
+    ? Object.fromEntries(
+        detailDocumentacion
+          .filter((category) => Boolean(category.solicitud_faltante))
+          .map((category) => [category.codigo, category.solicitud_faltante as string]),
+      )
+    : undefined
   return {
     id: existingId || `remote-rendicion-${detail.id}`,
     user_key: userKey,
@@ -654,6 +664,7 @@ function toLocalRendicionRecord(
     estado_label: detail.estado_label,
     documento_adjunto: detail.documento_adjunto,
     observaciones: detail.observaciones,
+    solicitudes_documentos_faltantes: solicitudesDocumentosFaltantes,
     sync_status: 'synced',
     pending_action: null,
     last_error: null,
@@ -708,6 +719,9 @@ export async function syncRemoteRendicionDetailToLocal(
 
   await db.rendiciones.put({
     ...localRecord,
+    solicitudes_documentos_faltantes:
+      localRecord.solicitudes_documentos_faltantes
+      || existing?.solicitudes_documentos_faltantes,
     created_at: existing?.created_at || localRecord.created_at,
   })
 
@@ -782,6 +796,8 @@ async function syncRemoteRendicionList(spaceId: string | number): Promise<void> 
     }
     await db.rendiciones.put({
       ...toLocalRendicionRecord(parsedSpaceId, userKey, row, existing?.id),
+      solicitudes_documentos_faltantes:
+        existing?.solicitudes_documentos_faltantes,
       created_at: existing?.created_at || row.fecha_creacion || nowIso(),
     })
   }

@@ -880,6 +880,15 @@ export async function syncRendicionNow(
         if (!shouldContinue) {
           throw new Error('Sin conexión. Los cambios quedaron guardados para sincronizar.')
         }
+        if (item.id) {
+          const processedItem = await db.outbox.get(item.id)
+          if (processedItem?.status === 'failed') {
+            throw new Error(
+              processedItem.last_error
+              || 'No se pudo completar el envío de la rendición.',
+            )
+          }
+        }
       }
 
       if (!processedAny) {
