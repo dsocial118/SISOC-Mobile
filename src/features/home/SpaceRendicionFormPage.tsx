@@ -90,9 +90,9 @@ export function SpaceRendicionFormPage() {
       }
 
       const existingRows = await listOfflineRendiciones(spaceId)
-      const hasOverlappingPeriod = existingRows
+      const projectRows = existingRows
         .filter((row) => routeState?.projectId ? row.proyecto === routeState.projectId : !row.proyecto)
-        .some((row) => {
+      const hasOverlappingPeriod = projectRows.some((row) => {
         const rowInicioTs = toComparableDate(row.periodo_inicio)
         const rowFinTs = toComparableDate(row.periodo_fin)
         if (!rowInicioTs || !rowFinTs) {
@@ -103,6 +103,19 @@ export function SpaceRendicionFormPage() {
 
       if (hasOverlappingPeriod) {
         setErrorMessage('Ya existe una rendición cargada para ese período.')
+        setSaving(false)
+        return
+      }
+
+      const latestPeriodStart = projectRows.reduce<number | null>((latest, row) => {
+        const rowInicioTs = toComparableDate(row.periodo_inicio)
+        if (rowInicioTs === null) {
+          return latest
+        }
+        return latest === null || rowInicioTs > latest ? rowInicioTs : latest
+      }, null)
+      if (latestPeriodStart !== null && inicioTs < latestPeriodStart) {
+        setErrorMessage('No se pueden cargar períodos anteriores a los ya gestionados.')
         setSaving(false)
         return
       }

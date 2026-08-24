@@ -737,12 +737,19 @@ export async function syncRemoteRendicionDetailToLocal(
 
   const remoteFiles = flattenDetailFiles(detail)
   const remoteIds = new Set<number>()
+  const claimedLocalFileIds = new Set<string>()
   for (const remoteFile of remoteFiles) {
     remoteIds.add(Number(remoteFile.id))
     const existingFile =
-      currentFiles.find((file) => file.remote_id === Number(remoteFile.id))
+      currentFiles.find(
+        (file) =>
+          !claimedLocalFileIds.has(file.id)
+          && file.remote_id === Number(remoteFile.id),
+      )
       || currentFiles.find(
         (file) =>
+          !claimedLocalFileIds.has(file.id)
+          &&
           pendingUploadIds.has(file.id)
           && file.categoria === remoteFile.categoria
           && normalizeFileName(file.nombre) === normalizeFileName(remoteFile.nombre)
@@ -750,6 +757,8 @@ export async function syncRemoteRendicionDetailToLocal(
       )
       || currentFiles.find(
         (file) =>
+          !claimedLocalFileIds.has(file.id)
+          &&
           pendingUploadIds.has(file.id)
           && file.categoria === remoteFile.categoria
           && String(file.documento_subsanado || '') === String(remoteFile.documento_subsanado || ''),
@@ -761,6 +770,9 @@ export async function syncRemoteRendicionDetailToLocal(
       file_blob: existingFile?.file_blob || null,
       mime_type: existingFile?.mime_type || null,
     })
+    if (existingFile) {
+      claimedLocalFileIds.add(existingFile.id)
+    }
   }
 
   for (const file of currentFiles) {
@@ -846,17 +858,24 @@ export async function getRendicionDetailOfflineFirst(
   const local = await getExistingLocalByIdentifier(rendicionId)
   if (local) {
     const files = await db.rendicion_files.where('rendicion_id').equals(local.id).toArray()
-    const hasPendingFiles = files.some((file) => Boolean(file.pending_action))
-    if (!local.remote_id || local.pending_action || hasPendingFiles) {
+    if (!local.remote_id) {
       return toDetail(local, files)
     }
   }
 
   const remoteIdentifier = local?.remote_id || rendicionId
-  const detail = await getSpaceRendicionDetail(spaceId, remoteIdentifier)
-  const synced = await syncRemoteRendicionDetailToLocal(spaceId, detail, local?.id)
-  const files = await db.rendicion_files.where('rendicion_id').equals(synced.id).toArray()
-  return toDetail(synced, files)
+  try {
+    const detail = await getSpaceRendicionDetail(spaceId, remoteIdentifier)
+    const synced = await syncRemoteRendicionDetailToLocal(spaceId, detail, local?.id)
+    const files = await db.rendicion_files.where('rendicion_id').equals(synced.id).toArray()
+    return toDetail(synced, files)
+  } catch (error) {
+    if (local) {
+      const files = await db.rendicion_files.where('rendicion_id').equals(local.id).toArray()
+      return toDetail(local, files)
+    }
+    throw error
+  }
 }
 
 export async function createRendicionOffline(

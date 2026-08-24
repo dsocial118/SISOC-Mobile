@@ -19,7 +19,6 @@ import {
 import { parseApiError } from '../../api/errorUtils'
 import {
   deleteRendicionFileOffline,
-  deleteRendicionOffline,
   getRendicionDetailOfflineFirst,
   presentRendicionOffline,
   queueRendicionFileUpload,
@@ -134,8 +133,6 @@ export function SpaceRendicionDetailPage() {
   const [fileLabels, setFileLabels] = useState<Record<string, string>>({})
   const [uploadingTargetKey, setUploadingTargetKey] = useState<string | null>(null)
   const [deletingDocumentId, setDeletingDocumentId] = useState<number | string | null>(null)
-  const [deletingRendicion, setDeletingRendicion] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false)
   const [presenting, setPresenting] = useState(false)
   const [presentingStage, setPresentingStage] = useState<RendicionSyncStage | null>(null)
@@ -252,10 +249,6 @@ export function SpaceRendicionDetailPage() {
     () =>
       (rendicion?.estado === 'elaboracion' || rendicion?.estado === 'subsanar')
       && !isSubmissionInFlight,
-    [isSubmissionInFlight, rendicion?.estado],
-  )
-  const canDeleteRendicion = useMemo(
-    () => rendicion?.estado === 'elaboracion' && !isSubmissionInFlight,
     [isSubmissionInFlight, rendicion?.estado],
   )
   const canEditLineaProgramatica = useMemo(
@@ -444,27 +437,6 @@ export function SpaceRendicionDetailPage() {
     return 'Procesando...'
   }
 
-  async function handleDeleteRendicion() {
-    if (!spaceId || !rendicionId || !rendicion) {
-      return
-    }
-
-    setDeletingRendicion(true)
-    setShowDeleteConfirm(false)
-    setNoticeMessage('')
-    try {
-      await deleteRendicionOffline(rendicionId)
-      void syncNow()
-      navigate(`/app-org/espacios/${spaceId}/rendicion`, {
-        replace: true,
-        state: routeState,
-      })
-    } catch (error) {
-      openNotice(parseApiError(error, 'No se pudo eliminar la rendición.'))
-      setDeletingRendicion(false)
-    }
-  }
-
   function buildInputProps(mode: PickerMode) {
     if (mode === 'camera') {
       return {
@@ -578,15 +550,19 @@ export function SpaceRendicionDetailPage() {
           const canReplaceObservedFile =
             canUploadDuringSubsanacion
             && !isHistorySubsanacionCategory
+            && !categoria.multiple
             && observedFiles.length > 0
           const canUploadMissingCategory =
             canUploadDuringSubsanacion && categoria.archivos.length === 0
           const canUploadRequestedCategory =
             canUploadDuringSubsanacion && Boolean(categoria.solicitud_faltante)
+          const canUploadNewMultipleCategory =
+            canUploadDuringSubsanacion && categoria.multiple
           const isExtraCategory = categoria.codigo === 'otros'
           const showUploader = canReplaceObservedFile
             || canUploadMissingCategory
             || canUploadRequestedCategory
+            || canUploadNewMultipleCategory
             || canUploadInCategory
           const selectedFile = selectedFiles[categorySlotKey]
           const selectedFilesBatch = selectedMultipleFiles[categorySlotKey] || []
@@ -659,9 +635,9 @@ export function SpaceRendicionDetailPage() {
                         const visibleStatus = item.estado_visual || item.estado
                         const visibleStatusLabel =
                           item.estado_label_visual || item.estado_label
-                        const canUploadHistorySubsanacion =
+                        const canUploadFileSubsanacion =
                           canUploadDuringSubsanacion
-                          && isHistorySubsanacionCategory
+                          && categoria.multiple
                           && item.estado === 'subsanar'
 
                         return (
@@ -721,11 +697,25 @@ export function SpaceRendicionDetailPage() {
                               </div>
                             </div>
 
-                            {canUploadHistorySubsanacion ? (
-                              <div className="mt-3 grid gap-3">
+                            {canUploadFileSubsanacion ? (
+                              <div
+                                className={`mt-3 grid gap-3 rounded-xl border p-3 ${
+                                  isDark
+                                    ? 'border-amber-400/30 bg-amber-400/10'
+                                    : 'border-amber-300 bg-amber-50'
+                                }`}
+                              >
+                                <div>
+                                  <p className={`text-[13px] font-semibold ${titleClass}`}>
+                                    Reemplazar este archivo
+                                  </p>
+                                  <p className={`mt-1 text-[12px] ${subtitleClass}`}>
+                                    La nueva versión quedará vinculada a {item.nombre}.
+                                  </p>
+                                </div>
                                 <div className="grid gap-2">
                                   <p className={`text-[12px] font-semibold ${titleClass}`}>
-                                    Cargar subsanación
+                                    Seleccionar nueva versión
                                   </p>
                                   <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-3">
                                     {[
@@ -760,13 +750,14 @@ export function SpaceRendicionDetailPage() {
                                             accept={inputProps.accept}
                                             capture={inputProps.capture}
                                             className="hidden"
-                                            onChange={(event) =>
+                                            onChange={(event) => {
+                                              const file = event.target.files?.[0] || null
                                               setSelectedFiles((current) => ({
                                                 ...current,
-                                                [documentSlotKey]:
-                                                  event.target.files?.[0] || null,
+                                                [documentSlotKey]: file,
                                               }))
-                                            }
+                                              event.currentTarget.value = ''
+                                            }}
                                           />
                                           <span className="flex min-w-0 flex-col items-center justify-center gap-1 break-words text-[11px] font-semibold leading-tight sm:text-xs">
                                             <FontAwesomeIcon icon={option.icon} aria-hidden="true" />
@@ -815,7 +806,7 @@ export function SpaceRendicionDetailPage() {
                                   <FontAwesomeIcon icon={faFileArrowUp} aria-hidden="true" />
                                   {uploadingTargetKey === documentSlotKey
                                     ? 'Adjuntando...'
-                                    : 'Cargar subsanación'}
+                                    : 'Reemplazar este archivo'}
                                 </button>
                               </div>
                             ) : null}
@@ -914,6 +905,19 @@ export function SpaceRendicionDetailPage() {
 
               {showUploader ? (
                 <div className="mt-4 grid gap-3">
+                  {canUploadNewMultipleCategory ? (
+                    <div
+                      className={`rounded-xl border p-3 ${
+                        isDark
+                          ? 'border-white/20 bg-white/5'
+                          : 'border-slate-300 bg-slate-50'
+                      }`}
+                    >
+                      <p className={`text-[13px] font-semibold ${titleClass}`}>
+                        Agregar archivo adicional
+                      </p>
+                    </div>
+                  ) : null}
                   {isExtraCategory ? (
                     <label className="grid gap-1">
                       <span className={`text-[12px] font-semibold ${titleClass}`}>
@@ -984,16 +988,19 @@ export function SpaceRendicionDetailPage() {
                                       ...current,
                                       [categorySlotKey]: null,
                                     }))
+                                    event.currentTarget.value = ''
                                     return
                                   }
+                                  const file = event.target.files?.[0] || null
                                   setSelectedFiles((current) => ({
                                     ...current,
-                                    [categorySlotKey]: event.target.files?.[0] || null,
+                                    [categorySlotKey]: file,
                                   }))
                                   setSelectedMultipleFiles((current) => ({
                                     ...current,
                                     [categorySlotKey]: [],
                                   }))
+                                  event.currentTarget.value = ''
                                 }}
                               />
                             <span className="flex min-w-0 flex-col items-center justify-center gap-1 break-words text-[11px] font-semibold leading-tight sm:text-xs">
@@ -1079,6 +1086,8 @@ export function SpaceRendicionDetailPage() {
                       ? 'Adjuntando...'
                       : canReplaceObservedFile
                         ? 'Reemplazar archivo observado'
+                        : canUploadNewMultipleCategory
+                        ? 'Agregar archivo adicional'
                         : isExtraCategory
                         ? 'Adjuntar documentación extra'
                         : 'Adjuntar archivo'}
@@ -1103,29 +1112,14 @@ export function SpaceRendicionDetailPage() {
       ) : null}
 
       {canPresentChanges || isSubmissionInFlight ? (
-        <div className={`grid min-w-0 gap-3 ${canDeleteRendicion ? 'grid-cols-4' : 'grid-cols-1'}`}>
-          {canDeleteRendicion ? (
-            <button
-              type="button"
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={deletingRendicion}
-              className={joinClasses(
-                appButtonClass({ variant: 'danger', size: 'lg', fullWidth: true }),
-                'col-span-1',
-              )}
-              aria-label={deletingRendicion ? 'Eliminando rendición' : 'Borrar rendición'}
-            >
-              <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
-            </button>
-          ) : null}
-
+        <div className="grid min-w-0 grid-cols-1 gap-3">
           <button
             type="button"
             onClick={() => setShowSubmitConfirm(true)}
             disabled={presenting || isSubmissionInFlight}
             className={joinClasses(
               appButtonClass({ variant: 'success', size: 'lg', fullWidth: true }),
-              canDeleteRendicion ? 'col-span-3' : 'col-span-1',
+              'col-span-1',
               'min-w-0 flex-wrap whitespace-normal text-center leading-tight',
             )}
           >
@@ -1143,15 +1137,6 @@ export function SpaceRendicionDetailPage() {
         open={showSubmitConfirm}
         title="¿Está seguro que desea enviar la presentación a revisión?"
         message="Revisá la documentación antes de confirmar el envío."
-        details={rendicion.documentacion
-          .filter((item) => {
-            if (rendicion.estado === 'subsanar') {
-              return Boolean(item.solicitud_faltante)
-                || item.archivos.some((archivo) => archivo.estado === 'subsanar')
-            }
-            return item.required && item.archivos.length === 0
-          })
-          .map((item) => item.label)}
         cancelLabel="Volver a Rendición"
         confirmLabel="Confirmar envío de Rendición"
         loading={presenting}
@@ -1160,15 +1145,6 @@ export function SpaceRendicionDetailPage() {
           setShowSubmitConfirm(false)
           void handlePresent()
         }}
-      />
-      <ConfirmActionModal
-        open={showDeleteConfirm}
-        title="¿Borrar rendición?"
-        message={`Se va a borrar la rendición ${rendicion.numero_rendicion ?? rendicion.id}. Esta acción no se puede deshacer.`}
-        confirmLabel="Confirmar"
-        loading={deletingRendicion}
-        onCancel={() => setShowDeleteConfirm(false)}
-        onConfirm={() => void handleDeleteRendicion()}
       />
       <NoticeModal
         open={Boolean(noticeMessage)}

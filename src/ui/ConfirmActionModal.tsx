@@ -1,5 +1,5 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faTrashCan } from '@fortawesome/free-solid-svg-icons'
+import { faTriangleExclamation } from '@fortawesome/free-solid-svg-icons'
 import { useAppTheme } from './ThemeContext'
 import { appButtonClass, joinClasses } from './buttons'
 
@@ -7,7 +7,6 @@ type ConfirmActionModalProps = {
   open: boolean
   title: string
   message: string
-  details?: string[]
   confirmLabel?: string
   cancelLabel?: string
   loading?: boolean
@@ -19,7 +18,6 @@ export function ConfirmActionModal({
   open,
   title,
   message,
-  details = [],
   confirmLabel = 'Confirmar',
   cancelLabel = 'Cancelar',
   loading = false,
@@ -48,19 +46,11 @@ export function ConfirmActionModal({
             : 'border-slate-200 bg-white text-[#232D4F] shadow-[0_24px_80px_rgba(15,23,42,0.18)]'
         }`}
       >
-        <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#C62828]/12 text-[#C62828]">
-          <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center text-3xl text-[#B45309]">
+          <FontAwesomeIcon icon={faTriangleExclamation} aria-hidden="true" />
         </div>
         <h3 className="text-[18px] font-semibold">{title}</h3>
         <p className={`mt-2 text-sm ${textClass}`}>{message}</p>
-        {details.length ? (
-          <div className={`mt-3 text-sm ${textClass}`}>
-            <p className="font-semibold">Los siguientes documentos no fueron adjuntados:</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5">
-              {details.map((detail) => <li key={detail}>{detail}</li>)}
-            </ul>
-          </div>
-        ) : null}
         <div className="mt-5 grid grid-cols-2 gap-3">
           <button
             type="button"
@@ -76,7 +66,7 @@ export function ConfirmActionModal({
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className={appButtonClass({ variant: 'danger', size: 'lg' })}
+            className={appButtonClass({ variant: 'success', size: 'lg' })}
           >
             {loading ? 'Procesando...' : confirmLabel}
           </button>
