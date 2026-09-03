@@ -447,6 +447,15 @@ export function AppLayout({
               key={`${location.pathname}:${refreshNonce}`}
               className={`page-fade-in min-w-0 overflow-x-hidden transition-opacity ${showSkeletonOverlay ? 'opacity-0' : 'opacity-100'}`}
             >
+              {userProfile?.isReadOnlyPwa ? (
+                <div className={`mx-1 mb-3 rounded-xl border px-3 py-2 text-center text-xs font-semibold ${
+                  isDark
+                    ? 'border-[#E7BA61]/60 bg-[#E7BA61]/15 text-[#F3CD82]'
+                    : 'border-[#C8922E]/40 bg-[#FFF7E3] text-[#805B12]'
+                }`}>
+                  Modo solo lectura
+                </div>
+              ) : null}
               <Outlet />
             </div>
           </PageLoadingContext.Provider>

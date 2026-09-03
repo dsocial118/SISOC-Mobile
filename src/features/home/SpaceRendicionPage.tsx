@@ -13,6 +13,7 @@ import { syncNow } from '../../sync/engine'
 import { appButtonClass } from '../../ui/buttons'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
+import { useAuth } from '../../auth/useAuth'
 import { formatDateTime, loadRendicionesOfflineFirst } from './rendicionOffline'
 import { getRendicionListCache, setRendicionListCache } from './rendicionViewCache'
 
@@ -43,6 +44,8 @@ export function SpaceRendicionPage() {
   const { spaceId } = useParams<{ spaceId: string }>()
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
+  const { userProfile } = useAuth()
+  const isReadOnlyPwa = Boolean(userProfile?.isReadOnlyPwa)
   const routeState =
     (location.state as
       | {
@@ -148,7 +151,7 @@ export function SpaceRendicionPage() {
         </p>
       </div>
 
-      <button
+      {!isReadOnlyPwa ? <button
         type="button"
         onClick={() =>
           navigate(`/app-org/espacios/${spaceId}/rendicion/nueva`, {
@@ -158,7 +161,7 @@ export function SpaceRendicionPage() {
         className={appButtonClass({ variant: 'success', size: 'lg', fullWidth: true })}
       >
         Crear nueva rendición
-      </button>
+      </button> : null}
 
       {rows.length === 0 ? (
         <article className="rounded-xl border p-5 text-center" style={cardStyle}>

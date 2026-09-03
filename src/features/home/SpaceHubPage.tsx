@@ -123,6 +123,7 @@ export function SpaceHubPage() {
   const [associatedProgramName, setAssociatedProgramName] = useState(routeState?.programName || '')
   const unreadMessagesCount = useSpaceUnreadMessages(spaceId, userProfile?.username)
   const canManageRendicion = hasRendicionPermission(userProfile?.permissions)
+  const canViewRendicion = canManageRendicion || Boolean(userProfile?.isReadOnlyPwa)
 
   useEffect(() => {
     let isMounted = true
@@ -285,6 +286,14 @@ export function SpaceHubPage() {
           icon: faUsers,
         },
       )
+      if (canViewRendicion && isPnudProgram) {
+        modulesForProgram.push({
+          id: 'rendiciones',
+          title: 'Rendiciones',
+          route: `/app-org/rendicion`,
+          icon: faCalculator,
+        })
+      }
       if (isPnudProgram) {
         modulesForProgram.push({
           id: 'cursos',
@@ -320,7 +329,7 @@ export function SpaceHubPage() {
           icon: faUtensils,
         },
       )
-      if (canManageRendicion) {
+      if (canViewRendicion) {
         modulesForProgram.push({
           id: 'rendiciones',
           title: 'Rendiciones',
@@ -355,7 +364,7 @@ export function SpaceHubPage() {
           icon: faGraduationCap,
         },
       ]
-      if (canManageRendicion) {
+      if (canViewRendicion) {
         modulesForProgram.push({
           id: 'rendiciones',
           title: 'Rendiciones',
@@ -367,7 +376,7 @@ export function SpaceHubPage() {
     }
 
     return baseModules
-  }, [canManageRendicion, isPnudProgram, normalizedProgramName, spaceId])
+  }, [canViewRendicion, isPnudProgram, normalizedProgramName, spaceId])
   const userDisplayName = (userProfile?.fullName || '').trim() || 'Usuario'
 
   useEffect(() => {

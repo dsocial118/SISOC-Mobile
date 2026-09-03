@@ -8,6 +8,7 @@ export interface SessionUserProfile {
   fullName: string
   mustChangePassword: boolean
   permissions: string[]
+  isReadOnlyPwa: boolean
 }
 
 export interface UserSessionRecord {

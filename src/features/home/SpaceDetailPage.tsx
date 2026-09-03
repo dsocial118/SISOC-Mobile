@@ -222,11 +222,13 @@ export function SpaceDetailPage() {
   )
   const imageItems = rawImageItems.filter((item) => String(item.origen || '').toLowerCase() === 'mobile')
   const visibleImageCount = Math.min(imageItems.length, 3)
-  const canUploadMorePhotos = visibleImageCount < 3
+  const isReadOnlyPwa = Boolean(userProfile?.isReadOnlyPwa)
+  const canUploadMorePhotos = visibleImageCount < 3 && !isReadOnlyPwa
   const canManageCollaborators = Boolean(
     userProfile?.permissions?.includes(PWA_COLABORADORES_PERMISSION),
   )
   const canManageUsers = Boolean(userProfile?.permissions?.includes(PWA_USUARIOS_PERMISSION))
+  const canViewUsers = canManageUsers || isReadOnlyPwa
 
   async function handlePhotoSelection(picker: () => Promise<SelectedPhoto | null>) {
     if (!spaceId || uploadingPhoto || !canUploadMorePhotos) {
@@ -496,7 +498,7 @@ export function SpaceDetailPage() {
             />
           ) : null}
 
-          {spaceId && canManageUsers ? (
+          {spaceId && canViewUsers ? (
             <article
               className="progressive-card rounded-[15px] border p-5"
               style={{ ...cardStyle, ['--card-delay' as string]: '260ms' }}
@@ -524,7 +526,9 @@ export function SpaceDetailPage() {
                   <div className="min-w-0">
                     <h2 className={`text-[16px] font-semibold ${textClass}`}>Usuarios responsables del Espacio Comunitario</h2>
                     <p className={`mt-1 text-xs ${detailTextClass}`}>
-                      Alta y baja de subusuarios asignados al espacio.
+                      {isReadOnlyPwa
+                        ? 'Consulta de subusuarios asignados al espacio.'
+                        : 'Alta y baja de subusuarios asignados al espacio.'}
                     </p>
                   </div>
                 </div>
@@ -798,7 +802,7 @@ export function SpaceDetailPage() {
                         loading="lazy"
                       />
                     </button>
-                    <button
+                    {!isReadOnlyPwa ? <button
                       type="button"
                       disabled={deletingImageId !== null}
                       onClick={() => void handleDeleteImage(image.id)}
@@ -812,7 +816,7 @@ export function SpaceDetailPage() {
                       ) : (
                         <FontAwesomeIcon icon={faTrash} aria-hidden="true" />
                       )}
-                    </button>
+                    </button> : null}
                   </article>
                 ))}
               </div>

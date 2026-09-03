@@ -20,6 +20,7 @@ interface MeResponse {
   pwa?: {
     roles?: string[]
     must_change_password?: boolean
+    read_only?: boolean
   }
   permissions?: string[]
 }
@@ -136,6 +137,9 @@ function mapRoleFromMe(meData: MeResponse): UserRole {
   if (roles.includes('operador')) {
     return 'org'
   }
+  if (roles.includes('coordinador_equipo_tecnico')) {
+    return 'org'
+  }
   throw new Error('El usuario autenticado no tiene roles PWA activos.')
 }
 
@@ -149,5 +153,6 @@ function mapUserProfile(meData: MeResponse, fallbackUsername = ''): AuthUserProf
     fullName: fullName || (meData.username || fallbackUsername || 'Usuario'),
     mustChangePassword: Boolean(meData.pwa?.must_change_password),
     permissions: [...(meData.permissions ?? [])].sort(),
+    isReadOnlyPwa: Boolean(meData.pwa?.read_only),
   }
 }

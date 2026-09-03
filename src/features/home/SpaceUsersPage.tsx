@@ -47,6 +47,7 @@ export function SpaceUsersPage() {
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
   const { userProfile } = useAuth()
+  const isReadOnlyPwa = Boolean(userProfile?.isReadOnlyPwa)
   const routeState = (location.state as { spaceName?: string } | null) ?? null
 
   const [loading, setLoading] = useState(true)
@@ -224,14 +225,14 @@ export function SpaceUsersPage() {
               Subusuarios asignados a este espacio.
             </p>
           </div>
-          <button
+          {!isReadOnlyPwa ? <button
             type="button"
             onClick={() => setFormOpen((current) => !current)}
             className={appButtonClass({ variant: 'success', size: 'sm' })}
           >
             <FontAwesomeIcon icon={faPlus} aria-hidden="true" />
             Agregar
-          </button>
+          </button> : null}
         </div>
 
         {formOpen ? (
@@ -286,13 +287,13 @@ export function SpaceUsersPage() {
                 ))}
               </div>
             ) : null}
-            <button
+              {!isReadOnlyPwa ? <button
               type="submit"
               disabled={saving || form.comedor_ids.length === 0}
               className={appButtonClass({ variant: 'success', size: 'md', fullWidth: true })}
             >
               {saving ? 'Guardando...' : 'Crear usuario'}
-            </button>
+              </button> : null}
           </form>
         ) : null}
       </article>
@@ -329,15 +330,15 @@ export function SpaceUsersPage() {
                     </div>
                   ) : null}
                 </div>
-                <button
+                {!isReadOnlyPwa ? <button
                   type="button"
                   className={appButtonClass({ variant: 'outline-danger', size: 'sm' })}
                   onClick={() => setPendingDeactivate(user)}
                 >
                   <FontAwesomeIcon icon={faTrashCan} aria-hidden="true" />
-                </button>
+                </button> : null}
               </div>
-              {assignablePermissions.length > 0 && user.creado_por_username === userProfile?.username ? (
+              {!isReadOnlyPwa && assignablePermissions.length > 0 && user.creado_por_username === userProfile?.username ? (
                 <div className="mt-3 grid gap-2 border-t border-black/10 pt-3">
                   {editingUserId === user.id ? (
                     <>

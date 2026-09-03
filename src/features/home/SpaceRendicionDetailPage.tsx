@@ -31,6 +31,7 @@ import { ConfirmActionModal } from '../../ui/ConfirmActionModal'
 import { NoticeModal } from '../../ui/NoticeModal'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
+import { useAuth } from '../../auth/useAuth'
 import {
   RENDICION_LINEA_OPTIONS,
   type RendicionLineaProgramatica,
@@ -120,6 +121,8 @@ export function SpaceRendicionDetailPage() {
   const { spaceId, rendicionId } = useParams<{ spaceId: string; rendicionId: string }>()
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
+  const { userProfile } = useAuth()
+  const isReadOnlyPwa = Boolean(userProfile?.isReadOnlyPwa)
   const routeState = location.state ?? null
 
   const [loading, setLoading] = useState(true)
@@ -238,28 +241,36 @@ export function SpaceRendicionDetailPage() {
     [presenting, rendicion?.pending_action, rendicion?.sync_status],
   )
   const canUploadDuringElaboracion = useMemo(
-    () => rendicion?.estado === 'elaboracion' && !isSubmissionInFlight,
-    [isSubmissionInFlight, rendicion?.estado],
+    () => !isReadOnlyPwa && rendicion?.estado === 'elaboracion' && !isSubmissionInFlight,
+    [isReadOnlyPwa, isSubmissionInFlight, rendicion?.estado],
   )
   const canUploadDuringSubsanacion = useMemo(
-    () => rendicion?.estado === 'subsanar' && !isSubmissionInFlight,
-    [isSubmissionInFlight, rendicion?.estado],
+    () => !isReadOnlyPwa && rendicion?.estado === 'subsanar' && !isSubmissionInFlight,
+    [isReadOnlyPwa, isSubmissionInFlight, rendicion?.estado],
   )
   const canPresentChanges = useMemo(
     () =>
-      (rendicion?.estado === 'elaboracion' || rendicion?.estado === 'subsanar')
+      !isReadOnlyPwa
+      && (rendicion?.estado === 'elaboracion' || rendicion?.estado === 'subsanar')
       && !isSubmissionInFlight,
-    [isSubmissionInFlight, rendicion?.estado],
+    [isReadOnlyPwa, isSubmissionInFlight, rendicion?.estado],
   )
   const canEditLineaProgramatica = useMemo(
     () =>
-      rendicion?.estado === 'elaboracion'
+      !isReadOnlyPwa
+      && rendicion?.estado === 'elaboracion'
       && (
         rendicion?.pending_action === 'create'
         || String(rendicion?.id || '').startsWith('local-rendicion-')
       )
       && !isSubmissionInFlight,
-    [isSubmissionInFlight, rendicion?.estado, rendicion?.id, rendicion?.pending_action],
+    [
+      isReadOnlyPwa,
+      isSubmissionInFlight,
+      rendicion?.estado,
+      rendicion?.id,
+      rendicion?.pending_action,
+    ],
   )
 
   useEffect(() => {

@@ -96,6 +96,10 @@ export function SpaceMessageDetailPage() {
         }
 
         let nextMessage = detail
+        if (userProfile?.isReadOnlyPwa) {
+          setMessage(detail)
+          return
+        }
         if (detail.seccion === 'general') {
           markGeneralMessageReadInSpace(userProfile?.username, spaceId, detail.id)
           if (!detail.visto) {
@@ -146,7 +150,7 @@ export function SpaceMessageDetailPage() {
       isMounted = false
       setPageLoading(false)
     }
-  }, [messageId, setPageLoading, spaceId, userProfile?.username])
+  }, [messageId, setPageLoading, spaceId, userProfile?.isReadOnlyPwa, userProfile?.username])
 
   const cardClass = isDark
     ? 'border-white/20 bg-[#232D4F] text-white'

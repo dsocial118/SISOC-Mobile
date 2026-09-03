@@ -55,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         || validated.user_profile.email !== session.user_profile?.email
         || validated.user_profile.fullName !== session.user_profile?.fullName
         || validated.user_profile.mustChangePassword !== session.user_profile?.mustChangePassword
+        || validated.user_profile.isReadOnlyPwa !== session.user_profile?.isReadOnlyPwa
         || JSON.stringify(validated.user_profile.permissions)
           !== JSON.stringify(session.user_profile?.permissions ?? [])
       ) {
@@ -134,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           fullName: nextRole === 'org' ? 'Demo Organización' : 'Demo Usuario',
           mustChangePassword: false,
           permissions: [],
+          isReadOnlyPwa: false,
         },
     })
     setRole(nextRole)
@@ -143,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fullName: nextRole === 'org' ? 'Demo Organización' : 'Demo Usuario',
       mustChangePassword: false,
       permissions: [],
+      isReadOnlyPwa: false,
     })
     setSessionStatus('local')
   }, [])

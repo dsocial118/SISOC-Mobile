@@ -23,6 +23,7 @@ import { AppToast } from '../../ui/AppToast'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
 import { appButtonClass, joinClasses } from '../../ui/buttons'
+import { useAuth } from '../../auth/useAuth'
 
 const CERTIFICATE_ACCEPT = 'image/*,.pdf,application/pdf'
 
@@ -57,6 +58,8 @@ export function SpaceCapacitacionesPage() {
   const location = useLocation()
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
+  const { userProfile } = useAuth()
+  const isReadOnlyPwa = Boolean(userProfile?.isReadOnlyPwa)
   const routeState =
     (location.state as { spaceName?: string; programName?: string } | null) ?? null
 
@@ -302,8 +305,8 @@ export function SpaceCapacitacionesPage() {
             const isUploading = uploadingId === item.id
             const isDeleting = deletingId === item.id
             const hasCertificate = Boolean(item.archivo_url || item.archivo_nombre)
-            const canDelete = hasCertificate && item.estado === 'rechazado'
-            const canUpload = !hasCertificate
+            const canDelete = !isReadOnlyPwa && hasCertificate && item.estado === 'rechazado'
+            const canUpload = !isReadOnlyPwa && !hasCertificate
 
             return (
               <article key={item.id} className="rounded-[15px] border p-4" style={cardStyle}>

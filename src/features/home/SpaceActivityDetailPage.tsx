@@ -18,6 +18,7 @@ import { parseApiError } from '../../api/errorUtils'
 import { listSpaceNomina, updateNominaPerson, type NominaPerson } from '../../api/nominaApi'
 import { appButtonClass, joinClasses } from '../../ui/buttons'
 import { ConfirmActionModal } from '../../ui/ConfirmActionModal'
+import { useAuth } from '../../auth/useAuth'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
 
@@ -178,6 +179,8 @@ export function SpaceActivityDetailPage() {
   const { spaceId, activityId } = useParams<{ spaceId: string; activityId: string }>()
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
+  const { userProfile } = useAuth()
+  const isReadOnlyPwa = Boolean(userProfile?.isReadOnlyPwa)
   const routeState =
     (location.state as { spaceName?: string; programName?: string; projectName?: string } | null) ?? null
 
@@ -517,7 +520,7 @@ export function SpaceActivityDetailPage() {
             <span className={`font-semibold ${textClass}`}>Inscriptos:</span> {enrollees.length}
           </p>
         </div>
-        {activity.activo ? (
+        {activity.activo && !isReadOnlyPwa ? (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -540,7 +543,7 @@ export function SpaceActivityDetailPage() {
         ) : null}
       </article>
 
-      {isEditing && activity.activo ? (
+      {isEditing && activity.activo && !isReadOnlyPwa ? (
         <article className="min-w-0 rounded-xl border p-3 sm:p-4" style={cardStyle}>
           <p className={`text-[12px] font-semibold ${textClass}`}>Editar actividad</p>
           <div className="mt-3 grid min-w-0 gap-2">
@@ -672,7 +675,7 @@ export function SpaceActivityDetailPage() {
                       </p>
                     ) : null}
                   </div>
-                  {activity.activo && item.activo ? (
+                  {activity.activo && item.activo && !isReadOnlyPwa ? (
                     <button
                       type="button"
                       onClick={() => void handleRemoveEnrollee(item.nomina)}
@@ -689,7 +692,7 @@ export function SpaceActivityDetailPage() {
         )}
       </article>
 
-      {activity.activo ? (
+      {activity.activo && !isReadOnlyPwa ? (
       <article className="rounded-xl border p-4" style={cardStyle}>
         <p className={`text-[12px] font-semibold ${textClass}`}>Agregar desde nómina</p>
         <label className="sr-only" htmlFor="nomina-activity-search">

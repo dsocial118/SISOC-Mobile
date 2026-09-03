@@ -26,6 +26,7 @@ import {
 } from '../../api/activitiesApi'
 import { appButtonClass, joinClasses } from '../../ui/buttons'
 import { ConfirmActionModal } from '../../ui/ConfirmActionModal'
+import { useAuth } from '../../auth/useAuth'
 import { usePageLoading } from '../../ui/PageLoadingContext'
 import { useAppTheme } from '../../ui/ThemeContext'
 
@@ -251,6 +252,8 @@ export function SpaceActivitiesPage() {
   const navigate = useNavigate()
   const { setPageLoading } = usePageLoading()
   const { isDark } = useAppTheme()
+  const { userProfile } = useAuth()
+  const isReadOnlyPwa = Boolean(userProfile?.isReadOnlyPwa)
   const isCreateRoute = /^\/app-org\/espacios\/\d+\/actividades\/nueva\/?$/.test(location.pathname)
 
   const [activities, setActivities] = useState<SpaceActivityItem[]>([])
@@ -730,7 +733,7 @@ export function SpaceActivitiesPage() {
 
   return (
     <section className="min-w-0 overflow-x-hidden pb-24">
-      {!isCreateRoute ? (
+      {!isCreateRoute && !isReadOnlyPwa ? (
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
@@ -744,7 +747,7 @@ export function SpaceActivitiesPage() {
         </div>
       ) : null}
 
-      {formOpen || isCreateRoute ? (
+      {formOpen || (isCreateRoute && !isReadOnlyPwa) ? (
         <>
           <h2 className={`mt-3 text-[16px] font-semibold ${textClass}`}>{panelTitle}</h2>
           <form
@@ -1267,7 +1270,7 @@ export function SpaceActivitiesPage() {
                                         )}
                                       </div>
 
-                                      {activity.activo ? (
+                                      {activity.activo && !isReadOnlyPwa ? (
                                         <div className="mt-3 flex justify-end gap-2">
                                           <button
                                             type="button"

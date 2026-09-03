@@ -12,6 +12,7 @@ export interface AuthUserProfile {
   fullName: string
   mustChangePassword: boolean
   permissions: string[]
+  isReadOnlyPwa: boolean
 }
 
 export interface AuthContextValue {

@@ -135,7 +135,7 @@ export function OrganizationNotificationsPage() {
 
   async function handleOpenNotification(item: GroupedNotificationItem) {
     const pendingUnreadItems = item.groupedItems.filter((row) => !row.message.visto)
-    if (pendingUnreadItems.length > 0) {
+    if (!userProfile?.isReadOnlyPwa && pendingUnreadItems.length > 0) {
       const settledResults = await Promise.allSettled(
         pendingUnreadItems.map(async (row) => {
           await markSpaceMessageAsSeen(row.spaceId, row.message.id)

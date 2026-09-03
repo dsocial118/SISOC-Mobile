@@ -8,7 +8,6 @@ import {
   MOBILE_RENDICION_PERMISSION,
   PWA_COLABORADORES_PERMISSION,
   PWA_NOMINA_PERMISSION,
-  PWA_USUARIOS_PERMISSION,
 } from '../auth/permissionCodes'
 import { ProtectedRoute } from '../auth/ProtectedRoute'
 import { AppLayout } from '../ui/AppLayout'
@@ -228,18 +227,9 @@ export function AppRouter() {
                 element={<SpaceRelevamientoDetailPage />}
               />
               <Route
-                element={
-                  <ProtectedRoute
-                    allowed={['org']}
-                    requiredPermissions={[PWA_USUARIOS_PERMISSION]}
-                  />
-                }
-              >
-                <Route
-                  path="espacios/:spaceId/informacion/usuarios"
-                  element={<SpaceUsersPage />}
-                />
-              </Route>
+                path="espacios/:spaceId/informacion/usuarios"
+                element={<SpaceUsersPage />}
+              />
               <Route
                 path="espacios/:spaceId/informacion/capacitaciones"
                 element={<SpaceCapacitacionesPage />}
@@ -332,6 +322,8 @@ export function AppRouter() {
               </Route>
               <Route path="mensajes" element={<OrganizationMessagesPage />} />
               <Route path="sincronizacion" element={<SyncCenterPage />} />
+              <Route path="rendicion" element={<RendicionContextPage />} />
+              <Route path="espacios/:spaceId/rendicion" element={<SpaceRendicionPage />} />
               <Route
                 element={
                   <ProtectedRoute
@@ -340,17 +332,15 @@ export function AppRouter() {
                   />
                 }
               >
-                <Route path="rendicion" element={<RendicionContextPage />} />
-                <Route path="espacios/:spaceId/rendicion" element={<SpaceRendicionPage />} />
                 <Route
                   path="espacios/:spaceId/rendicion/nueva"
                   element={<SpaceRendicionFormPage />}
                 />
-                <Route
-                  path="espacios/:spaceId/rendicion/:rendicionId"
-                  element={<SpaceRendicionDetailPage />}
-                />
               </Route>
+              <Route
+                path="espacios/:spaceId/rendicion/:rendicionId"
+                element={<SpaceRendicionDetailPage />}
+              />
             </Route>
           </Route>
 
